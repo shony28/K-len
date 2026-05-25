@@ -828,12 +828,12 @@ function scheduleHideDropdown() {
   }, 200);
 }
 
-function clearSearch() {
+function clearSearch(keepFocus = true) {
   const inp = document.getElementById('product-search');
   inp.value = '';
   document.getElementById('search-clear-btn').style.display = 'none';
   document.getElementById('search-dropdown').style.display = 'none';
-  inp.focus();
+  if (keepFocus) inp.focus();
 }
 
 // ── МОДАЛЬНИЙ ВИБІР ТОВАРУ З ФОТО ──────────────────────────────────────────
@@ -908,7 +908,7 @@ function pickProduct(productId) {
 function addToCart(productId) {
   if (_hideDropdownTimer) clearTimeout(_hideDropdownTimer);
   document.getElementById('search-dropdown').style.display = 'none';
-  clearSearch();
+  clearSearch(false);
 
   // Шукаємо товар у кеші
   const product = APP.stock.find(p => String(p.id) === String(productId));
