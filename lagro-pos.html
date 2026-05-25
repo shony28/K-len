@@ -847,6 +847,7 @@ function openProductPicker() {
 
 function closeProductPicker() {
   document.getElementById('product-picker-modal').style.display = 'none';
+  document.body.style.overflow = '';   // відновлюємо скрол і обробку дотиків
   document.getElementById('picker-search').value = '';
   renderPickerGrid('');
   // Знімаємо фокус з будь-якого активного елемента, щоб не відкривалась клавіатура
