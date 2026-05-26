@@ -1139,46 +1139,75 @@ function processSale() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Надсилання…';
 
-  const payload = { 
-    buyer: buyer, 
-    items: APP.cart.map(item => ({ id: item.id, qty: item.qty, price: item.price })), 
-    rawTotal: rawTotal, 
-    roundedTotal: roundedTotal 
+  // БАГ 3 виправлено: action йде в body, не в URL-параметр (doPost читає body.action)
+  // БАГ 4 виправлено: правильна структура { action, data: { cart, buyer, managerEmail, managerName } }
+  //         cart — повні об'єкти з name та unit, які потрібні GAS для запису
+  const payload = {
+    action: 'processSale',
+    data: {
+      cart: APP.cart.map(item => ({
+        id:    item.id,
+        name:  item.name,
+        unit:  item.unit,
+        price: item.price,
+        qty:   item.qty
+      })),
+      buyer:        buyer,
+      managerEmail: APP.user?.email || '',
+      managerName:  APP.user?.name  || ''
+    }
   };
-  
-  const url = `${API_URL}?action=processSale`;
 
-  fetch(url, {
+  // БАГ 1 виправлено: redirect:'follow' замість mode:'no-cors' (no-cors → відповідь непрозора)
+  // БАГ 2 виправлено: 'text/plain' обходить CORS preflight у Google Apps Script
+  fetch(API_URL, {
     method: 'POST',
-    mode: 'no-cors', 
-    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload)
   })
-  .then(() => {
-    // Оновлюємо текстові поля на екрані успіху
-    document.getElementById('success-raw-total').textContent = formatPrice(rawTotal) + ' ₴';
-    document.getElementById('success-rounded-total').textContent = formatPrice(roundedTotal) + ' ₴';
-    document.getElementById('success-date').textContent = new Date().toLocaleString('uk-UA');
-
-    // Очищаємо блоки розрахунку решти
-    document.getElementById('cash-received').value = '';
-    document.getElementById('change-amount').textContent = '— ₴';
-    document.getElementById('change-amount').style.color = '#22c55e';
-
-    // Показуємо екран успіху
-    document.getElementById('success-overlay').classList.add('show');
-
-    // ВИПРАВЛЕННЯ БАГУ: Очищаємо кошик напряму, БЕЗ викликання clearCart() з його confirm вікном
-    APP.cart = [];
-    renderCart();
-    refreshData(); // оновлюємо залишки складу
-  })
-  .catch(err => {
-    alert('❌ Помилка при проведенні продажу:\n' + err.message);
-  })
-  .finally(() => {
+  // БАГ 5 виправлено: парсимо JSON відповідь і перевіряємо res.success
+  .then(res => res.json())
+  .then(res => {
     btn.disabled = false;
     btn.innerHTML = origText;
+
+    if (res.success) {
+      // Оновлюємо локальний кеш залишків
+      APP.cart.forEach(cartItem => {
+        const stockItem = APP.stock.find(s => String(s.id) === String(cartItem.id));
+        if (stockItem) {
+          stockItem.qty = Math.max(0, Math.round((stockItem.qty - cartItem.qty) * 1000) / 1000);
+        }
+      });
+
+      // Оновлюємо текстові поля на екрані успіху
+      document.getElementById('success-raw-total').textContent = formatPrice(rawTotal) + ' ₴';
+      document.getElementById('success-rounded-total').textContent = formatPrice(roundedTotal) + ' ₴';
+      document.getElementById('success-date').textContent = res.data?.date || new Date().toLocaleString('uk-UA');
+
+      // Очищаємо блоки розрахунку решти
+      document.getElementById('cash-received').value = '';
+      document.getElementById('change-amount').textContent = '— ₴';
+      document.getElementById('change-amount').style.color = '#22c55e';
+
+      // Показуємо екран успіху
+      document.getElementById('success-overlay').classList.add('show');
+
+      // Очищаємо кошик напряму, БЕЗ confirm-вікна clearCart()
+      APP.cart = [];
+      renderCart();
+      refreshData(); // оновлюємо залишки складу
+    } else {
+      showToast('❌ ' + (res.error || 'Помилка проведення'), 'error');
+      alert('⚠️ Помилка:\n' + (res.error || 'Невідома помилка'));
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+    showToast('❌ Помилка мережі', 'error');
+    alert('❌ Помилка при проведенні продажу:\n' + (err.message || err));
   });
 }
 
