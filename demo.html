@@ -1117,49 +1117,44 @@ function updateCartTotal(changedProductId = null) {
 //  💳  ПРОВЕДЕННЯ ПРОДАЖУ
 // ────────────────────────────────────────────────────────────────────────────
 function processSale() {
-  if (APP.cart.length === 0) return;
-
   const btn = document.getElementById('btn-process-sale');
-  const origText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Обробка продажу…';
+  if (!btn || btn.disabled) return;
 
-  // 1. Обчислюємо точну і округлену суми
-  const rawTotal = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  let roundedTotal = rawTotal;
-  if (typeof kratno === 'number' && kratno > 0) {
-    roundedTotal = Math.round(rawTotal / kratno) * kratno;
+  if (APP.cart.length === 0) {
+    alert('❌ Кошик порожній!');
+    return;
   }
 
-  // Зберігаємо для розрахунку решти
-  currentSaleRoundedTotal = roundedTotal;
-
+  // Відновлюємо отримання покупця
   const buyer = document.getElementById('buyer-select').value;
   
-  // Формуємо дані для відправки на сервер
-  const payload = {
-    buyer: buyer,
-    items: APP.cart.map(item => ({
-      id: item.id,
-      qty: item.qty,
-      price: item.price
-    })),
-    rawTotal: rawTotal,
-    roundedTotal: roundedTotal
-  };
+  // Відновлюємо розрахунок сум, яких не вистачало для payload
+  const rawTotal = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const roundedTotal = Math.round(rawTotal / kratno) * kratno;
+  
+  // Оновлюємо суму для екрану решти
+  currentSaleRoundedTotal = roundedTotal;
 
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Надсилання…';
+
+  const payload = { 
+    buyer: buyer, 
+    items: APP.cart.map(item => ({ id: item.id, qty: item.qty, price: item.price })), 
+    rawTotal: rawTotal, 
+    roundedTotal: roundedTotal 
+  };
+  
   const url = `${API_URL}?action=processSale`;
 
   fetch(url, {
     method: 'POST',
-    mode: 'no-cors', // Якщо ваш Google Apps Script працює через no-cors
+    mode: 'no-cors', 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   })
   .then(() => {
-    // Оскільки використовується no-cors, відповідь ми не прочитаємо,
-    // але вважаємо операцію успішною (так побудовано логіку додатка)
-    
     // Оновлюємо текстові поля на екрані успіху
     document.getElementById('success-raw-total').textContent = formatPrice(rawTotal) + ' ₴';
     document.getElementById('success-rounded-total').textContent = formatPrice(roundedTotal) + ' ₴';
@@ -1172,9 +1167,10 @@ function processSale() {
 
     // Показуємо екран успіху
     document.getElementById('success-overlay').classList.add('show');
-    
-    // Очищаємо кошик
-    clearCart();
+
+    // ВИПРАВЛЕННЯ БАГУ: Очищаємо кошик напряму, БЕЗ викликання clearCart() з його confirm вікном
+    APP.cart = [];
+    renderCart();
     refreshData(); // оновлюємо залишки складу
   })
   .catch(err => {
