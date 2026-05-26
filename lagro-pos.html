@@ -1102,12 +1102,16 @@ function updateCartTotal(changedProductId = null) {
 
   // 3. Виводимо результат (з підказкою про заокруглення для касира)
   if (rawTotal !== roundedTotal) {
-    totalEl.innerHTML = `
-      <span style="font-size:1.1rem; color:#94a3b8; margin-right:8px; font-weight:700;">
-        ${formatPrice(rawTotal)}
+  totalEl.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+      <span style="font-size:1.3rem; color:#94a3b8; font-weight:700;">
+        ${formatPrice(rawTotal)} ₴
       </span>
-      ${formatPrice(roundedTotal)} ₴
-    `;
+      <span style="font-size:1.8rem; font-weight:900; color:#16a34a; line-height:1;">
+        ${formatPrice(roundedTotal)} ₴
+      </span>
+    </div>
+  `;
   } else {
     totalEl.textContent = formatPrice(roundedTotal) + ' ₴';
   }
