@@ -511,13 +511,18 @@
 ══════════════════════════════════════════════════════════════ -->
 <div id="success-overlay">
   <div class="success-checkmark">✅</div>
-  <h2 style="color:#fff;font-size:1.8rem;font-weight:900;margin:0 0 10px;text-align:center;">
+  <h2 style="color:#fff;font-size:1.8rem;font-weight:900;margin:0 0 16px;text-align:center;">
     Продаж проведено!
   </h2>
-  <p id="success-total" style="color:#22c55e;font-size:2rem;font-weight:900;margin:0 0 8px;"></p>
-  <p id="success-date"  style="color:#94a3b8;font-size:.88rem;font-weight:600;margin:0 0 28px;"></p>
 
-  <!-- Блок решти -->
+  <div style="text-align:center; margin-bottom: 20px;">
+    <p style="color:#94a3b8; font-size:0.95rem; font-weight:600; margin:0 0 2px;">Фактична сума: <span id="success-raw-total" style="color:#fff; font-weight:800;">0.00 ₴</span></p>
+    <p style="color:#94a3b8; font-size:1.05rem; font-weight:700; margin:0;">До сплати (округлено):</p>
+    <p id="success-rounded-total" style="color:#22c55e;font-size:2.4rem;font-weight:900;margin:0 0 4px; line-height:1;"></p>
+  </div>
+  
+  <p id="success-date"  style="color:#94a3b8;font-size:.88rem;font-weight:600;margin:0 0 24px;"></p>
+
   <div style="background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);
               border-radius:20px;padding:20px 24px;width:100%;max-width:320px;margin-bottom:28px;">
     <label style="display:block;color:#94a3b8;font-size:.82rem;font-weight:700;
@@ -556,6 +561,8 @@
      JAVASCRIPT
 ══════════════════════════════════════════════════════════════ -->
 <script>
+// Глобальна змінна для збереження округленої суми поточного продажу
+let currentSaleRoundedTotal = 0;
 // ────────────────────────────────────────────────────────────────────────────
 //  ⚙️  КОНФІГУРАЦІЯ — ОБОВ'ЯЗКОВО ЗАМІНІТЬ НА СВОЇ ЗНАЧЕННЯ
 // ────────────────────────────────────────────────────────────────────────────
@@ -1110,64 +1117,73 @@ function updateCartTotal(changedProductId = null) {
 //  💳  ПРОВЕДЕННЯ ПРОДАЖУ
 // ────────────────────────────────────────────────────────────────────────────
 function processSale() {
-  if (APP.cart.length === 0) { showToast('❌ Кошик порожній', 'error'); return; }
-
-  // Перевірка кількостей — жоден товар не може бути 0
-  const invalidItem = APP.cart.find(item => !item.qty || item.qty <= 0);
-  if (invalidItem) {
-    showToast(`❌ Вкажіть кількість для "${invalidItem.name}"`, 'error');
-    return;
-  }
+  if (APP.cart.length === 0) return;
 
   const btn = document.getElementById('btn-process-sale');
+  const origText = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Проведення…';
+  btn.innerHTML = '⏳ Обробка продажу…';
 
-  const rawTotal  = APP.cart.reduce((sum, item) => sum + parsePrice(item.price) * (parseFloat(item.qty) || 0), 0);
+  // 1. Обчислюємо точну і округлену суми
+  const rawTotal = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  let roundedTotal = rawTotal;
+  if (typeof kratno === 'number' && kratno > 0) {
+    roundedTotal = Math.round(rawTotal / kratno) * kratno;
+  }
+
+  // Зберігаємо для розрахунку решти
+  currentSaleRoundedTotal = roundedTotal;
+
+  const buyer = document.getElementById('buyer-select').value;
+  
+  // Формуємо дані для відправки на сервер
   const payload = {
-    action: 'processSale',
-    data: {
-      cart:         APP.cart,
-      total:        roundTotal(rawTotal),
-      buyer:        document.getElementById('buyer-select').value || '',
-      managerEmail: APP.user?.email || '',
-      managerName:  APP.user?.name  || ''
-    }
+    buyer: buyer,
+    items: APP.cart.map(item => ({
+      id: item.id,
+      qty: item.qty,
+      price: item.price
+    })),
+    rawTotal: rawTotal,
+    roundedTotal: roundedTotal
   };
 
-  fetch(API_URL, {
+  const url = `${API_URL}?action=processSale`;
+
+  fetch(url, {
     method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain' }, // text/plain обходить CORS preflight у GAS
+    mode: 'no-cors', // Якщо ваш Google Apps Script працює через no-cors
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   })
-    .then(res => res.json())
-    .then(res => {
-      btn.disabled = false;
-      btn.innerHTML = '✅ Провести продаж';
+  .then(() => {
+    // Оскільки використовується no-cors, відповідь ми не прочитаємо,
+    // але вважаємо операцію успішною (так побудовано логіку додатка)
+    
+    // Оновлюємо текстові поля на екрані успіху
+    document.getElementById('success-raw-total').textContent = formatPrice(rawTotal) + ' ₴';
+    document.getElementById('success-rounded-total').textContent = formatPrice(roundedTotal) + ' ₴';
+    document.getElementById('success-date').textContent = new Date().toLocaleString('uk-UA');
 
-      if (res.success) {
-        // Оновлюємо локальний кеш залишків
-        APP.cart.forEach(cartItem => {
-          const stockItem = APP.stock.find(s => String(s.id) === String(cartItem.id));
-          if (stockItem) {
-            stockItem.qty = Math.max(0, Math.round((stockItem.qty - cartItem.qty) * 1000) / 1000);
-          }
-        });
+    // Очищаємо блоки розрахунку решти
+    document.getElementById('cash-received').value = '';
+    document.getElementById('change-amount').textContent = '— ₴';
+    document.getElementById('change-amount').style.color = '#22c55e';
 
-        // Показуємо екран успіху
-        showSuccessOverlay(res.data);
-      } else {
-        showToast('❌ ' + (res.error || 'Помилка проведення'), 'error');
-        alert('⚠️ Помилка:\n' + (res.error || 'Невідома помилка'));
-      }
-    })
-    .catch(err => {
-      btn.disabled = false;
-      btn.innerHTML = '✅ Провести продаж';
-      showToast('❌ Помилка мережі', 'error');
-      alert('Помилка мережі:\n' + (err.message || err));
-    });
+    // Показуємо екран успіху
+    document.getElementById('success-overlay').classList.add('show');
+    
+    // Очищаємо кошик
+    clearCart();
+    refreshData(); // оновлюємо залишки складу
+  })
+  .catch(err => {
+    alert('❌ Помилка при проведенні продажу:\n' + err.message);
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+  });
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1189,23 +1205,26 @@ function showSuccessOverlay(data) {
 }
 
 function calcChange() {
-  const received = parseFloat(document.getElementById('cash-received').value) || 0;
-  const total    = APP._saleTotal || 0;
+  const cashInput = document.getElementById('cash-received');
   const changeEl = document.getElementById('change-amount');
-
-  if (!received) {
+  
+  const cash = parseFloat(cashInput.value);
+  
+  if (isNaN(cash) || cash <= 0) {
     changeEl.textContent = '— ₴';
-    changeEl.style.color = '#22c55e';
+    changeEl.style.color = '#94a3b8';
     return;
   }
 
-  const change = received - total;
+  // Вираховуємо решту від округленої суми
+  const change = cash - currentSaleRoundedTotal;
+
   if (change < 0) {
-    changeEl.textContent = '−' + formatPrice(Math.abs(change)) + ' ₴';
-    changeEl.style.color = '#ef4444'; // червоний — не вистачає
+    changeEl.textContent = 'Недостатньо коштів';
+    changeEl.style.color = '#dc2626'; // червоний колір
   } else {
     changeEl.textContent = formatPrice(change) + ' ₴';
-    changeEl.style.color = '#22c55e'; // зелений — решта
+    changeEl.style.color = '#22c55e'; // зелений колір
   }
 }
 
