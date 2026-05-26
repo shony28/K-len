@@ -593,7 +593,7 @@ window.addEventListener('DOMContentLoaded', () => {
       try {
         const savedCart = localStorage.getItem(LS_CART_KEY);
         if (savedCart) {
-          APP.cart = JSON.parse(savedCart);
+          APP.cart = JSON.parse(savedCart).map(p => ({ ...p, price: parsePrice(p.price), qty: parseFloat(p.qty) || 0 }));
         }
       } catch(e) { console.error(e); }
       // ----------------------------------
@@ -762,7 +762,7 @@ function loadInitialData(forceRefresh) {
     .then(res => res.json())
     .then(res => {
       if (res.success) {
-        APP.stock  = res.data.stock  || [];
+        APP.stock  = (res.data.stock || []).map(p => ({ ...p, price: parsePrice(p.price), qty: parseFloat(p.qty) || 0 }));
         APP.buyers = res.data.buyers || [];
         APP.dataLoaded = true;
 
@@ -963,7 +963,7 @@ function addToCart(productId) {
       id:    product.id,
       name:  product.name,
       unit:  product.unit,
-      price: parseFloat(product.price) || 0,
+      price: parsePrice(product.price),
       qty:   1
     });
   }
@@ -1087,7 +1087,7 @@ function updateCartTotal(changedProductId = null) {
   }
 
   // 2. Рахуємо загальну суму всього кошика
-  const rawTotal     = APP.cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0), 0);
+  const rawTotal     = APP.cart.reduce((sum, item) => sum + parsePrice(item.price) * (parseFloat(item.qty) || 0), 0);
   const roundedTotal = roundTotal(rawTotal);
   document.getElementById('cart-total').textContent = formatPrice(roundedTotal) + ' ₴';
 }
@@ -1109,7 +1109,7 @@ function processSale() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Проведення…';
 
-  const rawTotal  = APP.cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0), 0);
+  const rawTotal  = APP.cart.reduce((sum, item) => sum + parsePrice(item.price) * (parseFloat(item.qty) || 0), 0);
   const payload = {
     action: 'processSale',
     data: {
@@ -1278,6 +1278,12 @@ function showToast(msg, type) {
 function formatPrice(val) {
   const n = parseFloat(val) || 0;
   return n.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Парсить ціну з будь-якого формату: "45,00" / "45.00" / 45 → 45 */
+function parsePrice(val) {
+  if (typeof val === 'number') return val;
+  return parseFloat(String(val).replace(',', '.')) || 0;
 }
 
 /** Округлює суму чеку кратно kratno за стандартними правилами (197.4→195, 197.5→200) */
