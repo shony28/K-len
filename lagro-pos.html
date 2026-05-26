@@ -514,7 +514,13 @@
   <h2 style="color:#fff;font-size:1.8rem;font-weight:900;margin:0 0 10px;text-align:center;">
     Продаж проведено!
   </h2>
-  <p id="success-total" style="color:#22c55e;font-size:2rem;font-weight:900;margin:0 0 8px;"></p>
+  <!-- Блок цін: rawTotal + roundedTotal -->
+  <div style="text-align:center;margin:0 0 8px;">
+    <p id="success-total" style="color:#22c55e;font-size:2.2rem;font-weight:900;margin:0 0 4px;line-height:1.1;"></p>
+    <p id="success-raw-total" style="color:#64748b;font-size:1rem;font-weight:700;margin:0;display:none;">
+      без округлення: <span id="success-raw-total-value" style="color:#94a3b8;"></span>
+    </p>
+  </div>
   <p id="success-date"  style="color:#94a3b8;font-size:.88rem;font-weight:600;margin:0 0 28px;"></p>
 
   <!-- Блок решти -->
@@ -567,7 +573,7 @@ const LS_CART_KEY = 'posApp_cart_v1';
 //  ⚙️  НАЛАШТУВАННЯ ОКРУГЛЕННЯ СУМИ ЧЕКУ
 //  kratno — до якого кроку округлювати (5 → 195, 200, 205…)
 // ────────────────────────────────────────────────────────────────────────────
-const kratno = 1;   // крок кратності, грн
+const kratno = 5;   // крок кратності, грн
 
 // ────────────────────────────────────────────────────────────────────────────
 //  📦  СТАН ДОДАТКУ
@@ -1156,7 +1162,7 @@ function processSale() {
         });
 
         // Показуємо екран успіху
-        showSuccessOverlay(res.data);
+        showSuccessOverlay(res.data, rawTotal);
       } else {
         showToast('❌ ' + (res.error || 'Помилка проведення'), 'error');
         alert('⚠️ Помилка:\n' + (res.error || 'Невідома помилка'));
@@ -1173,11 +1179,28 @@ function processSale() {
 // ────────────────────────────────────────────────────────────────────────────
 //  🎉  УСПІШНИЙ OVERLAY
 // ────────────────────────────────────────────────────────────────────────────
-function showSuccessOverlay(data) {
-  document.getElementById('success-total').textContent = formatPrice(data.total) + ' ₴';
-  document.getElementById('success-date').textContent  = data.date || '';
-  // Зберігаємо суму чеку для розрахунку решти
-  APP._saleTotal = parseFloat(data.total) || 0;
+function showSuccessOverlay(data, rawTotal) {
+  const roundedTotal = parseFloat(data.total) || 0;
+  const raw          = (rawTotal !== undefined) ? rawTotal : roundedTotal;
+
+  // Показуємо округлену суму (головна)
+  document.getElementById('success-total').textContent = formatPrice(roundedTotal) + ' ₴';
+
+  // Показуємо неокруглену суму лише якщо відрізняється
+  const rawEl    = document.getElementById('success-raw-total');
+  const rawValEl = document.getElementById('success-raw-total-value');
+  if (Math.abs(raw - roundedTotal) >= 0.005) {
+    rawValEl.textContent = formatPrice(raw) + ' ₴';
+    rawEl.style.display  = '';
+  } else {
+    rawEl.style.display  = 'none';
+  }
+
+  document.getElementById('success-date').textContent = data.date || '';
+
+  // Зберігаємо ОКРУГЛЕНУ суму для розрахунку решти
+  APP._saleTotal = roundedTotal;
+
   // Скидаємо поле
   const cashInput = document.getElementById('cash-received');
   cashInput.value = '';
