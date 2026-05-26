@@ -1096,7 +1096,7 @@ function updateCartTotal(changedProductId = null) {
   // 3. Виводимо результат (з підказкою про заокруглення для касира)
   if (rawTotal !== roundedTotal) {
     totalEl.innerHTML = `
-      <span style="font-size:1.1rem; color:#94a3b8; text-decoration:line-through; margin-right:8px; font-weight:700;">
+      <span style="font-size:1.1rem; color:#94a3b8; margin-right:8px; font-weight:700;">
         ${formatPrice(rawTotal)}
       </span>
       ${formatPrice(roundedTotal)} ₴
