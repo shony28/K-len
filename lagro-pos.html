@@ -1292,10 +1292,12 @@ function formatPrice(val) {
  *   103   → 105,  104   → 105,  105   → 105
  */
 function roundTotal(amount) {
-  const remainder = amount % kratno;
+  // Спочатку округлюємо до копійок, щоб уникнути float-помилок (напр. 102.5 % 5 = 2.4999...)
+  const a = Math.round(amount * 100) / 100;
+  const remainder = Math.round((a % kratno) * 1000) / 1000;
   return remainder < pravulo_zaokr
-    ? amount - remainder          // округлення вниз
-    : amount - remainder + kratno; // округлення вгору
+    ? Math.round((a - remainder) * 100) / 100          // округлення вниз
+    : Math.round((a - remainder + kratno) * 100) / 100; // округлення вгору
 }
 
 /** Форматує кількість: 1.000 → "1", 1.350 → "1.35" */
@@ -1467,13 +1469,13 @@ function _handleScanResult(code) {
     statusEl.textContent = '✅ Додано: ' + product.name;
     setTimeout(() => {
       if (_scannerRunning) statusEl.textContent = 'Сканер активний — наведіть на штрих-код';
-    }, 1500);
+    }, 2500);
   } else {
     statusEl.textContent = '❌ Не знайдено: ' + trimmed;
     showToast('❌ Штрих-код «' + trimmed + '» не знайдено', 'error');
     setTimeout(() => {
       if (_scannerRunning) statusEl.textContent = 'Сканер активний — наведіть на штрих-код';
-    }, 1500);
+    }, 2500);
   }
 }
 </script>
