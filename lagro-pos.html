@@ -564,6 +564,15 @@ const LS_KEY  = 'posApp_user_v1'; // ключ для LocalStorage
 const LS_CART_KEY = 'posApp_cart_v1';
 
 // ────────────────────────────────────────────────────────────────────────────
+//  ⚙️  НАЛАШТУВАННЯ ОКРУГЛЕННЯ СУМИ ЧЕКУ
+//  kratno       — до якого кроку округлювати (5 → 100, 105, 110, 115…)
+//  pravulo_zaokr — залишок починаючи з якого іде округлення ВГору
+//                  (3 → залишок 0,1,2 → вниз; залишок 3,4 → вгору)
+// ────────────────────────────────────────────────────────────────────────────
+const kratno        = 5;   // крок кратності, грн
+const pravulo_zaokr = 3;   // межа залишку для округлення вгору
+
+// ────────────────────────────────────────────────────────────────────────────
 //  📦  СТАН ДОДАТКУ
 // ────────────────────────────────────────────────────────────────────────────
 const APP = {
@@ -1081,8 +1090,9 @@ function updateCartTotal(changedProductId = null) {
   }
 
   // 2. Рахуємо загальну суму всього кошика
-  const total = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  document.getElementById('cart-total').textContent = formatPrice(total) + ' ₴';
+  const rawTotal     = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const roundedTotal = roundTotal(rawTotal);
+  document.getElementById('cart-total').textContent = formatPrice(roundedTotal) + ' ₴';
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1102,10 +1112,12 @@ function processSale() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Проведення…';
 
+  const rawTotal  = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const payload = {
     action: 'processSale',
     data: {
       cart:         APP.cart,
+      total:        roundTotal(rawTotal),
       buyer:        document.getElementById('buyer-select').value || '',
       managerEmail: APP.user?.email || '',
       managerName:  APP.user?.name  || ''
@@ -1269,6 +1281,21 @@ function showToast(msg, type) {
 function formatPrice(val) {
   const n = parseFloat(val) || 0;
   return n.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Округлює суму чеку кратно `kratno` з межею `pravulo_zaokr`.
+ * Залишок від ділення < pravulo_zaokr  → вниз (floor)
+ * Залишок від ділення >= pravulo_zaokr → вгору (ceil)
+ * Приклад (kratno=5, pravulo_zaokr=3):
+ *   101   → 100,  102   → 100,  102.9 → 100
+ *   103   → 105,  104   → 105,  105   → 105
+ */
+function roundTotal(amount) {
+  const remainder = amount % kratno;
+  return remainder < pravulo_zaokr
+    ? amount - remainder          // округлення вниз
+    : amount - remainder + kratno; // округлення вгору
 }
 
 /** Форматує кількість: 1.000 → "1", 1.350 → "1.35" */
