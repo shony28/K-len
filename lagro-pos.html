@@ -1075,7 +1075,8 @@ function renderCart() {
 
 function updateCartTotal(changedProductId = null) {
   saveCartToStorage();
-  // 1. Якщо передано ID зміненого товару — оновлюємо суму суто для нього
+  
+  // 1. Оновлюємо суму конкретного товару, якщо змінилась кількість
   if (changedProductId) {
     const item = APP.cart.find(c => String(c.id) === String(changedProductId));
     if (item) {
@@ -1087,9 +1088,22 @@ function updateCartTotal(changedProductId = null) {
   }
 
   // 2. Рахуємо загальну суму всього кошика
-  const rawTotal     = APP.cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0), 0);
-  const roundedTotal = roundTotal(isFinite(rawTotal) ? rawTotal : 0);
-  document.getElementById('cart-total').textContent = formatPrice(roundedTotal) + ' ₴';
+  const rawTotal     = APP.cart.reduce((sum, item) => sum + parsePrice(item.price) * (parseFloat(item.qty) || 0), 0);
+  const roundedTotal = roundTotal(rawTotal); // Застосовуємо kratno
+  
+  const totalEl = document.getElementById('cart-total');
+
+  // 3. Виводимо результат (з підказкою про заокруглення для касира)
+  if (rawTotal !== roundedTotal) {
+    totalEl.innerHTML = `
+      <span style="font-size:1.1rem; color:#94a3b8; text-decoration:line-through; margin-right:8px; font-weight:700;">
+        ${formatPrice(rawTotal)}
+      </span>
+      ${formatPrice(roundedTotal)} ₴
+    `;
+  } else {
+    totalEl.textContent = formatPrice(roundedTotal) + ' ₴';
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1281,9 +1295,11 @@ function formatPrice(val) {
 }
 
 /** Парсить ціну з будь-якого формату: "45,00" / "45.00" / 45 → 45 */
+/** Парсить ціну: "1 234,50" / "45.00" / 45 → 1234.5 */
 function parsePrice(val) {
   if (typeof val === 'number') return val;
-  return parseFloat(String(val).replace(',', '.')) || 0;
+  // Видаляємо всі пробіли (звичайні та нерозривні), а кому міняємо на крапку
+  return parseFloat(String(val).replace(/[\s\xA0\u202F]/g, '').replace(',', '.')) || 0;
 }
 
 /** Округлює суму чеку кратно kratno за стандартними правилами (197.4→195, 197.5→200) */
