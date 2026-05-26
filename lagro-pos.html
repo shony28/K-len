@@ -875,7 +875,7 @@ function renderPickerGrid(query) {
     const stockColor = p.qty <= 0 ? '#dc2626' : p.qty < 3 ? '#ca8a04' : '#16a34a';
     const imgHtml = p.imgUrl
       ? `<img src="${escHtml(p.imgUrl)}" alt="${escHtml(p.name)}"
-           style="width:100%;height:100px;object-fit:cover;border-radius:8px;margin-bottom:8px;
+           style="height:100px;object-fit:cover;border-radius:8px;margin-bottom:8px;
                   background:#f1f5f9;" onerror="this.style.display='none'">`
       : `<div style="width:100%;height:100px;background:#f1f5f9;border-radius:8px;margin-bottom:8px;
                      display:flex;align-items:center;justify-content:center;font-size:2rem;">🛒</div>`;
