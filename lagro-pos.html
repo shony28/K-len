@@ -1087,8 +1087,8 @@ function updateCartTotal(changedProductId = null) {
   }
 
   // 2. Рахуємо загальну суму всього кошика
-  const rawTotal     = APP.cart.reduce((sum, item) => sum + parsePrice(item.price) * (parseFloat(item.qty) || 0), 0);
-  const roundedTotal = roundTotal(rawTotal);
+  const rawTotal     = APP.cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0), 0);
+  const roundedTotal = roundTotal(isFinite(rawTotal) ? rawTotal : 0);
   document.getElementById('cart-total').textContent = formatPrice(roundedTotal) + ' ₴';
 }
 
