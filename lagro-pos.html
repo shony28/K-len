@@ -1426,8 +1426,7 @@ function _handleScanResult(code) {
   const product = APP.stock.find(p => p.barcode && String(p.barcode).trim() === trimmed);
 
   if (product) {
-    addToCart(product);
-    showToast('✅ ' + product.name + ' — додано до кошика', 'success');
+    addToCart(product.id);
   } else {
     showToast('❌ Товар зі штрих-кодом «' + trimmed + '» не знайдено', 'error');
   }
