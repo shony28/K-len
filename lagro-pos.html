@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Каса | Клен-Термінал</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -236,6 +237,27 @@
     .badge-ok      { background: #dcfce7; color: #16a34a; }
     .badge-low     { background: #fef9c3; color: #ca8a04; }
     .badge-empty   { background: #fee2e2; color: #dc2626; }
+
+    /* ── QR СКАНЕР МОДАЛ ── */
+    #scanner-modal {
+      display: none; position: fixed; inset: 0; z-index: 9998;
+      background: rgba(0,0,0,.7); align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    #scanner-modal.open { display: flex; }
+    #scanner-inner {
+      background: #fff; border-radius: 20px; width: 100%; max-width: 440px;
+      padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+    #qr-reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+    #qr-reader video { border-radius: 12px; }
+    #scan-status {
+      margin-top: 12px; padding: 10px 14px; background: #f1f5f9;
+      border-radius: 10px; font-size: .85rem; color: #64748b;
+      font-weight: 600; text-align: center; min-height: 38px;
+    }
+    #scan-torch-btn { background: #6c757d; color: #fff; }
+    #scan-torch-btn.active { background: #ffc107; color: #212529; }
   </style>
 </head>
 <body>
@@ -364,11 +386,18 @@
       <div class="card" style="padding:16px;margin-bottom:14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <label style="font-weight:800;color:#1e293b;font-size:.9rem;">🔍 Пошук товару</label>
-            <button onclick="openProductPicker()"
-              style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:6px 14px;
-                     font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
-              🖼️ Вибрати
-            </button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button onclick="openScannerModal()"
+                style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;
+                       font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                📷 Сканер
+              </button>
+              <button onclick="openProductPicker()"
+                style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:6px 14px;
+                       font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                🖼️ Вибрати
+              </button>
+            </div>
           </div>
         <div style="position:relative;">
           <input
@@ -1255,7 +1284,183 @@ function escHtml(str) {
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[m]));
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+//  📷  QR / ШТРИХ-КОД СКАНЕР
+// ────────────────────────────────────────────────────────────────────────────
+let _scanner        = null;   // екземпляр Html5Qrcode
+let _scannerRunning = false;
+let _scanVideoTrack = null;
+let _scanTorchOn    = false;
+let _scanTorchOk    = false;
+
+const _scanAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function _scanBeep() {
+  const osc  = _scanAudioCtx.createOscillator();
+  const gain = _scanAudioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(_scanAudioCtx.destination);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1800, _scanAudioCtx.currentTime);
+  gain.gain.setValueAtTime(0.5, _scanAudioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, _scanAudioCtx.currentTime + 0.15);
+  osc.start(_scanAudioCtx.currentTime);
+  osc.stop(_scanAudioCtx.currentTime + 0.15);
+}
+
+function openScannerModal() {
+  document.getElementById('scanner-modal').classList.add('open');
+}
+
+function closeScannerModal() {
+  scannerStop();
+  document.getElementById('scanner-modal').classList.remove('open');
+}
+
+async function scannerStart() {
+  if (_scannerRunning) return;
+
+  // Ліниво створюємо екземпляр
+  if (!_scanner) {
+    _scanner = new Html5Qrcode('qr-reader');
+  }
+
+  const startBtn = document.getElementById('scan-start-btn');
+  const stopBtn  = document.getElementById('scan-stop-btn');
+  const statusEl = document.getElementById('scan-status');
+
+  startBtn.disabled = true;
+  stopBtn.disabled  = false;
+  statusEl.textContent = 'Камера запускається…';
+
+  try {
+    await _scanner.start(
+      { facingMode: 'environment' },
+      { fps: 30, qrbox: { width: 240, height: 160 } },
+      (decodedText) => {
+        if (!_scannerRunning) return;
+        _scannerRunning = false;
+        _scanBeep();
+        _handleScanResult(decodedText);
+      },
+      () => {} // помилки розпізнавання — ігнорувати
+    );
+    _scannerRunning = true;
+    statusEl.textContent = 'Сканер активний — наведіть на штрих-код';
+
+    // Перевіряємо підтримку ліхтарика
+    setTimeout(() => {
+      const vid = document.querySelector('#qr-reader video');
+      if (vid?.srcObject) {
+        const tracks = vid.srcObject.getVideoTracks();
+        if (tracks.length) {
+          _scanVideoTrack = tracks[0];
+          const cap = _scanVideoTrack.getCapabilities();
+          const torchBtn = document.getElementById('scan-torch-btn');
+          torchBtn.style.display = 'inline-flex';
+          if (cap.torch) {
+            _scanTorchOk = true;
+            torchBtn.disabled = false;
+          } else {
+            torchBtn.disabled = true;
+            torchBtn.title = 'Ліхтарик не підтримується';
+          }
+        }
+      }
+    }, 900);
+
+  } catch (err) {
+    _scannerRunning = false;
+    startBtn.disabled = false;
+    stopBtn.disabled  = true;
+    statusEl.textContent = 'Помилка камери: ' + (err.message || err);
+  }
+}
+
+async function scannerStop() {
+  const startBtn = document.getElementById('scan-start-btn');
+  const stopBtn  = document.getElementById('scan-stop-btn');
+  const torchBtn = document.getElementById('scan-torch-btn');
+
+  // Вимикаємо ліхтарик
+  if (_scanTorchOn && _scanVideoTrack) {
+    try { await _scanVideoTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch(e) {}
+  }
+  _scanTorchOn = false; _scanTorchOk = false; _scanVideoTrack = null;
+  torchBtn.style.display = 'none';
+  torchBtn.classList.remove('active');
+  torchBtn.textContent = '🔦 Ліхтарик';
+
+  if (_scanner) {
+    try { await _scanner.stop(); } catch(e) {}
+  }
+  _scannerRunning = false;
+  startBtn.disabled = false;
+  stopBtn.disabled  = true;
+  document.getElementById('scan-status').textContent = 'Сканер зупинено.';
+}
+
+async function scannerToggleTorch() {
+  if (!_scanTorchOk || !_scanVideoTrack) return;
+  try {
+    _scanTorchOn = !_scanTorchOn;
+    await _scanVideoTrack.applyConstraints({ advanced: [{ torch: _scanTorchOn }] });
+    const btn = document.getElementById('scan-torch-btn');
+    btn.textContent = _scanTorchOn ? '🔦 ВКЛ' : '🔦 Ліхтарик';
+    btn.classList.toggle('active', _scanTorchOn);
+  } catch(e) {
+    document.getElementById('scan-status').textContent = 'Помилка ліхтарика';
+  }
+}
+
+/**
+ * Обробляє успішне сканування: шукає товар за штрих-кодом у APP.stock,
+ * додає до кошика і закриває сканер.
+ */
+function _handleScanResult(code) {
+  scannerStop();
+  closeScannerModal();
+
+  const trimmed = String(code).trim();
+  const product = APP.stock.find(p => p.barcode && String(p.barcode).trim() === trimmed);
+
+  if (product) {
+    addToCart(product);
+    showToast('✅ ' + product.name + ' — додано до кошика', 'success');
+  } else {
+    showToast('❌ Товар зі штрих-кодом «' + trimmed + '» не знайдено', 'error');
+  }
+}
 </script>
+<!-- ══ МОДАЛЬНЕ ВІКНО: QR / ШТРИХ-КОД СКАНЕР ══ -->
+<div id="scanner-modal">
+  <div id="scanner-inner">
+    <!-- Шапка -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <span style="font-weight:800;font-size:1.05rem;color:#1e293b;">📷 Сканер штрих-коду</span>
+      <button onclick="closeScannerModal()"
+        style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
+    </div>
+
+    <!-- Область камери -->
+    <div id="qr-reader"></div>
+
+    <!-- Статус -->
+    <div id="scan-status">Натисніть «Запустити» для початку сканування</div>
+
+    <!-- Кнопки управління -->
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;flex-wrap:wrap;">
+      <button id="scan-start-btn" onclick="scannerStart()"
+        class="btn btn-blue btn-sm">▶ Запустити</button>
+      <button id="scan-torch-btn" onclick="scannerToggleTorch()"
+        class="btn btn-sm" style="display:none;">🔦 Ліхтарик</button>
+      <button id="scan-stop-btn" onclick="scannerStop()" disabled
+        class="btn btn-sm btn-gray">⏹ Зупинити</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ МОДАЛЬНЕ ВІКНО: ВИБІР ТОВАРУ З ФОТО ══ -->
 <div id="product-picker-modal"
   style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);
