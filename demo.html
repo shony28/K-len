@@ -1244,10 +1244,10 @@ function calcChange() {
   // Вираховуємо решту від округленої суми
   const change = cash - currentSaleRoundedTotal;
 
-  if (change < 0) {
-    changeEl.textContent = 'Недостатньо коштів';
-    changeEl.style.color = '#dc2626'; // червоний колір
-  } else {
+if (change < 0) {
+    changeEl.textContent = formatPrice(change) + ' ₴';
+    changeEl.style.color = '#dc2626';
+} else {
     changeEl.textContent = formatPrice(change) + ' ₴';
     changeEl.style.color = '#22c55e'; // зелений колір
   }
