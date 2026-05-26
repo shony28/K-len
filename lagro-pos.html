@@ -1340,8 +1340,6 @@ async function scannerStart() {
       { fps: 30, qrbox: { width: 240, height: 160 } },
       (decodedText) => {
         if (!_scannerRunning) return;
-        _scannerRunning = false;
-        _scanBeep();
         _handleScanResult(decodedText);
       },
       () => {} // помилки розпізнавання — ігнорувати
@@ -1416,19 +1414,39 @@ async function scannerToggleTorch() {
 
 /**
  * Обробляє успішне сканування: шукає товар за штрих-кодом у APP.stock,
- * додає до кошика і закриває сканер.
+ * додає до кошика. Сканер НЕ закривається — продовжує роботу.
+ * Debounce 2 с запобігає повторному спрацюванню одного коду.
  */
-function _handleScanResult(code) {
-  scannerStop();
-  closeScannerModal();
+let _lastScannedCode = null;
+let _scanDebounceTimer = null;
 
+function _handleScanResult(code) {
   const trimmed = String(code).trim();
+
+  // Ігноруємо той самий код протягом 2 секунд
+  if (trimmed === _lastScannedCode) return;
+  _lastScannedCode = trimmed;
+  clearTimeout(_scanDebounceTimer);
+  _scanDebounceTimer = setTimeout(() => { _lastScannedCode = null; }, 2000);
+
+  _scanBeep();
+  _scannerRunning = true; // залишаємо сканер активним
+
   const product = APP.stock.find(p => p.barcode && String(p.barcode).trim() === trimmed);
+  const statusEl = document.getElementById('scan-status');
 
   if (product) {
     addToCart(product.id);
+    statusEl.textContent = '✅ Додано: ' + product.name;
+    setTimeout(() => {
+      if (_scannerRunning) statusEl.textContent = 'Сканер активний — наведіть на штрих-код';
+    }, 1500);
   } else {
-    showToast('❌ Товар зі штрих-кодом «' + trimmed + '» не знайдено', 'error');
+    statusEl.textContent = '❌ Не знайдено: ' + trimmed;
+    showToast('❌ Штрих-код «' + trimmed + '» не знайдено', 'error');
+    setTimeout(() => {
+      if (_scannerRunning) statusEl.textContent = 'Сканер активний — наведіть на штрих-код';
+    }, 1500);
   }
 }
 </script>
