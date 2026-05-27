@@ -442,15 +442,23 @@
         </p>
       </div>
 
-      <!-- Покупець -->
-      <div class="card" style="padding:16px;margin-bottom:14px;">
-        <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:8px;font-size:.9rem;">
-          👤 Покупець (необов'язково)
-        </label>
-        <select class="sel" id="buyer-select">
-          <option value="">Роздрібний покупець</option>
-        </select>
-      </div>
+    <!-- Покупець + Оплата -->
+    <div class="card" style="padding:16px;margin-bottom:14px;">
+      <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:8px;font-size:.9rem;">
+        👤 Покупець (необов'язково)
+      </label>
+      <select class="sel" id="buyer-select">
+        <option value="">Роздрібний покупець</option>
+      </select>
+
+      <label style="display:block;font-weight:800;color:#1e293b;margin:14px 0 8px;font-size:.9rem;">
+        💳 Оплата
+      </label>
+      <select class="sel" id="payment-select">
+        <option value="Готівка" selected>💵 Готівка</option>
+        <option value="Карта">💳 Карта</option>
+      </select>
+    </div>
 
       <!-- Підсумок + кнопка -->
       <div class="card" style="padding:20px;margin-bottom:16px;">
@@ -1129,23 +1137,18 @@ function processSale() {
     return;
   }
 
-  // Відновлюємо отримання покупця
   const buyer = document.getElementById('buyer-select').value;
-  
-  // Відновлюємо розрахунок сум, яких не вистачало для payload
+  const paymentMethod = document.getElementById('payment-select')?.value || 'Готівка';
+
   const rawTotal = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const roundedTotal = Math.round(rawTotal / kratno) * kratno;
-  
-  // Оновлюємо суму для екрану решти
+
   currentSaleRoundedTotal = roundedTotal;
 
   const origText = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Надсилання…';
 
-  // БАГ 3 виправлено: action йде в body, не в URL-параметр (doPost читає body.action)
-  // БАГ 4 виправлено: правильна структура { action, data: { cart, buyer, managerEmail, managerName } }
-  //         cart — повні об'єкти з name та unit, які потрібні GAS для запису
   const payload = {
     action: 'processSale',
     data: {
@@ -1156,28 +1159,25 @@ function processSale() {
         price: item.price,
         qty:   item.qty
       })),
-      buyer:        buyer,
-      managerEmail: APP.user?.email || '',
-      managerName:  APP.user?.name  || ''
+      buyer:          buyer,
+      paymentMethod:  paymentMethod,
+      managerEmail:   APP.user?.email || '',
+      managerName:    APP.user?.name  || ''
     }
   };
 
-  // БАГ 1 виправлено: redirect:'follow' замість mode:'no-cors' (no-cors → відповідь непрозора)
-  // БАГ 2 виправлено: 'text/plain' обходить CORS preflight у Google Apps Script
   fetch(API_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload)
   })
-  // БАГ 5 виправлено: парсимо JSON відповідь і перевіряємо res.success
   .then(res => res.json())
   .then(res => {
     btn.disabled = false;
     btn.innerHTML = origText;
 
     if (res.success) {
-      // Оновлюємо локальний кеш залишків
       APP.cart.forEach(cartItem => {
         const stockItem = APP.stock.find(s => String(s.id) === String(cartItem.id));
         if (stockItem) {
@@ -1185,23 +1185,19 @@ function processSale() {
         }
       });
 
-      // Оновлюємо текстові поля на екрані успіху
       document.getElementById('success-raw-total').textContent = formatPrice(rawTotal) + ' ₴';
       document.getElementById('success-rounded-total').textContent = formatPrice(roundedTotal) + ' ₴';
       document.getElementById('success-date').textContent = res.data?.date || new Date().toLocaleString('uk-UA');
 
-      // Очищаємо блоки розрахунку решти
       document.getElementById('cash-received').value = '';
       document.getElementById('change-amount').textContent = '— ₴';
       document.getElementById('change-amount').style.color = '#22c55e';
 
-      // Показуємо екран успіху
       document.getElementById('success-overlay').classList.add('show');
 
-      // Очищаємо кошик напряму, БЕЗ confirm-вікна clearCart()
       APP.cart = [];
       renderCart();
-      refreshData(); // оновлюємо залишки складу
+      refreshData();
     } else {
       showToast('❌ ' + (res.error || 'Помилка проведення'), 'error');
       alert('⚠️ Помилка:\n' + (res.error || 'Невідома помилка'));
