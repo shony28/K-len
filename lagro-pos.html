@@ -447,7 +447,7 @@
       <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:8px;font-size:.9rem;">
         👤 Покупець (необов'язково)
       </label>
-      <select class="sel" id="buyer-select">
+      <select class="sel" id="buyer-select" onchange="onBuyerChange()">
         <option value="">Роздрібний покупець</option>
       </select>
 
@@ -777,7 +777,7 @@ function loadInitialData(forceRefresh) {
     .then(res => res.json())
     .then(res => {
       if (res.success) {
-        APP.stock  = (res.data.stock || []).map(p => ({ ...p, price: parsePrice(p.price), qty: parseFloat(p.qty) || 0 }));
+        APP.stock  = (res.data.stock || []).map(p => ({ ...p, price: parsePrice(p.price), wholesalePrice: parsePrice(p.wholesalePrice), qty: parseFloat(p.qty) || 0 }));
         APP.buyers = res.data.buyers || [];
         APP.dataLoaded = true;
 
@@ -809,10 +809,39 @@ function populateBuyerSelect() {
   sel.innerHTML = '<option value="">Роздрібний покупець</option>';
   APP.buyers.forEach(b => {
     const opt = document.createElement('option');
-    opt.value = b; opt.textContent = b;
+    opt.value = b.name;
+    opt.textContent = b.isOpt ? b.name + ' (опт)' : b.name;
+    if (b.isOpt) opt.style.color = '#7c3aed';
     sel.appendChild(opt);
   });
   if (current) sel.value = current;
+}
+
+/** Повертає true, якщо вибраний покупець є оптовим */
+function isCurrentBuyerOpt() {
+  const buyerName = document.getElementById('buyer-select').value;
+  if (!buyerName) return false;
+  const buyer = APP.buyers.find(b => b.name === buyerName);
+  return buyer ? buyer.isOpt : false;
+}
+
+/** Повертає правильну ціну товару залежно від типу покупця */
+function getItemPrice(product) {
+  if (isCurrentBuyerOpt() && parsePrice(product.wholesalePrice) > 0) {
+    return parsePrice(product.wholesalePrice);
+  }
+  return parsePrice(product.price);
+}
+
+/** Викликається при зміні покупця — перераховує ціни у кошику */
+function onBuyerChange() {
+  APP.cart.forEach(cartItem => {
+    const stockItem = APP.stock.find(s => String(s.id) === String(cartItem.id));
+    if (stockItem) {
+      cartItem.price = getItemPrice(stockItem);
+    }
+  });
+  renderCart();
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -978,7 +1007,7 @@ function addToCart(productId) {
       id:    product.id,
       name:  product.name,
       unit:  product.unit,
-      price: parsePrice(product.price),
+      price: getItemPrice(product),
       qty:   1
     });
   }
