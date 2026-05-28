@@ -3,7 +3,8 @@ const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  // Сюди можна додати локальні картинки чи стилі, якщо вони є в папці
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 // Інсталяція Service Worker та кешування базових файлів
