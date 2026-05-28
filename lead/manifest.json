@@ -1,0 +1,22 @@
+{
+  "short_name": "Трафік",
+  "name": "Облік трафіку та реклами",
+  "description": "Система обліку вхідного трафіку клієнтів та ефективності реклами",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "https://k-len.pp.ua/lead/",
+  "background_color": "#f1f5f9",
+  "theme_color": "#1e293b",
+  "display": "standalone",
+  "orientation": "portrait"
+}
