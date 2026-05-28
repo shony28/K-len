@@ -4,12 +4,12 @@
   "description": "Мобільний термінал каси для К'Лен",
   "icons": [
     {
-      "src": "https://img.icons8.com/fluid/192/shopping-pos-terminal.png",
+      "src": "./icons/icon-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "https://img.icons8.com/fluid/512/shopping-pos-terminal.png",
+      "src": "./icons/icon-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
