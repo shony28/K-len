@@ -1,0 +1,22 @@
+{
+  "short_name": "Завдання",
+  "name": "Менеджер завдань маркетингу",
+  "description": "Корпоративна система розподілу, контролю та відстеження виконання робочих завдань",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "https://k-len.pp.ua/robota/marketing/",
+  "background_color": "#f4f4f9",
+  "theme_color": "#f4f4f9",
+  "display": "standalone",
+  "orientation": "portrait"
+}
