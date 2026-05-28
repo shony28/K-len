@@ -371,7 +371,7 @@
         🛒 Оформлення чеку
       </button>
       <button class="tab-btn" id="tab-stock-btn" onclick="switchTab('stock')">
-        📦 Залишки складу
+        📦 Каса/Залишки
       </button>
     </div>
   </div>
@@ -475,6 +475,33 @@
 
     <!-- ── ВКЛАДКА: ЗАЛИШКИ СКЛАДУ ── -->
     <div id="tab-stock" style="display:none;">
+
+      <!-- Каса сьогодні -->
+      <div class="card" style="padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-weight:800;color:#1e293b;font-size:.95rem;">💰 Каса сьогодні</div>
+          <div id="cash-load-status" style="font-size:.75rem;color:#94a3b8;font-weight:600;"></div>
+        </div>
+
+        <!-- Готівка / Карта -->
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;background:#f0fdf4;border-radius:14px;padding:12px 14px;border:1.5px solid #bbf7d0;">
+            <div style="font-size:.73rem;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">💵 Готівка</div>
+            <div id="cash-today-cash" style="font-size:1.35rem;font-weight:900;color:#16a34a;">—</div>
+          </div>
+          <div style="flex:1;background:#eff6ff;border-radius:14px;padding:12px 14px;border:1.5px solid #bfdbfe;">
+            <div style="font-size:.73rem;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">💳 Карта</div>
+            <div id="cash-today-card" style="font-size:1.35rem;font-weight:900;color:#2563eb;">—</div>
+          </div>
+        </div>
+
+        <!-- Останні операції -->
+        <div style="font-weight:700;color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Останні операції</div>
+        <div id="last-sales-list">
+          <div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:10px 0;">Завантаження…</div>
+        </div>
+      </div>
+
       <div class="card" style="padding:16px;margin-bottom:14px;">
         <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:8px;font-size:.9rem;">
           🔍 Пошук по складу
@@ -799,6 +826,7 @@ function loadInitialData(forceRefresh) {
 
 function refreshData() {
   loadInitialData(true);
+  loadCashData();
   showToast('🔄 Оновлення даних…');
 }
 
@@ -853,7 +881,7 @@ function switchTab(tab) {
   document.getElementById('tab-cart').style.display  = (tab === 'cart')  ? '' : 'none';
   document.getElementById('tab-stock').style.display = (tab === 'stock') ? '' : 'none';
 
-  if (tab === 'stock') renderStockList();
+  if (tab === 'stock') { renderStockList(); loadCashData(); }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1392,6 +1420,66 @@ function escHtml(str) {
   return String(str || '').replace(/[&<>"']/g, m => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[m]));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  💰  КАСА СЬОГОДНІ
+// ────────────────────────────────────────────────────────────────────────────
+function loadCashData() {
+  const statusEl = document.getElementById('cash-load-status');
+  if (statusEl) statusEl.textContent = '⏳ Оновлення…';
+
+  fetch(`${API_URL}?action=getCashData`, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (statusEl) statusEl.textContent = '';
+      if (res.success && res.data) {
+        const { cash, card, lastSales } = res.data;
+        const cashEl = document.getElementById('cash-today-cash');
+        const cardEl = document.getElementById('cash-today-card');
+        if (cashEl) cashEl.textContent = formatPrice(cash) + ' ₴';
+        if (cardEl) cardEl.textContent = formatPrice(card) + ' ₴';
+        renderLastSales(lastSales);
+      }
+    })
+    .catch(() => {
+      if (statusEl) statusEl.textContent = '❌';
+      const listEl = document.getElementById('last-sales-list');
+      if (listEl) listEl.innerHTML =
+        '<div style="color:#dc2626;font-size:.82rem;text-align:center;padding:8px;font-weight:600;">Помилка завантаження</div>';
+    });
+}
+
+function renderLastSales(sales) {
+  const el = document.getElementById('last-sales-list');
+  if (!el) return;
+
+  if (!sales || sales.length === 0) {
+    el.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:10px 0;">Немає операцій</div>';
+    return;
+  }
+
+  el.innerHTML = sales.map(s => {
+    const payIsCard = (s.payment || '').toLowerCase().includes('карт');
+    const payBg    = payIsCard ? '#eff6ff' : '#f0fdf4';
+    const payColor = payIsCard ? '#2563eb' : '#16a34a';
+    const payIcon  = payIsCard ? '💳' : '💵';
+
+    return `
+      <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:8px;background:#fafafa;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+          <div style="font-size:.76rem;color:#94a3b8;font-weight:600;">${escHtml(s.date)}</div>
+          <div style="font-weight:900;color:#16a34a;white-space:nowrap;font-size:1rem;">${formatPrice(s.amount)} ₴</div>
+        </div>
+        <div style="font-size:.82rem;color:#1e293b;font-weight:600;line-height:1.4;margin-bottom:8px;
+                    white-space:pre-line;">${escHtml(s.content)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${s.buyer  ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">👤 ${escHtml(s.buyer)}</span>` : ''}
+          ${s.seller ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">🧑‍💼 ${escHtml(s.seller)}</span>` : ''}
+          <span style="font-size:.73rem;background:${payBg};border-radius:8px;padding:2px 8px;color:${payColor};font-weight:700;">${payIcon} ${escHtml(s.payment)}</span>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ────────────────────────────────────────────────────────────────────────────
