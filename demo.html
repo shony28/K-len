@@ -1474,8 +1474,8 @@ function renderLastSales(sales) {
         <div style="font-size:.82rem;color:#1e293b;font-weight:600;line-height:1.4;margin-bottom:8px;
                     white-space:pre-line;">${escHtml(s.content)}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${s.buyer  ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">👤 ${escHtml(s.buyer)}</span>` : ''}
-          ${s.seller ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">🧑‍💼 ${escHtml(s.seller)}</span>` : ''}
+          ${s.buyer  ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">💼 ${escHtml(s.buyer)}</span>` : ''}
+          ${s.seller ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">🧍 ${escHtml(s.seller)}</span>` : ''}
           <span style="font-size:.73rem;background:${payBg};border-radius:8px;padding:2px 8px;color:${payColor};font-weight:700;">${payIcon} ${escHtml(s.payment)}</span>
         </div>
       </div>`;
