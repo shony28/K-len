@@ -1330,11 +1330,13 @@ if (change < 0) {
   }
 }
 
+
 function closeSuccessOverlay() {
   document.getElementById('success-overlay').classList.remove('show');
   APP.cart = [];
   renderCart();
   document.getElementById('buyer-select').value = '';
+  document.getElementById('payment-select').value = 'Готівка'; 
   localStorage.removeItem(LS_CART_KEY);
 }
 
