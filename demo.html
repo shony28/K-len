@@ -259,6 +259,26 @@
     #scan-torch-btn { background: #6c757d; color: #fff; }
     #scan-torch-btn.active { background: #ffc107; color: #212529; }
   </style>
+  
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lagro POS">
+<meta name="theme-color" content="#0284c7">
+<link rel="apple-touch-icon" href="./icons/icon-512.png">
+<link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then((reg) => {
+          console.log('Service Worker успішно зареєстровано для області дії:', reg.scope);
+        })
+        .catch((err) => {
+          console.error('Помилка реєстрації Service Worker:', err);
+        });
+    });
+  }
+</script>
+  
 </head>
 <body>
 
@@ -603,7 +623,8 @@ let currentSaleRoundedTotal = 0;
 // ────────────────────────────────────────────────────────────────────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbwk631dvIy2ubZ06X6C1TggEzq7oOoIfiQE-MEBzoSUVc-Pftb24K74uBc8lx_lvcTc-Q/exec';
 const LS_KEY  = 'posApp_user_v1'; // ключ для LocalStorage
-const LS_CART_KEY = 'posApp_cart_v1';
+const LS_CART_KEY  = 'posApp_cart_v1';
+const LS_BUYER_KEY = 'posApp_buyer_v1';
 
 // ────────────────────────────────────────────────────────────────────────────
 //  ⚙️  НАЛАШТУВАННЯ ОКРУГЛЕННЯ СУМИ ЧЕКУ
@@ -832,8 +853,8 @@ function refreshData() {
 
 function populateBuyerSelect() {
   const sel = document.getElementById('buyer-select');
-  // Зберігаємо поточне значення, якщо є
-  const current = sel.value;
+  // Зберігаємо поточне значення, якщо є (або беремо з localStorage)
+  const current = sel.value || (() => { try { return localStorage.getItem(LS_BUYER_KEY) || ''; } catch(e) { return ''; } })();
   sel.innerHTML = '<option value="">Роздрібний покупець</option>';
   APP.buyers.forEach(b => {
     const opt = document.createElement('option');
@@ -861,8 +882,17 @@ function getItemPrice(product) {
   return parsePrice(product.price);
 }
 
-/** Викликається при зміні покупця — перераховує ціни у кошику */
+/** Викликається при зміні покупця — перераховує ціни у кошику та зберігає вибір */
 function onBuyerChange() {
+  const buyerVal = document.getElementById('buyer-select').value;
+  try {
+    if (buyerVal) {
+      localStorage.setItem(LS_BUYER_KEY, buyerVal);
+    } else {
+      localStorage.removeItem(LS_BUYER_KEY);
+    }
+  } catch(e) {}
+
   APP.cart.forEach(cartItem => {
     const stockItem = APP.stock.find(s => String(s.id) === String(cartItem.id));
     if (stockItem) {
@@ -1310,12 +1340,15 @@ if (change < 0) {
   }
 }
 
+
 function closeSuccessOverlay() {
   document.getElementById('success-overlay').classList.remove('show');
   APP.cart = [];
   renderCart();
   document.getElementById('buyer-select').value = '';
+  document.getElementById('payment-select').value = 'Готівка';
   localStorage.removeItem(LS_CART_KEY);
+  try { localStorage.removeItem(LS_BUYER_KEY); } catch(e) {}
 }
 
 // ────────────────────────────────────────────────────────────────────────────
