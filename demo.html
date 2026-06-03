@@ -452,14 +452,20 @@
           </button>
         </div>
         <div id="cart-items"></div>
+        <button onclick="openProductPicker()" class="btn btn-green btn-sm btn-full" style="margin-top:6px;">
+          🖼️ Додати товар
+        </button>
       </div>
 
       <!-- Порожній кошик — підказка -->
       <div id="cart-empty-hint" class="card" style="padding:28px 16px;text-align:center;margin-bottom:14px;">
         <div style="font-size:2.5rem;margin-bottom:10px;">🛒</div>
-        <p style="color:#94a3b8;font-weight:700;font-size:.95rem;margin:0;">
+        <p style="color:#94a3b8;font-weight:700;font-size:.95rem;margin:0 0 14px;">
           Знайдіть товар вище та додайте його до кошика
         </p>
+        <button onclick="openProductPicker()" class="btn btn-green btn-sm" style="padding:0 28px;">
+          🖼️ Вибрати товар
+        </button>
       </div>
 
     <!-- Покупець + Оплата -->
