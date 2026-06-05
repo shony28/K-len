@@ -410,30 +410,67 @@ function loadRecentTraffic() {
     .catch(() => { container.innerHTML = `<p style="color:#ef4444; text-align:center;">Помилка завантаження історії</p>`; });
 }
 
+// ─── ОНОВЛЕНА ФУНКЦІЯ: РЕНДЕРИНГ ТАБЛИЦІ ІСТОРІЇ ───
 function renderRecentTraffic(items) {
   const container = document.getElementById('recent-traffic-container');
   if (items.length === 0) {
-    container.innerHTML = `<p style="color:#94a3b8; text-align:center; padding:12px 0;">У вас ще немає записів</p>`;
+    container.innerHTML = `<p style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:12px 0;">У вас ще немає записів у цьому місяці</p>`;
     return;
   }
-  let html = `<table class="history-table"><thead><tr><th>Час / Клієнт</th><th>Звернення</th><th>Результат / Джерело</th></tr></thead><tbody>`;
+
+  let html = `
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Час / Клієнт</th>
+          <th>Звернення</th>
+          <th>Результат</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
   items.forEach(item => {
     let timeStr = item.datetime || '';
-    if (timeStr.includes(' ')) {
+    
+    // Перевіряємо, чи прийшла дата у форматі ISO (містить літеру T та закінчується на Z)
+    if (timeStr && typeof timeStr === 'string' && timeStr.includes('T')) {
+      try {
+        const d = new Date(timeStr);
+        // Форматуємо дату відповідно до української локалі з потрібним виглядом
+        timeStr = d.toLocaleString('uk-UA', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }).replace(/,/g, ''); // Прибираємо кому, якщо вона з'явиться між датою та часом
+      } catch (e) {
+        console.error("Помилка форматування дати:", e);
+      }
+    } else if (timeStr && timeStr.includes(' ')) {
+      // Старий резервний варіант парсингу, якщо дата вже прийшла рядком "dd.MM.yyyy HH:mm:ss"
       const parts = timeStr.split(' ');
-      const d = parts[0].split('.');
-      const t = parts[1].split(':');
-      timeStr = `${d[0]}.${d[1]} ${t[0]}:${t[1]}`;
+      const dateParts = parts[0].split('.');
+      const timeParts = parts[1].split(':');
+      timeStr = `${dateParts[0]}.${dateParts[1]} ${timeParts[0]}:${timeParts[1]}`;
     }
-    const badgeClass = item.result === 'Купив' ? 'badge-success' : 'badge-primary';
-    const sourceLabel = item.sourceName ? `<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">📣 ${item.sourceName}</div>` : '';
 
-    html += `<tr>
-      <td><div style="font-weight:700;">${timeStr}</div><div style="color:#64748b; font-size:0.75rem;">${item.clientType}</div></td>
-      <td style="font-weight:600;">${item.callType}</td>
-      <td><span class="badge ${badgeClass}">${item.result}</span>${sourceLabel}</td>
-    </tr>`;
+    const badgeClass = item.result === 'Купив' ? 'badge-success' : 'badge-primary';
+
+    html += `
+      <tr>
+        <td>
+          <div style="font-weight:700; color:#1e293b;">${timeStr}</div>
+          <div style="color:#64748b; font-size:0.75rem;">${item.clientType}</div>
+        </td>
+        <td style="font-weight:600;">${item.callType}</td>
+        <td><span class="badge ${badgeClass}">${item.result}</span></td>
+      </tr>
+    `;
   });
+
   html += `</tbody></table>`;
   container.innerHTML = html;
 }
