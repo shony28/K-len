@@ -145,6 +145,14 @@
       text-align: center; line-height: 1;
     }
     .auth-logo span { color: #22c55e; }
+
+    /* Стилі для міні-таблиці історії */
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+    .history-table th { padding: 8px; color: #64748b; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+    .history-table td { padding: 10px 8px; color: #334155; border-bottom: 1px solid #f1f5f9; }
+    .badge { padding: 2px 6px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-primary { background: #dbeafe; color: #1d4ed8; }
   </style>
 
   <meta name="mobile-web-app-capable" content="yes">
@@ -270,13 +278,23 @@
         <p style="color:#64748b;font-size:.9rem;text-align:center;margin:0 0 20px;font-weight:600;">
           Що відбулось із клієнтом?
         </p>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom: 24px;">
           <button class="big-action-btn btn-green" style="border-radius:22px; padding:28px 16px; display:flex; flex-direction:column; align-items:center; gap:10px; font-weight:800; min-height:140px;" onclick="onPurchaseClick()">
             <span style="font-size:2.2rem;">🛒</span>Оформив покупку
           </button>
           <button class="big-action-btn btn-blue" style="border-radius:22px; padding:28px 16px; display:flex; flex-direction:column; align-items:center; gap:10px; font-weight:800; min-height:140px;" onclick="onInquiryClick()">
             <span style="font-size:2.2rem;">💬</span>Просто цікавився
           </button>
+        </div>
+
+        <div class="card" style="padding: 18px 16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4 style="font-weight:800; color:#1e293b; font-size:0.95rem;">📋 Ваші останні 5 записів</h4>
+            <button onclick="loadRecentTraffic()" style="color:var(--c-blue); font-size:0.8rem; font-weight:700; background:none; border:none; cursor:pointer;">🔄 Оновити</button>
+          </div>
+          <div id="recent-traffic-container" style="overflow-x:auto;">
+            <p style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:12px 0;">Завантаження історії...</p>
+          </div>
         </div>
       </div>
 
@@ -418,12 +436,11 @@ function tryLoadFromStorage() {
 function handleGoogleLogin(response) {
   const url = `${API_URL}?action=loginByToken&token=${encodeURIComponent(response.credential)}`;
   
-  // Показуємо візуально, що йде завантаження
   const authCard = document.querySelector('#screen-auth .card');
   const origHTML = authCard.innerHTML;
   authCard.innerHTML = `<p style="text-align:center;color:#64748b;font-weight:700;">Перевірка доступу в Google Sheets... ⏳</p>`;
 
-  fetch(url, { method: 'GET', redirect: 'follow' }) // 'follow' змушує fetch йти за редіректом Google
+  fetch(url, { method: 'GET', redirect: 'follow' }) 
     .then(res => {
       if (!res.ok) throw new Error('Помилка сервера Google');
       return res.json();
@@ -436,14 +453,12 @@ function handleGoogleLogin(response) {
       }
     })
     .catch(err => {
-      authCard.innerHTML = origHTML; // повертаємо кнопку назад у разі помилки
-      // Переініціалізовуємо кнопку Google, бо вона затерлась
+      authCard.innerHTML = origHTML; 
       if (window.gid_onload) google.accounts.id.initialize();
       onLoginError(err);
     });
 }
 
-// ─── НОВА ФУНКЦІЯ: ПОВТОРНА ПЕРЕВІРКА СТАТУСУ ДОСТУПУ ───
 function checkStatusAgain() {
   if (!APP.user || !APP.user.email) {
     alert("Помилка: відсутні дані користувача. Будь ласка, увійдіть знову.");
@@ -456,7 +471,6 @@ function checkStatusAgain() {
   btn.disabled = true;
   btn.innerHTML = 'Перевірка... ⏳';
 
-  // Робимо запит за email-адресою, що збережена в системі
   const url = `${API_URL}?action=checkStatus&email=${encodeURIComponent(APP.user.email)}`;
 
   fetch(url, { method: 'GET', redirect: 'follow' })
@@ -471,7 +485,6 @@ function checkStatusAgain() {
       if (res.success && res.data) {
         if (res.data.isAllowed) {
           showToast('🎉 Доступ надано!');
-          // Оновлюємо дані користувача і відкриваємо головний екран
           onLoginSuccess(res.data);
         } else {
           alert('Доступ все ще очікує підтвердження. Додайте ваш email (' + APP.user.email + ') до списку дозволених у Google Таблиці.');
@@ -507,7 +520,7 @@ function handleLogout() {
   APP.user = null;
   APP.adSources = [];
   showScreen('screen-auth');
-  location.reload(); // Перезавантажуємо сторінку, щоб скинути віджети Google
+  location.reload(); 
 }
 
 // ─── ВІДОБРАЖЕННЯ ЕКРАНІВ ─────────────────────────────────
@@ -538,6 +551,7 @@ function showMain(user) {
   backToMainButtons();
   switchTab('traffic');
   loadAdSources();
+  loadRecentTraffic(); // Завантажуємо історію одразу при вході в систему
 }
 
 // ─── ВКЛАДКИ ─────────────────────────────────────────────
@@ -553,6 +567,8 @@ function switchTab(tab) {
     document.getElementById('btn-back-from-source').style.display = '';
     document.getElementById('source-client-type').value = '';
     document.getElementById('source-name').value = '';
+  } else if (tab === 'traffic') {
+    loadRecentTraffic(); // Оновлюємо історію при поверненні на вкладку Трафіку
   }
 }
 
@@ -595,6 +611,76 @@ function populateSourceSelect(sources) {
   }
 }
 
+// ─── НОВА ФУНКЦІЯ: ЗАВАНТАЖЕННЯ ОСТАННІХ 5 ЗАПИСІВ ───
+function loadRecentTraffic() {
+  const container = document.getElementById('recent-traffic-container');
+  if (!APP.user || !APP.user.email) return;
+
+  const url = `${API_URL}?action=getUserRecentTraffic&email=${encodeURIComponent(APP.user.email)}`;
+
+  fetch(url, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success && res.data) {
+        renderRecentTraffic(res.data);
+      } else {
+        container.innerHTML = `<p style="color:#ef4444; font-size:0.85rem; text-align:center; padding:12px 0;">Не вдалося завантажити історію</p>`;
+      }
+    })
+    .catch(err => {
+      container.innerHTML = `<p style="color:#ef4444; font-size:0.85rem; text-align:center; padding:12px 0;">Помилка мережі</p>`;
+      console.error(err);
+    });
+}
+
+// ─── НОВА ФУНКЦІЯ: РЕНДЕРИНГ ТАБЛИЦІ ІСТОРІЇ ───
+function renderRecentTraffic(items) {
+  const container = document.getElementById('recent-traffic-container');
+  if (items.length === 0) {
+    container.innerHTML = `<p style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:12px 0;">У вас ще немає записів у цьому місяці</p>`;
+    return;
+  }
+
+  let html = `
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Час / Клієнт</th>
+          <th>Звернення</th>
+          <th>Результат</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  items.forEach(item => {
+    // Форматування дати з "dd.MM.yyyy HH:mm:ss" у більш компактний "dd.MM HH:mm"
+    let timeStr = item.datetime || '';
+    if (timeStr.includes(' ')) {
+      const parts = timeStr.split(' ');
+      const dateParts = parts[0].split('.');
+      const timeParts = parts[1].split(':');
+      timeStr = `${dateParts[0]}.${dateParts[1]} ${timeParts[0]}:${timeParts[1]}`;
+    }
+
+    const badgeClass = item.result === 'Купив' ? 'badge-success' : 'badge-primary';
+
+    html += `
+      <tr>
+        <td>
+          <div style="font-weight:700; color:#1e293b;">${timeStr}</div>
+          <div style="color:#64748b; font-size:0.75rem;">${item.clientType}</div>
+        </td>
+        <td style="font-weight:600;">${item.callType}</td>
+        <td><span class="badge ${badgeClass}">${item.result}</span></td>
+      </tr>
+    `;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
 // ─── ЛОГІКА ТРАФІКУ ──────────────────────────────────────
 function onPurchaseClick() {
   hideAllSteps();
@@ -614,6 +700,7 @@ function backToMainButtons() {
   hideAllSteps();
   document.getElementById('step-main-buttons').style.display = '';
   APP.afterPurchasePending = false;
+  loadRecentTraffic(); // Щоразу як повертаємось на головний екран – оновлюємо таблицю
 }
 
 function hideAllSteps() {
@@ -621,13 +708,12 @@ function hideAllSteps() {
     .forEach(id => document.getElementById(id).style.display = 'none');
 }
 
-// НАДСИЛАННЯ ДАНИХ НА СЕРВЕР ЧЕРЕЗ POST ЗАПИТИ
 function sendPostData(payload, btn, successCallback) {
   setLoading(btn, true);
   
   fetch(API_URL, {
     method: 'POST',
-    mode: 'no-cors', // Для POST-запитів залишаємо no-cors, оскільки відповідь нам читати не обов'язково
+    mode: 'no-cors', 
     body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' }
   })
@@ -659,7 +745,10 @@ function confirmInquiry() {
 
   sendPostData(payload, btn, () => {
     showToast('✅ Зафіксовано!');
-    setTimeout(() => backToMainButtons(), 1500);
+    setTimeout(() => {
+      backToMainButtons();
+      loadRecentTraffic(); // Оновлюємо після збереження
+    }, 1500);
   });
 }
 
@@ -684,6 +773,7 @@ function confirmPurchase() {
     setTimeout(() => {
       hideAllSteps();
       document.getElementById('step-after-purchase').style.display = '';
+      loadRecentTraffic(); // Оновлюємо внутрішню таблицю за лаштунками
     }, 1500);
   });
 }
