@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Облік трафіку</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -212,6 +213,19 @@
           <p style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:12px 0;">Завантаження історії...</p>
         </div>
       </div>
+
+      <div class="card" style="padding: 18px 16px; margin-top: 20px; margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h4 style="font-weight:800; color:#1e293b; font-size:0.95rem;">📊 Частка джерел реклами (%)</h4>
+          <button onclick="loadAdvertisingChart()" style="color:var(--c-blue); font-size:0.8rem; font-weight:700; background:none; border:none; cursor:pointer;">🔄 Оновити</button>
+        </div>
+        <div style="position: relative; max-width: 280px; margin: 0 auto;">
+          <canvas id="adSourcesChart"></canvas>
+        </div>
+        <div id="chart-loading-msg" style="color:#94a3b8; font-size:0.85rem; text-align:center; padding:12px 0; display:none;">Завантаження графіка...</div>
+      </div>
+
+
     </div>
 
     <!-- КРОК 2А: ДЕТАЛІ ОФОРМЛЕННЯ ПОКУПКИ (З джерелом реклами) -->
@@ -380,6 +394,7 @@ function showMain(user) {
   showScreen('screen-main');
   backToMainButtons();
   loadAdSources();
+  loadAdvertisingChart();
 }
 
 function loadAdSources() {
@@ -494,6 +509,7 @@ function backToMainButtons() {
   hideAllSteps();
   document.getElementById('step-main-buttons').style.display = '';
   loadRecentTraffic();
+  loadAdvertisingChart();
 }
 
 function hideAllSteps() {
@@ -541,6 +557,88 @@ function sendPostData(payload, btn, loadingText) {
   .catch(err => {
     btn.disabled = false; btn.innerHTML = origText;
     alert('Помилка відправки.');
+  });
+}
+
+
+let myChart = null; // Глобальна змінна для збереження екземпляру графіка
+
+function loadAdvertisingChart() {
+  const canvas = document.getElementById('adSourcesChart');
+  const msgEl = document.getElementById('chart-loading-msg');
+  
+  if(canvas) canvas.style.display = 'none';
+  if(msgEl) { msgEl.style.display = 'block'; msgEl.textContent = 'Завантаження графіка...'; }
+
+  fetch(`${API_URL}?action=getAdvertisingStats`, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success && res.data && Object.keys(res.data).length > 0) {
+        if(msgEl) msgEl.style.display = 'none';
+        if(canvas) canvas.style.display = 'block';
+        renderPieChart(res.data);
+      } else {
+        if(msgEl) msgEl.textContent = 'Немає даних для побудови діаграми (стовпець G порожній)';
+      }
+    })
+    .catch(() => { 
+      if(msgEl) msgEl.textContent = 'Помилка завантаження статистики'; 
+    });
+}
+
+function renderPieChart(statsData) {
+  const ctx = document.getElementById('adSourcesChart').getContext('2d');
+  
+  const labels = Object.keys(statsData);
+  const dataValues = Object.values(statsData);
+  
+  // Якщо графік вже існує — знищуємо його перед перемальовуванням
+  if (myChart) {
+    myChart.destroy();
+  }
+
+  // Набір приємних кольорів для секторів кругової діаграми
+  const colors = [
+    '#2563eb', '#16a34a', '#db2777', '#ca8a04', '#7c3aed', 
+    '#ea580c', '#0d9488', '#e11d48', '#4f46e5', '#2563eb'
+  ];
+
+  myChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: dataValues,
+        backgroundColor: colors.slice(0, labels.length),
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { family: "'Nunito', sans-serif", size: 12, weight: '600' },
+            padding: 14
+          }
+        },
+        // Відображення значень у відсотках при наведенні
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const dataset = context.dataset;
+              const total = dataset.data.reduce((sum, value) => sum + value, 0);
+              const value = dataset.data[context.dataIndex];
+              const percentage = ((value / total) * 100).toFixed(1);
+              return ` ${context.label}: ${value} шт. (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
   });
 }
 
