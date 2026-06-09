@@ -254,7 +254,7 @@
         </div>
 
         <div class="form-group" style="margin-bottom:24px;">
-          <label class="form-label" style="display:block; font-weight:700; margin-bottom:6px;">Джерело реклами <span style="color:#ef4444;">*</span></label>
+          <label class="form-label" style="display:block; font-weight:700; margin-bottom:6px;">Звідки покупець дізнався про нас <span style="color:#ef4444;">*</span></label>
           <select class="sel" id="purchase-source-name">
             <option value="">— Оберіть джерело —</option>
           </select>
@@ -534,7 +534,7 @@ function confirmPurchase() {
   const clientType = document.getElementById('purchase-client-type').value;
   const callType   = document.getElementById('purchase-call-type').value;
   const sourceName = document.getElementById('purchase-source-name').value;
-  if (!clientType || !callType || !sourceName) { alert('Будь ласка, заповніть всі поля, включаючи Джерело реклами'); return; }
+  if (!clientType || !callType || !sourceName) { alert('Будь ласка, заповніть всі поля, включаючи Звідки покупець дізнався про нас'); return; }
 
   const btn = document.getElementById('btn-confirm-purchase');
   const payload = {
