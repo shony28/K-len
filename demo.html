@@ -15,10 +15,96 @@
       font-family: 'Nunito', sans-serif;
       background-color: #f1f5f9;
     }
+    /* Сховати/показати екрани */
+    .screen { display: none; }
+    .screen.active { display: flex; }
+    #screen-main.active { display: block; }
+
+    /* Екрани авторизації */
+    #screen-auth, #screen-pending {
+      min-height: 100dvh;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #064e3b 100%);
+    }
+    .avatar-placeholder {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      overflow: hidden;
+    }
   </style>
 </head>
 <body class="p-2 sm:p-4 text-slate-800">
 
+<div id="screen-auth" class="screen active">
+  <div class="max-w-[380px] w-full">
+    <div class="text-center mb-7">
+      <div class="text-5xl mb-2">🥛</div>
+      <div class="text-3xl font-black text-white tracking-tight">
+        К'Лен<span class="text-emerald-500">Ферма</span>
+      </div>
+      <p class="text-slate-400 mt-2 text-sm">Облік та керування виробництвом</p>
+    </div>
+
+    <div class="bg-white rounded-2xl p-7 shadow-xl">
+      <p class="text-slate-500 text-center text-sm mb-5 leading-relaxed">
+        Увійдіть через Google корпоративний акаунт, щоб отримати доступ до панелі виробництва.
+      </p>
+
+      <div id="g_id_onload"
+        data-client_id="1041458356226-cl2pekuc96jegjs0lu0jdj3kvo9kfgep.apps.googleusercontent.com"
+        data-callback="handleGoogleLogin"
+        data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+        data-type="standard"
+        data-size="large"
+        data-theme="outline"
+        data-text="sign_in_with"
+        data-shape="rectangular"
+        data-logo_alignment="left"
+        style="display:flex;justify-content:center;">
+      </div>
+
+      <div id="auth-loading" style="display:none;" class="text-center pt-4">
+        <div class="animate-spin inline-block w-6 height-6 border-[3px] border-emerald-500 border-t-transparent rounded-full mb-2"></div>
+        <p class="text-slate-500 text-sm font-semibold">Перевірка прав доступу…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-pending" class="screen">
+  <div class="max-w-[380px] w-full text-white">
+    <div class="text-6xl text-center mb-4">⏳</div>
+    <h2 class="text-center text-2xl font-extrabold mb-3">Очікуєте підтвердження</h2>
+    <p class="text-center text-slate-400 text-sm mb-7 leading-relaxed">
+      Ваш акаунт успішно розпізнано, але адміністратор ще не вніс ваш email до списку доступу "Довідник".
+    </p>
+    
+    <div class="bg-white/10 border border-white/20 rounded-2xl p-4 mb-5">
+      <p class="text-slate-400 text-xs mb-1">Ваш email:</p>
+      <p id="pending-email" class="text-white font-bold break-all"></p>
+    </div>
+
+    <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg mb-3 transition" onclick="checkStatusAgain()">
+      🔄 Оновити статус доступу
+    </button>
+    <button class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3.5 px-4 rounded-xl transition" onclick="handleLogout()">
+      Вийти з акаунту
+    </button>
+  </div>
+</div>
+
+<div id="screen-main" class="screen">
   <header class="bg-white rounded-2xl p-4 shadow-sm mb-4 flex flex-col sm:flex-row items-center justify-between gap-3">
     <div class="flex items-center gap-3">
       <div class="bg-emerald-500 text-white p-2.5 rounded-xl text-xl">🥛</div>
@@ -28,23 +114,19 @@
       </div>
     </div>
     
-    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-      <div id="user-info" class="hidden text-right">
-        <span id="user-email" class="text-sm font-semibold text-slate-700 block"></span>
-        <button onclick="handleLogout()" class="text-xs text-red-500 hover:underline">Вийти</button>
+    <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+      <div class="text-right min-w-0">
+        <div id="user-name" class="font-extrabold text-slate-900 text-sm truncate max-w-[150px]">—</div>
+        <div id="user-email" class="text-slate-400 text-xs truncate max-w-[150px]">—</div>
       </div>
-      
-      <div id="g_id_onload"
-           data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-           data-callback="handleCredentialResponse"
-           data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+      <div id="user-avatar" class="avatar-placeholder">?</div>
+      <button onclick="handleLogout()" class="bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 p-2 rounded-xl transition" title="Вийти">
+        🚪
+      </button>
     </div>
   </header>
 
-  <main id="main-content" class="opacity-50 pointer-events-none transition-opacity duration-300 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
-    
+  <main id="main-content" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
     <section class="lg:col-span-5 bg-white p-5 rounded-2xl shadow-sm h-fit">
       <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
         <span>🚀 Запуск нової обробки</span>
@@ -73,312 +155,488 @@
             <option value="">-- Оберіть вільний процес --</option>
           </select>
         </div>
-        
         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
           <span>▶ Запустити в обробку</span>
         </button>
       </form>
     </section>
 
-    <section class="lg:col-span-7 bg-white p-5 rounded-2xl shadow-sm">
-      <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center justify-between border-b pb-2">
-        <span>⚙️ Активні процеси в цеху</span>
-        <button onclick="loadData()" class="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg text-slate-600 transition">🔄 Оновити дані</button>
-      </h2>
-      
-      <div id="active-processes-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <p class="text-slate-400 text-sm italic col-span-2 py-4 text-center">Завантаження або немає активних процесів...</p>
+    <section class="lg:col-span-7 space-y-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm">
+        <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
+          <span>⚡ Зараз в обробці</span>
+          <span id="active-processes-count" class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+        </h2>
+        <div id="active-processes-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+          <p class="text-sm text-slate-400 text-center py-4">Немає активних процесів</p>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm">
+        <div class="flex items-center justify-between border-b pb-2 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="text-base font-bold text-slate-900">📋 Журнал останніх операцій</span>
+          </div>
+          <div class="flex gap-1 bg-slate-100 p-0.5 rounded-lg">
+            <button onclick="switchLogTab('all')" id="tab-log-all" class="text-xs font-bold px-2.5 py-1 rounded-md bg-white shadow-sm text-slate-800">Всі</button>
+            <button onclick="switchLogTab('start')" id="tab-log-start" class="text-xs font-bold px-2.5 py-1 rounded-md text-slate-500">Старти</button>
+            <button onclick="switchLogTab('end')" id="tab-log-end" class="text-xs font-bold px-2.5 py-1 rounded-md text-slate-500">Фініші</button>
+          </div>
+        </div>
+        <div id="log-list" class="space-y-2 max-h-[350px] overflow-y-auto pr-1 text-xs">
+          <p class="text-slate-400 text-center py-4">Журнал порожній</p>
+        </div>
       </div>
     </section>
   </main>
+</div>
 
-  <div id="end-process-modal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-      <div class="flex items-center justify-between border-b pb-3 mb-4">
-        <h3 class="font-bold text-base text-slate-900">🏁 Завершення процесу: <span id="modal-process-title" class="text-emerald-600"></span></h3>
-        <button onclick="closeModal()" class="text-slate-400 text-lg hover:text-slate-600">&times;</button>
-      </div>
-      
-      <form id="end-process-form" onsubmit="submitEndProcess(event)" class="space-y-4">
-        <input type="hidden" id="modal-process-name">
-        
-        <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Продукт на виході (згідно з матрицею)</label>
-          <select id="modal-output-product" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
-            </select>
-        </div>
-        
-        <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Фактичний вихід (кількість)</label>
-          <input type="number" id="modal-output-qty" step="any" min="0.001" required placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
-        </div>
-        
-        <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Нове місце на Складі</label>
-          <select id="modal-new-location" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
-            <option value="Склад">Склад</option>
-            <option value="Холодильник">Холодильник</option>
-            <option value="Цех дозрівання">Цех дозрівання</option>
-            <option value="Готова продукція">Готова продукція</option>
-          </select>
-        </div>
-        
-        <div class="flex gap-2 pt-2">
-          <button type="button" onclick="closeModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm transition">Скасувати</button>
-          <button type="submit" class="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-md transition">Підтвердити</button>
-        </div>
-      </form>
+<div id="end-process-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+    <div class="flex justify-between items-center border-b pb-2">
+      <h3 class="text-base font-bold text-slate-900">🏁 Завершення процесу</h3>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
     </div>
+    <form id="end-process-form" onsubmit="submitEndProcess(event)" class="space-y-4">
+      <input type="hidden" id="modal-process-name">
+      <div>
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Що отримано на виході?</label>
+        <select id="modal-output-product" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500"></select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Фінальна кількість</label>
+        <input type="number" id="modal-output-qty" step="any" min="0.001" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Куди покласти? (Локація складу)</label>
+        <select id="modal-new-location" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+          <option value="Цех">Цех</option>
+          <option value="Камера">Камера</option>
+          <option value="Склад готової продукції">Склад готової продукції</option>
+        </select>
+      </div>
+      <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition text-sm">
+        Зберегти в Журнал та оновити Склад
+      </button>
+    </form>
   </div>
+</div>
 
-  <script>
-    // URL вашого Web App розгорнутого в Google Apps Script
-    const API_URL = "https://script.google.com/macros/s/AKfycbxqyTc6LafZK9n4zKK0ht7m4i_vruALoy8VZfd-BgVQkkONfk9AdF9T-sm6E0cnt9KC/exec"; 
+<script>
+  // Конфігурація підключення до Google Apps Script
+  // Якщо скрипт розгорнутий як Web App всередині тієї ж таблиці, залиште порожнім, інакше вкажіть URL
+  const API_URL = ""; 
 
-    // Глобальний стан додатку
-    let appState = {
-      idToken: null,
-      stock: [],
-      processes: []
-    };
+  // Глобальний стан додатку
+  const appState = {
+    idToken: localStorage.getItem('dairy_id_token') || null,
+    userEmail: localStorage.getItem('dairy_user_email') || null,
+    userName: localStorage.getItem('dairy_user_name') || null,
+    userPicture: localStorage.getItem('dairy_user_picture') || null,
+    rawStock: [],
+    rawProcesses: [],
+    rawLogs: [],
+    currentLogFilter: 'all'
+  };
 
-    // --- Авторизація ---
-    function handleCredentialResponse(response) {
-      appState.idToken = response.credential;
+  // Перемикач видимих вікон (Екранів)
+  function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+  }
+
+  // Обробка входу через Google Identity Services
+  async function handleGoogleLogin(response) {
+    const loader = document.getElementById('auth-loading');
+    const loginButton = document.querySelector('.g_id_signin');
+    if(loader) loader.style.display = 'block';
+    if(loginButton) loginButton.style.display = 'none';
+
+    try {
+      const token = response.credential;
+      const res = await callAPIRaw('loginByToken', { token: token });
       
-      // Декодуємо JWT токен базовим способом для відображення email на фронті
-      try {
-        const base64Url = appState.idToken.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-            return '%' + ('0' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        const payload = JSON.parse(jsonPayload);
-        document.getElementById('user-email').innerText = payload.email;
-        document.getElementById('user-info').classList.remove('hidden');
-        document.querySelector('.g_id_signin').classList.add('hidden');
-        
-        // Активуємо інтерфейс
-        const main = document.getElementById('main-content');
-        main.classList.remove('opacity-50', 'pointer-events-none');
-        
-        // Завантажуємо дані
-        loadData();
-      } catch (e) {
-        alert("Помилка обробки авторизації.");
+      if (res && res.success && res.data) {
+        const u = res.data;
+        appState.idToken = token;
+        appState.userEmail = u.email;
+        appState.userName = u.name;
+        appState.userPicture = u.picture;
+
+        localStorage.setItem('dairy_id_token', token);
+        localStorage.setItem('dairy_user_email', u.email);
+        localStorage.setItem('dairy_user_name', u.name);
+        localStorage.setItem('dairy_user_picture', u.picture);
+
+        if (u.isAllowed) {
+          initAuthorizedSession();
+        } else {
+          document.getElementById('pending-email').innerText = u.email;
+          showScreen('screen-pending');
+        }
+      } else {
+        alert("Помилка авторизації: " + (res ? res.error : "Невідома відповідь"));
+        handleLogout();
       }
+    } catch (e) {
+      alert("Критична помилка при вході: " + e.message);
+      handleLogout();
+    } finally {
+      if(loader) loader.style.display = 'none';
+      if(loginButton) loginButton.style.display = 'flex';
+    }
+  }
+
+  // Кнопка повторної перевірки прав доступу
+  async function checkStatusAgain() {
+    if (!appState.userEmail) return handleLogout();
+    try {
+      const res = await callAPIRaw('checkStatus', { email: appState.userEmail });
+      if (res && res.success && res.data && res.data.isAllowed) {
+        initAuthorizedSession();
+      } else {
+        alert("Доступ все ще не надано. Зверніться до Адміністратора.");
+      }
+    } catch(e) {
+      alert("Помилка перевірки статусу: " + e.message);
+    }
+  }
+
+  // Запуск сесії авторизованого користувача
+  function initAuthorizedSession() {
+    showScreen('screen-main');
+    
+    // Відображаємо дані користувача у шапці
+    document.getElementById('user-name').innerText = appState.userName || 'Користувач';
+    document.getElementById('user-email').innerText = appState.userEmail || '';
+    
+    const avatar = document.getElementById('user-avatar');
+    if (appState.userPicture) {
+      avatar.innerHTML = `<img src="${appState.userPicture}" class="w-full h-full object-cover">`;
+    } else {
+      avatar.innerText = (appState.userName || 'U').charAt(0).toUpperCase();
     }
 
-    function handleLogout() {
-      appState.idToken = null;
-      document.getElementById('user-info').classList.add('hidden');
-      document.querySelector('.g_id_signin').classList.remove('hidden');
-      document.getElementById('main-content').classList.add('opacity-50', 'pointer-events-none');
+    loadData();
+  }
+
+  // Вихід із системи
+  function handleLogout() {
+    appState.idToken = null;
+    appState.userEmail = null;
+    appState.userName = null;
+    appState.userPicture = null;
+
+    localStorage.removeItem('dairy_id_token');
+    localStorage.removeItem('dairy_user_email');
+    localStorage.removeItem('dairy_user_name');
+    localStorage.removeItem('dairy_user_picture');
+
+    document.getElementById('pending-email').innerText = '';
+    showScreen('screen-auth');
+    
+    // Переініціалізація Google Sign-In кнопки
+    if (window.google && google.accounts && google.accounts.id) {
+      google.accounts.id.disableAutoSelect();
+    }
+  }
+
+  // Спільна функція виклику API (обгортка для GET/POST залежно від конфігу)
+  async function callAPIRaw(action, payload = {}) {
+    // Якщо API_URL порожній — викликаємо вбудований у Google Sheets гуглівський runner (google.script.run)
+    if (!API_URL) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(res => resolve(res))
+          .withFailureHandler(err => reject(err))[action](payload.token || payload.email || payload);
+      });
     }
 
-    // --- Робота з API ---
-    async function callAPI(action, payload = {}) {
-      // Показуємо статус завантаження (спрощено)
-      payload.action = action;
-      payload.idToken = appState.idToken;
-      
-      try {
-        // Оскільки GAS Web App підтримує POST (CORS), використовуємо метод POST
-        const response = await fetch(API_URL, {
+    // Робота як із класичним REST API (наприклад, розгорнуто через GitHub Pages)
+    try {
+      const isGet = (action === 'loginByToken' || action === 'checkStatus');
+      let url = API_URL;
+      let options = {};
+
+      if (isGet) {
+        const params = new URLSearchParams({ action });
+        if(payload.token) params.append('token', payload.token);
+        if(payload.email) params.append('email', payload.email);
+        url += '?' + params.toString();
+        options = { method: 'GET' };
+      } else {
+        options = {
           method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        if(!result.success) {
-          throw new Error(result.error || "Невідома помилка сервера");
-        }
-        return result;
-      } catch (error) {
-        alert("🚨 Помилка: " + error.message);
-        throw error;
+          body: JSON.stringify({ action, ...payload, idToken: appState.idToken })
+        };
       }
-    }
 
-    // Завантаження даних з таблиць
-    async function loadData() {
-      try {
-        const res = await callAPI('getInitialData');
-        appState.stock = res.data.stock;
-        appState.processes = res.data.processes;
-        
-        renderFormDropdowns();
-        renderActiveProcesses();
-      } catch(e) { console.error(e); }
+      const response = await fetch(url, options);
+      return await response.json();
+    } catch (e) {
+      console.error("Fetch API Error:", e);
+      throw e;
     }
+  }
 
-    // Оновлення випадаючих списків у формі
-    function renderFormDropdowns() {
-      const stockSelect = document.getElementById('form-stock-item');
-      stockSelect.innerHTML = '<option value="">-- Оберіть сировину --</option>';
-      
-      appState.stock.forEach((item, index) => {
-        if (item.qty > 0) {
-          const opt = document.createElement('option');
-          opt.value = index; // зберігаємо індекс об'єкта
-          opt.innerText = `${item.name} | [${item.location}] (${item.qty} ${item.unit})`;
-          stockSelect.appendChild(opt);
-        }
+  // Стара сумісна функція виклику для бізнес-логіки
+  async function callAPI(action, payload = {}) {
+    if (!API_URL) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(res => resolve(res))
+          .withFailureHandler(err => reject(err))[action]({ ...payload, idToken: appState.idToken });
       });
+    }
+    const res = await callAPIRaw(action, payload);
+    if (!res.success) throw new Error(res.error || "Помилка API");
+    return res.data;
+  }
 
-      const processSelect = document.getElementById('form-process');
+  // Перевірка сесії при завантаженні сторінки
+  window.addEventListener('DOMContentLoaded', () => {
+    if (appState.idToken && appState.userEmail) {
+      // Якщо токен вже збережений, перевіряємо статус
+      callAPIRaw('checkStatus', { email: appState.userEmail }).then(res => {
+        if (res && res.success && res.data && res.data.isAllowed) {
+          initAuthorizedSession();
+        } else {
+          document.getElementById('pending-email').innerText = appState.userEmail;
+          showScreen('screen-pending');
+        }
+      }).catch(() => {
+        handleLogout();
+      });
+    } else {
+      showScreen('screen-auth');
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  //  БІЗНЕС-ЛОГІКА МОЛОЧНОЇ ФЕРМИ (ЗАЛИШЕНА БЕЗ ЗМІН)
+  // ══════════════════════════════════════════════════════════════
+
+  async function loadData() {
+    try {
+      const data = await callAPI('getInitialData');
+      appState.rawStock = data.stock || [];
+      appState.rawProcesses = data.processes || [];
+      appState.rawLogs = data.logs || [];
+      
+      renderStockSelect();
+      renderActiveProcesses();
+      renderLogs();
+    } catch (err) {
+      alert("Помилка завантаження даних: " + err.message);
+    }
+  }
+
+  function renderStockSelect() {
+    const select = document.getElementById('form-stock-item');
+    select.innerHTML = '<option value="">-- Оберіть сировину --</option>';
+    
+    appState.rawStock.forEach((item, idx) => {
+      if (item.qty > 0) {
+        const option = document.createElement('option');
+        option.value = idx;
+        option.innerText = `${item.name} [${item.location}] (${item.qty} ${item.unit})`;
+        select.appendChild(option);
+      }
+    });
+    updateAvailableUnits();
+  }
+
+  function updateAvailableUnits() {
+    const select = document.getElementById('form-stock-item');
+    const hint = document.getElementById('form-stock-hint');
+    const unitSpan = document.getElementById('form-unit');
+    const processSelect = document.getElementById('form-process');
+    
+    if (!select.value) {
+      hint.innerText = '';
+      unitSpan.innerText = 'од';
       processSelect.innerHTML = '<option value="">-- Оберіть вільний процес --</option>';
-      
-      appState.processes.forEach(proc => {
-        // Показуємо лише ті процеси, які зараз вільні (К-ть === 0)
-        if (proc.qty === 0) {
-          const opt = document.createElement('option');
-          opt.value = proc.name;
-          opt.innerText = proc.name;
-          processSelect.appendChild(opt);
-        }
-      });
-      
-      updateAvailableUnits();
+      return;
     }
-
-    // Відображення підказки одиниць виміру при виборі сировини
-    function updateAvailableUnits() {
-      const stockSelect = document.getElementById('form-stock-item');
-      const unitSpan = document.getElementById('form-unit');
-      const hintSpan = document.getElementById('form-stock-hint');
-      
-      if(stockSelect.value !== "") {
-        const item = appState.stock[stockSelect.value];
-        unitSpan.innerText = item.unit;
-        hintSpan.innerText = `Доступно на складі: ${item.qty} ${item.unit}`;
-        document.getElementById('form-qty').max = item.qty;
-      } else {
-        unitSpan.innerText = "од";
-        hintSpan.innerText = "";
-      }
-    }
-
-    // Відображення активних процесів у вигляді карток
-    function renderActiveProcesses() {
-      const container = document.getElementById('active-processes-container');
-      container.innerHTML = "";
-      
-      const active = appState.processes.filter(p => p.qty > 0);
-      
-      if(active.length === 0) {
-        container.innerHTML = '<p class="text-slate-400 text-sm italic col-span-2 py-4 text-center">У цеху зараз немає запущених обробок.</p>';
-        return;
-      }
-      
-      active.forEach(proc => {
-        const card = document.createElement('div');
-        card.className = "bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between shadow-xs";
-        card.innerHTML = `
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md">В обробці</span>
-              <span class="text-[11px] text-slate-400 font-mono">${proc.date}</span>
-            </div>
-            <h3 class="font-bold text-slate-900 text-base mb-2">${proc.name}</h3>
-            <p class="text-xs text-slate-600 mb-1"><b>Сировина:</b> ${proc.inputProduct}</p>
-            <p class="text-xs text-slate-600 mb-3"><b>Кількість:</b> ${proc.qty} ${proc.unit}</p>
-          </div>
-          <button onclick="openEndProcessModal('${proc.name}')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs transition mt-2">
-            🏁 Завершити процес
-          </button>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    // --- Сценарій А: Відправка запуску ---
-    async function submitStartProcess(e) {
-      e.preventDefault();
-      if (!appState.idToken) return alert("Спочатку авторизуйтесь через Google!");
-      
-      const stockIdx = document.getElementById('form-stock-item').value;
-      const qty = document.getElementById('form-qty').value;
-      const processName = document.getElementById('form-process').value;
-      
-      if(!stockIdx || !qty || !processName) return;
-      
-      const item = appState.stock[stockIdx];
-      
-      const payload = {
-        productName: item.name,
-        location: item.location,
-        qty: Number(qty),
-        processName: processName
-      };
-      
-      // Виклик API
-      try {
-        await callAPI('startProcessing', payload);
-        document.getElementById('start-process-form').reset();
-        await loadData(); // перезавантаження
-        alert("✅ Процес успішно запущено!");
-      } catch(err) {}
-    }
-
-    // --- Сценарій Б: Вікно завершення ---
-    function openEndProcessModal(processName) {
-      const proc = appState.processes.find(p => p.name === processName);
-      if(!proc) return;
-      
-      document.getElementById('modal-process-title').innerText = proc.name;
-      document.getElementById('modal-process-name').value = proc.name;
-      
-      // Наповнюємо випадаючий список варіантами виходу (стовпчик F з сплітом по ";")
-      const outSelect = document.getElementById('modal-output-product');
-      outSelect.innerHTML = "";
-      
-      if(proc.outputOptions.length > 0 && proc.outputOptions[0] !== "") {
-        proc.outputOptions.forEach(prod => {
-          const opt = document.createElement('option');
-          opt.value = prod;
-          opt.innerText = prod;
-          outSelect.appendChild(opt);
-        });
-      } else {
-        // Якщо матриця пуста, дозволяємо вийти тому самому продукту
+    
+    const item = appState.rawStock[Number(select.value)];
+    hint.innerText = `Доступно на локації [${item.location}]: ${item.qty} ${item.unit}`;
+    unitSpan.innerText = item.unit;
+    
+    processSelect.innerHTML = '<option value="">-- Оберіть вільний процес --</option>';
+    appState.rawProcesses.forEach(proc => {
+      if (proc.inputProduct === item.name) {
         const opt = document.createElement('option');
-        opt.value = proc.inputProduct;
-        opt.innerText = proc.inputProduct;
-        outSelect.appendChild(opt);
+        opt.value = proc.name;
+        opt.innerText = proc.name;
+        processSelect.appendChild(opt);
       }
-      
-      document.getElementById('modal-output-qty').value = proc.qty; // Передзаповнюємо тією ж кількістю
-      document.getElementById('end-process-modal').classList.remove('hidden');
-    }
+    });
+  }
 
-    function closeModal() {
-      document.getElementById('end-process-modal').classList.add('hidden');
+  function renderActiveProcesses() {
+    const list = document.getElementById('active-processes-list');
+    const countBadge = document.getElementById('active-processes-count');
+    
+    const active = appState.rawLogs.filter(l => l.type === 'СТАРТ' && !l.isFinished);
+    countBadge.innerText = active.length;
+    
+    if (active.length === 0) {
+      list.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">Немає активних процесів</p>';
+      return;
     }
+    
+    list.innerHTML = '';
+    active.forEach(proc => {
+      const card = document.createElement('div');
+      card.className = "bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between gap-2 text-sm shadow-sm";
+      card.innerHTML = `
+        <div class="min-w-0">
+          <div class="font-bold text-slate-900">${proc.processName}</div>
+          <div class="text-xs text-slate-500 mt-0.5">Списано: <span class="font-semibold text-slate-700">${proc.qty} ${proc.unit}</span> (${proc.product})</div>
+          <div class="text-[10px] text-amber-700 font-medium mt-1">🕒 Запущено: ${proc.date}</div>
+        </div>
+        <button onclick="openEndProcessModal('${proc.processName}')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs shadow transition flex-shrink-0">
+          🏁 Завершити
+        </button>
+      `;
+      list.appendChild(card);
+    });
+  }
 
-    async function submitEndProcess(e) {
-      e.preventDefault();
-      if (!appState.idToken) return alert("Сесія застаріла. Переавторизуйтесь!");
-      
-      const processName = document.getElementById('modal-process-name').value;
-      const finalProduct = document.getElementById('modal-output-product').value;
-      const finalQty = document.getElementById('modal-output-qty').value;
-      const newLocation = document.getElementById('modal-new-location').value;
-      
-      const payload = {
-        processName: processName,
-        finalProduct: finalProduct,
-        finalQty: Number(finalQty),
-        newLocation: newLocation
-      };
-      
-      try {
-        await callAPI('endProcessing', payload);
-        closeModal();
-        await loadData();
-        alert("✅ Операція завершення збережена!");
-      } catch(err) {}
+  function renderLogs() {
+    const list = document.getElementById('log-list');
+    let logs = appState.rawLogs;
+    
+    if (appState.currentLogFilter === 'start') logs = logs.filter(l => l.type === 'СТАРТ');
+    if (appState.currentLogFilter === 'end') logs = logs.filter(l => l.type === 'ФІНІШ');
+    
+    if (logs.length === 0) {
+      list.innerHTML = '<p class="text-slate-400 text-center py-4">Журнал порожній</p>';
+      return;
     }
-  </script>
+    
+    list.innerHTML = '';
+    logs.forEach(l => {
+      const row = document.createElement('div');
+      row.className = `p-2.5 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-1 ${
+        l.type === 'СТАРТ' ? 'bg-slate-50 border-slate-100' : 'bg-emerald-50/40 border-emerald-100'
+      }`;
+      
+      const badge = l.type === 'СТАРТ' 
+        ? `<span class="bg-slate-200 text-slate-700 text-[9px] font-bold px-1.5 py-0.5 rounded mr-1.5">СТАРТ</span>`
+        : `<span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded mr-1.5">ФІНІШ</span>`;
+        
+      row.innerHTML = `
+        <div class="min-w-0">
+          <div class="font-semibold text-slate-800">${badge}${l.processName}</div>
+          <div class="text-slate-500 mt-0.5 text-[11px]">
+            ${l.type === 'СТАРТ' ? 'Списано сировину:' : 'Отримано продукт:'} 
+            <span class="font-bold text-slate-700">${l.qty} ${l.unit}</span> — <strong>${l.product}</strong> [${l.location}]
+          </div>
+        </div>
+        <div class="text-right flex flex-row sm:flex-col justify-between sm:justify-center items-center sm:items-end text-[10px] text-slate-400 border-t sm:border-t-0 pt-1 sm:pt-0 mt-1 sm:mt-0">
+          <span class="font-medium text-slate-500">${l.user}</span>
+          <span>${l.date}</span>
+        </div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  function switchLogTab(filter) {
+    appState.currentLogFilter = filter;
+    ['all', 'start', 'end'].forEach(f => {
+      const btn = document.getElementById(`tab-log-${f}`);
+      if(f === filter) {
+        btn.className = "text-xs font-bold px-2.5 py-1 rounded-md bg-white shadow-sm text-slate-800";
+      } else {
+        btn.className = "text-xs font-bold px-2.5 py-1 rounded-md text-slate-500";
+      }
+    });
+    renderLogs();
+  }
+
+  async function submitStartProcess(e) {
+    e.preventDefault();
+    if (!appState.idToken) return alert("Сесія застаріла. Переавторизуйтесь!");
+    
+    const stockIdx = document.getElementById('form-stock-item').value;
+    const processName = document.getElementById('form-process').value;
+    const qty = document.getElementById('form-qty').value;
+    
+    const stockItem = appState.rawStock[Number(stockIdx)];
+    
+    const payload = {
+      product: stockItem.name,
+      location: stockItem.location,
+      unit: stockItem.unit,
+      processName: processName,
+      qty: Number(qty)
+    };
+    
+    try {
+      await callAPI('startProcessing', payload);
+      document.getElementById('start-process-form').reset();
+      document.getElementById('form-stock-hint').innerText = '';
+      await loadData();
+    } catch (err) {
+      alert("Помилка старту: " + err.message);
+    }
+  }
+
+  function openEndProcessModal(processName) {
+    document.getElementById('modal-process-name').value = processName;
+    const proc = appState.rawProcesses.find(p => p.name === processName);
+    const outSelect = document.getElementById('modal-output-product');
+    outSelect.innerHTML = '';
+    
+    if (proc && proc.outputMatrix && proc.outputMatrix.length > 0) {
+      proc.outputMatrix.forEach(prod => {
+        const opt = document.createElement('option');
+        opt.value = prod;
+        opt.innerText = prod;
+        outSelect.appendChild(opt);
+      });
+    } else {
+      const opt = document.createElement('option');
+      opt.value = proc ? proc.inputProduct : '';
+      opt.innerText = proc ? proc.inputProduct : '';
+      outSelect.appendChild(opt);
+    }
+    
+    document.getElementById('modal-output-qty').value = proc ? proc.qty : '';
+    document.getElementById('end-process-modal').classList.remove('hidden');
+  }
+
+  function closeModal() {
+    document.getElementById('end-process-modal').classList.add('hidden');
+  }
+
+  async function submitEndProcess(e) {
+    e.preventDefault();
+    if (!appState.idToken) return alert("Сесія застаріла. Переавторизуйтесь!");
+    
+    const processName = document.getElementById('modal-process-name').value;
+    const finalProduct = document.getElementById('modal-output-product').value;
+    const finalQty = document.getElementById('modal-output-qty').value;
+    const newLocation = document.getElementById('modal-new-location').value;
+    
+    const payload = {
+      processName: processName,
+      finalProduct: finalProduct,
+      finalQty: Number(finalQty),
+      newLocation: newLocation
+    };
+    
+    try {
+      await callAPI('endProcessing', payload);
+      closeModal();
+      await loadData();
+    } catch (err) {
+      alert("Помилка завершення: " + err.message);
+    }
+  }
+</script>
 </body>
 </html>
