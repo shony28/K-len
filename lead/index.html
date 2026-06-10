@@ -267,7 +267,7 @@
     </div>
 
     <!-- КРОК 2Б: ДЕТАЛІ «ПРОСТО ЦІКАВИВСЯ» (Без джерела) -->
-    <div id="step-inquiry-details" style="display:none;">
+  <div id="step-inquiry-details" style="display:none;">
       <button onclick="backToMainButtons()" class="btn btn-gray btn-sm" style="margin-bottom:16px;">← Назад</button>
       <div class="card" style="padding:20px;">
         <h3 style="font-weight:800;color:#1e293b;margin:0 0 18px;font-size:1.1rem;">💬 Просто цікавився</h3>
@@ -282,7 +282,7 @@
           </select>
         </div>
         
-        <div class="form-group" style="margin-bottom:24px;">
+        <div class="form-group" style="margin-bottom:18px;">
           <label class="form-label" style="display:block; font-weight:700; margin-bottom:6px;">Тип звернення</label>
           <select class="sel" id="inquiry-call-type">
             <option value="">Оберіть тип…</option>
@@ -293,11 +293,10 @@
         </div>
 
         <div class="form-group" style="margin-bottom:24px;">
-          <label class="form-label" style="display:block; font-weight:700; margin-bottom:6px;">Звідки покупець дізнався про нас <span style="color:#ef4444;">*</span></label>
-          <select class="sel" id="purchase-source-name">
-            <option value="">— Оберіть джерело —</option>
+          <label class="form-label" style="display:block; font-weight:700; margin-bottom:6px;">Звідки покупець дізнався про нас</label>
+          <select class="sel" id="inquiry-source-name">
+            <option value="">— Не обрано / Невідомо —</option>
           </select>
-          <p id="source-loading-msg" style="color:#94a3b8;font-size:.8rem;margin:6px 0 0;">Завантаження списку…</p>
         </div>
 
         <button class="btn btn-blue btn-lg btn-full" id="btn-confirm-inquiry" onclick="confirmInquiry()">Підтвердити</button>
@@ -412,16 +411,31 @@ function loadAdSources() {
     .then(res => {
       if (res.success) {
         APP.adSources = res.data || [];
-        const sel = document.getElementById('purchase-source-name');
-        sel.innerHTML = '<option value="">— Оберіть джерело —</option>';
+        
+        const selPurchase = document.getElementById('purchase-source-name');
+        const selInquiry = document.getElementById('inquiry-source-name');
+        
+        // Очищаємо та наповнюємо для Покупки
+        selPurchase.innerHTML = '<option value="">— Оберіть джерело —</option>';
+        // Очищаємо та наповнюємо для Інтересу (перший варіант порожній)
+        selInquiry.innerHTML = '<option value="">— Не обрано / Невідомо —</option>';
+        
         APP.adSources.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s; opt.textContent = s; sel.appendChild(opt);
+          const optP = document.createElement('option');
+          optP.value = s; optP.textContent = s; selPurchase.appendChild(optP);
+          
+          const optI = document.createElement('option');
+          optI.value = s; optI.textContent = s; selInquiry.appendChild(optI);
         });
-        document.getElementById('source-loading-msg').textContent = '';
+        
+        const msgEl = document.getElementById('source-loading-msg');
+        if (msgEl) msgEl.textContent = '';
       }
     })
-    .catch(() => { document.getElementById('source-loading-msg').textContent = 'Помилка завантаження джерел'; });
+    .catch(() => { 
+      const msgEl = document.getElementById('source-loading-msg');
+      if (msgEl) msgEl.textContent = 'Помилка завантаження джерел'; 
+    });
 }
 
 function loadRecentTraffic() {
@@ -512,6 +526,7 @@ function onInquiryClick() {
   document.getElementById('step-inquiry-details').style.display = '';
   document.getElementById('inquiry-client-type').value = '';
   document.getElementById('inquiry-call-type').value = '';
+  document.getElementById('inquiry-source-name').value = ''; // Скидаємо поле джерела
 }
 
 function backToMainButtons() {
@@ -528,12 +543,20 @@ function hideAllSteps() {
 function confirmInquiry() {
   const clientType = document.getElementById('inquiry-client-type').value;
   const callType   = document.getElementById('inquiry-call-type').value;
-  if (!clientType || !callType) { alert('Оберіть всі поля'); return; }
+  const sourceName = document.getElementById('inquiry-source-name').value; // Читаємо джерело (може бути пустим)
+  
+  if (!clientType || !callType) { alert('Оберіть всі обов’язкові поля (Тип клієнта та звернення)'); return; }
 
   const btn = document.getElementById('btn-confirm-inquiry');
   const payload = {
     action: 'saveTrafficData',
-    data: { callType, clientType, result: 'Тільки цікавився', manager: APP.user.email, sourceName: '' }
+    data: { 
+      callType, 
+      clientType, 
+      result: 'Тільки цікавився', 
+      manager: APP.user.email, 
+      sourceName: sourceName // Передаємо значення (або пустий рядок, якщо не обрано)
+    }
   };
 
   sendPostData(payload, btn, '💬 Збереження...');
