@@ -478,7 +478,7 @@ const state = {
   processingData:      [],  // [{name, qty, unit, place}]
   processingLocations: [],  // ["Танк №3", "Пастеризатор", …]
   cartToProcessing:    [],  // [{name, place, qty, unit, available}]
-  finishModal:         null, // {place, items: [...]} — поточна локація та її позиції в модалі
+  finishModal:         null, // {place, items: [...], additionCounter: 0} — поточна локація та її позиції в модалі
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -815,14 +815,13 @@ function renderProcessingCards() {
 }
 
 // ──────────────────────────────────────────────────────────────
-// MODAL — Finish Processing — ПІДТРИМКА КІЛЬКОХ ПОЗИЦІЙ
+// MODAL — Finish Processing — ПІДТРИМКА КІЛЬКОХ ПОЗИЦІЙ ВХОДУ ТА ВИХОДУ
 // ──────────────────────────────────────────────────────────────
 function openFinishModalByPlace(place) {
-  // Знаходимо всі активні позиції для цієї локації
   var items = state.processingData.filter(function(i) { return i.place === place && i.qty > 0; });
   if (items.length === 0) return;
 
-  state.finishModal = { place: place, items: items };
+  state.finishModal = { place: place, items: items, additionCounter: 0 };
 
   document.getElementById('modal-source-label').textContent = 'Локація: ' + place;
 
@@ -844,54 +843,98 @@ function openFinishModalByPlace(place) {
     );
   }).join('');
 
-  // Заповнюємо випадаючий список назв продуктів унікальними назвами зі складу
-  var nameSel = document.getElementById('modal-result-name');
-  nameSel.innerHTML = '<option value="">— Оберіть зі складу або введіть нову —</option>';
-  var uniqueNames = [...new Set(state.warehouseData.map(function(w) { return w.name; }))].sort();
-  uniqueNames.forEach(function(n) {
-    var opt = document.createElement('option');
-    opt.value = n; opt.textContent = n;
-    nameSel.appendChild(opt);
-  });
-  var newOpt = document.createElement('option');
-  newOpt.value = '__new__'; newOpt.textContent = '✏️ Ввести нову назву…';
-  nameSel.appendChild(newOpt);
-  nameSel.value = '';
-
-  document.getElementById('modal-result-name-custom').style.display = 'none';
-  document.getElementById('modal-result-name-custom').value = '';
-
-  // Заповнюємо випадаючий список місць унікальними місцями зі складу
-  var placeSel = document.getElementById('modal-result-place');
-  placeSel.innerHTML = '<option value="">— Оберіть місце або введіть нове —</option>';
-  var uniquePlaces = [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
-  uniquePlaces.forEach(function(p) {
-    var opt = document.createElement('option');
-    opt.value = p; opt.textContent = p;
-    placeSel.appendChild(opt);
-  });
-  var newPlaceOpt = document.createElement('option');
-  newPlaceOpt.value = '__new__'; newPlaceOpt.textContent = '✏️ Ввести нове місце…';
-  placeSel.appendChild(newPlaceOpt);
-  placeSel.value = '';
-
-  document.getElementById('modal-result-place-custom').style.display = 'none';
-  document.getElementById('modal-result-place-custom').value = '';
-
-  document.getElementById('modal-result-qty').value = '';
-  document.getElementById('modal-result-unit').value = '';
+  // Очищаємо контейнер згенерованих продуктів та додаємо перший рядок за замовчуванням
+  document.getElementById('modal-additions-container').innerHTML = '';
+  addAdditionRowToModal();
 
   var modal = document.getElementById('finish-modal');
   modal.style.display = 'flex';
   
-  // Фокус на перше поле введення кількості списання
   setTimeout(function() { 
     var firstInput = document.getElementById('modal-deduct-qty-0');
     if(firstInput) firstInput.focus(); 
   }, 80);
 }
 
-// Заглушка, щоб уникнути помилок, якщо викликається стара функція за індексом
+// Додавання нового динамічного блоку продукту, що утворився
+function addAdditionRowToModal() {
+  var container = document.getElementById('modal-additions-container');
+  var rowId = state.finishModal.additionCounter++;
+  
+  var uniqueNames = [...new Set(state.warehouseData.map(function(w) { return w.name; }))].sort();
+  var nameOptionsHtml = uniqueNames.map(function(n) {
+    return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+  }).join('');
+
+  var uniquePlaces = [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
+  var placeOptionsHtml = uniquePlaces.map(function(p) {
+    return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+  }).join('');
+
+  var rowDiv = document.createElement('div');
+  rowDiv.id = 'addition-row-' + rowId;
+  rowDiv.className = 'p-4 mb-3 border border-slate-200 rounded-2xl bg-slate-50/50 relative';
+  
+  // Додаємо іконку видалення для всіх рядків, крім найпершого
+  var removeBtnHtml = '';
+  if (container.children.length > 0) {
+    removeBtnHtml = 
+      '<button onclick="removeAdditionRowFromModal(' + rowId + ')" ' +
+        'style="position:absolute;top:10px;right:10px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;' +
+        'border-radius:8px;color:#94a3b8;background:#fff;border:1px solid #e2e8f0;font-size:12px;">✕</button>';
+  }
+
+  rowDiv.innerHTML = [
+    removeBtnHtml,
+    '<div class="space-y-3">',
+      '<div>',
+        '<p class="text-xs text-slate-500 mb-1">Назва продукту</p>',
+        '<select id="modal-result-name-' + rowId + '" class="field" onchange="toggleCustomField(' + rowId + ', \'name\')">',
+          '<option value="">— Оберіть зі складу або введіть нову —</option>',
+          nameOptionsHtml,
+          '<option value="__new__">✏️ Ввести нову назву…</option>',
+        '</select>',
+        '<input type="text" id="modal-result-name-custom-' + rowId + '" placeholder="Нова назва продукту" class="field mt-2" style="display:none;" />',
+      '</div>',
+      '<div class="flex gap-2">',
+        '<div style="flex:1">',
+          '<p class="text-xs text-slate-500 mb-1">Кількість</p>',
+          '<input type="number" id="modal-result-qty-' + rowId + '" placeholder="0.000" min="0.001" step="0.001" inputmode="decimal" class="field" />',
+        '</div>',
+        '<div style="flex:1">',
+          '<p class="text-xs text-slate-500 mb-1">Од. виміру</p>',
+          '<input type="text" id="modal-result-unit-' + rowId + '" placeholder="кг, л, шт…" class="field" />',
+        '</div>',
+      '</div>',
+      '<div>',
+        '<p class="text-xs text-slate-500 mb-1">Місце зберігання</p>',
+        '<select id="modal-result-place-' + rowId + '" class="field" onchange="toggleCustomField(' + rowId + ', \'place\')">',
+          '<option value="">— Оберіть місце або введіть нове —</option>',
+          placeOptionsHtml,
+          '<option value="__new__">✏️ Ввести нове місце…</option>',
+        '</select>',
+        '<input type="text" id="modal-result-place-custom-' + rowId + '" placeholder="Нове місце зберігання" class="field mt-2" style="display:none;" />',
+      '</div>',
+    '</div>'
+  ].join('');
+
+  container.appendChild(rowDiv);
+}
+
+function removeAdditionRowFromModal(rowId) {
+  var row = document.getElementById('addition-row-' + rowId);
+  if (row) row.remove();
+}
+
+function toggleCustomField(rowId, type) {
+  var selectEl = document.getElementById('modal-result-' + type + '-' + rowId);
+  var customEl = document.getElementById('modal-result-' + type + '-custom-' + rowId);
+  if(selectEl && customEl) {
+    customEl.style.display = selectEl.value === '__new__' ? '' : 'none';
+    if(selectEl.value === '__new__') customEl.focus();
+  }
+}
+
 function openFinishModal(idx) {
   var item = state.processingData[idx];
   if(item) openFinishModalByPlace(item.place);
@@ -909,7 +952,7 @@ async function submitFinishProcessing() {
   var deductions = [];
   var hasPositiveDeduction = false;
 
-  // Валідація та збір даних для списання по кожній позиції
+  // 1. Валідація та збір даних для Списання
   for (var i = 0; i < items.length; i++) {
     var item = items[i];
     var inputEl = document.getElementById('modal-deduct-qty-' + i);
@@ -926,11 +969,7 @@ async function submitFinishProcessing() {
 
     if (deductQty > 0) {
       hasPositiveDeduction = true;
-      deductions.push({
-        name: item.name,
-        place: item.place,
-        qty: deductQty
-      });
+      deductions.push({ name: item.name, place: item.place, qty: deductQty });
     }
   }
 
@@ -939,27 +978,44 @@ async function submitFinishProcessing() {
     return;
   }
 
-  var nameSel = document.getElementById('modal-result-name');
-  var resultName = nameSel.value === '__new__'
-    ? document.getElementById('modal-result-name-custom').value.trim()
-    : nameSel.value.trim();
-  if (!resultName) { showToast('Оберіть або введіть назву продукту', 'warning'); return; }
+  // 2. Валідація та збір даних для Зарахування (Кількох продуктів)
+  var additions = [];
+  var additionRows = document.getElementById('modal-additions-container').children;
+  
+  if (additionRows.length === 0) {
+    showToast('Додайте хоча б один готовий продукт для зарахування', 'warning');
+    return;
+  }
 
-  var resultQty  = parseFloat(document.getElementById('modal-result-qty').value);
-  if (!resultQty || resultQty <= 0) { showToast('Введіть кількість готового продукту', 'warning'); return; }
+  for (var i = 0; i < additionRows.length; i++) {
+    var rowDiv = additionRows[i];
+    var rowId = rowDiv.id.replace('addition-row-', '');
 
-  var resultUnit = document.getElementById('modal-result-unit').value.trim();
-  if (!resultUnit) { showToast('Введіть одиницю виміру', 'warning'); return; }
+    var nameSel = document.getElementById('modal-result-name-' + rowId);
+    var resultName = nameSel.value === '__new__'
+      ? document.getElementById('modal-result-name-custom-' + rowId).value.trim()
+      : nameSel.value.trim();
+    if (!resultName) { showToast('Заповніть назву продукту у всіх рядках', 'warning'); return; }
 
-  var placeSel = document.getElementById('modal-result-place');
-  var resultPlace = placeSel.value === '__new__'
-    ? document.getElementById('modal-result-place-custom').value.trim()
-    : placeSel.value.trim();
-  if (!resultPlace) { showToast('Оберіть або введіть місце зберігання', 'warning'); return; }
+    var resultQty = parseFloat(document.getElementById('modal-result-qty-' + rowId).value);
+    if (!resultQty || resultQty <= 0) { showToast('Введіть коректну кількість для продукту: ' + resultName, 'warning'); return; }
 
+    var resultUnit = document.getElementById('modal-result-unit-' + rowId).value.trim();
+    if (!resultUnit) { showToast('Вкажіть одиницю виміру для продукту: ' + resultName, 'warning'); return; }
+
+    var placeSel = document.getElementById('modal-result-place-' + rowId);
+    var resultPlace = placeSel.value === '__new__'
+      ? document.getElementById('modal-result-place-custom-' + rowId).value.trim()
+      : placeSel.value.trim();
+    if (!resultPlace) { showToast('Оберіть місце зберігання для продукту: ' + resultName, 'warning'); return; }
+
+    additions.push({ name: resultName, qty: resultQty, unit: resultUnit, place: resultPlace });
+  }
+
+  // Модифікуємо payload для передачі масиву additions замість одиночного об'єкта addition
   var payload = {
     deductions: deductions,
-    addition:   { name: resultName, qty: resultQty, unit: resultUnit, place: resultPlace },
+    additions:  additions, 
     operator:   state.user.email || state.user.name,
   };
 
@@ -1145,18 +1201,6 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-add-to-cart-1').addEventListener('click', addToCart1);
   document.getElementById('btn-submit-1').addEventListener('click', submitToProcessing);
 
-  document.getElementById('modal-result-name').addEventListener('change', function() {
-    var custom = document.getElementById('modal-result-name-custom');
-    custom.style.display = this.value === '__new__' ? '' : 'none';
-    if (this.value === '__new__') custom.focus();
-  });
-
-  document.getElementById('modal-result-place').addEventListener('change', function() {
-    var custom = document.getElementById('modal-result-place-custom');
-    custom.style.display = this.value === '__new__' ? '' : 'none';
-    if (this.value === '__new__') custom.focus();
-  });
-
   document.getElementById('finish-modal').addEventListener('click', function(e) {
     if (e.target === this) closeFinishModal();
   });
@@ -1212,50 +1256,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <div class="mb-4">
       <p class="section-label">📉 Кількість для списання з обробки</p>
-      <div id="modal-deductions-container" class="space-y-3">
-        </div>
+      <div id="modal-deductions-container" class="space-y-3"></div>
     </div>
 
     <hr class="divider" />
 
-    <p class="section-label mb-3">📦 Що утворилось (зарахувати на склад)</p>
-
-    <div class="space-y-3 mb-5">
-      <div>
-        <p class="text-xs text-slate-500 mb-1">Назва продукту</p>
-        <select id="modal-result-name" class="field">
-          <option value="">— Оберіть зі складу або введіть нову —</option>
-          <option value="__new__">✏️ Ввести нову назву…</option>
-        </select>
-        <input type="text" id="modal-result-name-custom"
-          placeholder="Нова назва продукту"
-          class="field mt-2" style="display:none;" />
-      </div>
-
-      <div class="flex gap-2">
-        <div style="flex:1">
-          <p class="text-xs text-slate-500 mb-1">Кількість</p>
-          <input type="number" id="modal-result-qty"
-            placeholder="0.000" min="0.001" step="0.001" inputmode="decimal"
-            class="field" />
-        </div>
-        <div style="flex:1">
-          <p class="text-xs text-slate-500 mb-1">Од. виміру</p>
-          <input type="text" id="modal-result-unit"
-            placeholder="кг, л, шт…" class="field" />
-        </div>
-      </div>
-
-      <div>
-        <p class="text-xs text-slate-500 mb-1">Місце зберігання</p>
-        <select id="modal-result-place" class="field">
-          <option value="">— Оберіть місце або введіть нове —</option>
-          <option value="__new__">✏️ Ввести нове місце…</option>
-        </select>
-        <input type="text" id="modal-result-place-custom"
-          placeholder="Нове місце зберігання"
-          class="field mt-2" style="display:none;" />
-      </div>
+    <div class="mb-5">
+      <p class="section-label mb-3">📦 Що утворилось (зарахувати на склад)</p>
+      
+      <div id="modal-additions-container" class="space-y-3"></div>
+      
+      <button onclick="addAdditionRowToModal()" class="btn-add mt-2 bg-brand-50/50" style="padding: 10px; font-size: 13px;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        + Додати ще один продукт
+      </button>
     </div>
 
     <button id="modal-submit-btn" onclick="submitFinishProcessing()"
