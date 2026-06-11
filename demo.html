@@ -979,12 +979,11 @@ function renderSingleCart(listId, emptyId, badgeId, items, removeFn, color) {
 
   if (items.length === 0) {
     list.innerHTML = '';
-    list.appendChild(empty);
-    empty.style.display = '';
+    if (empty) empty.style.display = '';
     return;
   }
 
-  empty.style.display = 'none';
+  if (empty) empty.style.display = 'none';
   var accentColor = '#059669';
 
   list.innerHTML = items.map(function(item, idx) {
