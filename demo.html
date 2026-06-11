@@ -478,7 +478,7 @@ const state = {
   processingData:      [],  // [{name, qty, unit, place}]
   processingLocations: [],  // ["Танк №3", "Пастеризатор", …]
   cartToProcessing:    [],  // [{name, place, qty, unit, available}]
-  finishModal:         null, // {item} — поточна картка в модалі
+  finishModal:         null, // {place, items: [...]} — поточна локація та її позиції в модалі
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -733,7 +733,7 @@ function buildTargetLocationDropdown() {
 }
 
 // ──────────────────────────────────────────────────────────────
-// RENDER — Processing Cards (Tab 2)
+// RENDER — Processing Cards (Tab 2) — ОБ'ЄДНАННЯ ЗА ЛОКАЦІЄЮ
 // ──────────────────────────────────────────────────────────────
 function renderProcessingCards() {
   var container = document.getElementById('processing-cards-container');
@@ -749,22 +749,44 @@ function renderProcessingCards() {
     return;
   }
 
-  container.innerHTML = state.processingData.map(function(item, idx) {
-    var active = item.qty > 0;
-    var borderColor = active ? 'rgba(16,185,129,.25)' : '#e2e8f0';
-    var bgColor     = active ? 'rgba(16,185,129,.02)' : '#ffffff';
-    var nameColor   = active ? '#0f172a' : '#94a3b8';
-    var qtyColor    = active ? '#059669' : '#94a3b8';
-    var placeColor  = active ? '#475569' : '#94a3b8';
+  // Групуємо елементи обробки за полем place (локація)
+  var groups = {};
+  state.processingData.forEach(function(item) {
+    if (!groups[item.place]) {
+      groups[item.place] = [];
+    }
+    groups[item.place].push(item);
+  });
 
-    var statusBadge = active
-      ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;' +
-          'background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.2);">В ОБРОБЦІ</span>'
-      : '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;' +
-          'background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;">ПОРОЖНЬО</span>';
+  var html = '';
+  Object.keys(groups).forEach(function(place) {
+    var items = groups[place];
+    // Фільтруємо позиції, які дійсно мають залишок
+    var activeItems = items.filter(function(i) { return i.qty > 0; });
+    var hasActive = activeItems.length > 0;
 
-    var btn = active
-      ? '<button onclick="openFinishModal(' + idx + ')" ' +
+    var borderColor = hasActive ? 'rgba(16,185,129,.25)' : '#e2e8f0';
+    var bgColor     = hasActive ? 'rgba(16,185,129,.02)' : '#ffffff';
+
+    var statusBadge = hasActive
+      ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.2);">В ОБРОБЦІ</span>'
+      : '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;">ПОРОЖНЬО</span>';
+
+    // Формуємо список продуктів всередині однієї локації
+    var itemsListHtml = items.map(function(item) {
+      var itemActive = item.qty > 0;
+      var colorStyle = itemActive ? 'color:#0f172a' : 'color:#94a3b8';
+      var qtyStyle = itemActive ? 'color:#059669; font-weight:700;' : 'color:#94a3b8;';
+      return (
+        '<div style="display:flex; justify-content:between; items-center; font-size:13.5px; border-bottom:1px dashed #e2e8f0; padding:6px 0; gap:8px;">' +
+          '<span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ' + colorStyle + '">' + escapeHtml(item.name) + '</span>' +
+          '<span style="flex-shrink:0; ' + qtyStyle + '">' + fmtNum(item.qty) + ' <span style="font-size:11px; font-weight:400; color:#64748b;">' + escapeHtml(item.unit) + '</span></span>' +
+        '</div>'
+      );
+    }).join('');
+
+    var btn = hasActive
+      ? '<button onclick="openFinishModalByPlace(\'' + escapeHtml(place) + '\')" ' +
           'style="width:100%;margin-top:14px;background:linear-gradient(135deg,#059669,#0d9488);' +
           'color:#fff;font-weight:700;padding:12px 16px;border-radius:13px;font-size:13.5px;' +
           'border:none;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,.2);transition:all .2s;"' +
@@ -772,56 +794,57 @@ function renderProcessingCards() {
           ' onmouseout="this.style.filter=\'\'">' +
           '✅ Завершити обробку' +
         '</button>'
-      : '<div style="margin-top:12px;padding:10px;border-radius:12px;' +
-          'background:#f8fafc;border:1px solid #e2e8f0;text-align:center;' +
-          'font-size:12px;color:#94a3b8;">Немає залишку</div>';
+      : '<div style="margin-top:12px;padding:10px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;text-align:center;font-size:12px;color:#94a3b8;">Немає залишку</div>';
 
-    return (
+    html += (
       '<div style="background:' + bgColor + ';border:1px solid ' + borderColor + ';' +
-        'border-radius:20px;padding:16px 18px;box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);transition:all .2s;">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">' +
-          '<div style="flex:1;min-width:0;">' +
-            '<p style="font-size:14px;font-weight:700;color:' + nameColor + ';' +
-              'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-              escapeHtml(item.name) +
-            '</p>' +
-            '<p style="font-size:12px;color:' + placeColor + ';margin-top:3px;">📍 ' +
-              escapeHtml(item.place) +
-            '</p>' +
-          '</div>' +
-          '<div style="text-align:right;flex-shrink:0;">' +
-            statusBadge +
-            '<p style="font-size:18px;font-weight:800;color:' + qtyColor + ';margin-top:5px;">' +
-              fmtNum(item.qty) +
-              '<span style="font-size:11px;font-weight:500;margin-left:4px;color:' + placeColor + ';">' +
-                escapeHtml(item.unit) +
-              '</span>' +
-            '</p>' +
-          '</div>' +
+        'border-radius:20px;padding:16px 18px;box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); transition:all .2s; margin-bottom:12px;">' +
+        '<div style="display:flex;align-items:center;justify-content:between;margin-bottom:10px;gap:10px;">' +
+          '<p style="font-size:15px;font-weight:800;color:#0f172a;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ' + escapeHtml(place) + '</p>' +
+          '<div style="flex-shrink:0;">' + statusBadge + '</div>' +
+        '</div>' +
+        '<div style="background:#ffffff; border-radius:12px; padding:4px 12px; border:1px solid rgba(15,23,42,0.04);">' +
+          itemsListHtml +
         '</div>' +
         btn +
       '</div>'
     );
-  }).join('');
+  });
+
+  container.innerHTML = html;
 }
 
 // ──────────────────────────────────────────────────────────────
-// MODAL — Finish Processing
+// MODAL — Finish Processing — ПІДТРИМКА КІЛЬКОХ ПОЗИЦІЙ
 // ──────────────────────────────────────────────────────────────
-function openFinishModal(idx) {
-  var item = state.processingData[idx];
-  if (!item) return;
-  state.finishModal = { item: item };
+function openFinishModalByPlace(place) {
+  // Знаходимо всі активні позиції для цієї локації
+  var items = state.processingData.filter(function(i) { return i.place === place && i.qty > 0; });
+  if (items.length === 0) return;
 
-  document.getElementById('modal-source-label').textContent =
-    item.name + ' | ' + item.place + ' — доступно: ' + fmtNum(item.qty) + ' ' + item.unit;
-  document.getElementById('modal-available-hint').textContent =
-    'Максимум: ' + fmtNum(item.qty) + ' ' + item.unit;
-  document.getElementById('modal-deduct-unit').textContent = item.unit;
-  document.getElementById('modal-deduct-qty').value = fmtNum(item.qty);
-  document.getElementById('modal-deduct-qty').max = item.qty;
+  state.finishModal = { place: place, items: items };
 
-  // Populate result name select from warehouse unique names
+  document.getElementById('modal-source-label').textContent = 'Локація: ' + place;
+
+  // Динамічно будуємо поля списання для кожної позиції
+  var deductionsContainer = document.getElementById('modal-deductions-container');
+  deductionsContainer.innerHTML = items.map(function(item, idx) {
+    return (
+      '<div style="margin-bottom:12px;">' +
+        '<p class="text-xs font-semibold text-slate-700 mb-1">' + escapeHtml(item.name) + ' (макс. ' + fmtNum(item.qty) + ' ' + item.unit + '):</p>' +
+        '<div class="flex gap-2">' +
+          '<input type="number" id="modal-deduct-qty-' + idx + '" ' +
+            'placeholder="Кількість" min="0" max="' + item.qty + '" step="0.001" inputmode="decimal" ' +
+            'value="' + item.qty + '" class="field flex-1 modal-deduct-input" data-idx="' + idx + '" />' +
+          '<div style="background:#f8fafc;border:1.5px solid #cbd5e1;display:flex;align-items:center;justify-content:center;border-radius:14px;padding:0 16px;font-size:14px;color:#475569;font-weight:600;flex-shrink:0;min-width:56px;">' +
+            escapeHtml(item.unit) +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  // Заповнюємо випадаючий список назв продуктів унікальними назвами зі складу
   var nameSel = document.getElementById('modal-result-name');
   nameSel.innerHTML = '<option value="">— Оберіть зі складу або введіть нову —</option>';
   var uniqueNames = [...new Set(state.warehouseData.map(function(w) { return w.name; }))].sort();
@@ -838,7 +861,7 @@ function openFinishModal(idx) {
   document.getElementById('modal-result-name-custom').style.display = 'none';
   document.getElementById('modal-result-name-custom').value = '';
 
-  // Populate place select from warehouse unique places
+  // Заповнюємо випадаючий список місць унікальними місцями зі складу
   var placeSel = document.getElementById('modal-result-place');
   placeSel.innerHTML = '<option value="">— Оберіть місце або введіть нове —</option>';
   var uniquePlaces = [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
@@ -860,10 +883,20 @@ function openFinishModal(idx) {
 
   var modal = document.getElementById('finish-modal');
   modal.style.display = 'flex';
-  setTimeout(function() { document.getElementById('modal-deduct-qty').focus(); }, 80);
+  
+  // Фокус на перше поле введення кількості списання
+  setTimeout(function() { 
+    var firstInput = document.getElementById('modal-deduct-qty-0');
+    if(firstInput) firstInput.focus(); 
+  }, 80);
 }
 
-// Решта логіки JS залишається без змін...
+// Заглушка, щоб уникнути помилок, якщо викликається стара функція за індексом
+function openFinishModal(idx) {
+  var item = state.processingData[idx];
+  if(item) openFinishModalByPlace(item.place);
+}
+
 function closeFinishModal() {
   document.getElementById('finish-modal').style.display = 'none';
   state.finishModal = null;
@@ -871,11 +904,40 @@ function closeFinishModal() {
 
 async function submitFinishProcessing() {
   if (!state.finishModal) return;
-  var srcItem = state.finishModal.item;
+  var items = state.finishModal.items;
 
-  var deductQty = parseFloat(document.getElementById('modal-deduct-qty').value);
-  if (!deductQty || deductQty <= 0) { showToast('Введіть кількість для списання', 'warning'); return; }
-  if (deductQty > srcItem.qty) { showToast('Перевищує залишок: ' + fmtNum(srcItem.qty) + ' ' + srcItem.unit, 'error'); return; }
+  var deductions = [];
+  var hasPositiveDeduction = false;
+
+  // Валідація та збір даних для списання по кожній позиції
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var inputEl = document.getElementById('modal-deduct-qty-' + i);
+    var deductQty = parseFloat(inputEl.value) || 0;
+
+    if (deductQty < 0) { 
+      showToast('Введіть коректну кількість для ' + item.name, 'warning'); 
+      return; 
+    }
+    if (deductQty > item.qty) { 
+      showToast('Кількість для ' + item.name + ' перевищує залишок (' + fmtNum(item.qty) + ')', 'error'); 
+      return; 
+    }
+
+    if (deductQty > 0) {
+      hasPositiveDeduction = true;
+      deductions.push({
+        name: item.name,
+        place: item.place,
+        qty: deductQty
+      });
+    }
+  }
+
+  if (!hasPositiveDeduction) {
+    showToast('Вкажіть кількість для списання хоча б для однієї позиції', 'warning');
+    return;
+  }
 
   var nameSel = document.getElementById('modal-result-name');
   var resultName = nameSel.value === '__new__'
@@ -896,7 +958,7 @@ async function submitFinishProcessing() {
   if (!resultPlace) { showToast('Оберіть або введіть місце зберігання', 'warning'); return; }
 
   var payload = {
-    deductions: [{ name: srcItem.name, place: srcItem.place, qty: deductQty }],
+    deductions: deductions,
     addition:   { name: resultName, qty: resultQty, unit: resultUnit, place: resultPlace },
     operator:   state.user.email || state.user.name,
   };
@@ -1150,17 +1212,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <div class="mb-4">
       <p class="section-label">📉 Кількість для списання з обробки</p>
-      <div class="flex gap-2">
-        <input type="number" id="modal-deduct-qty"
-          placeholder="Кількість" min="0.001" step="0.001" inputmode="decimal"
-          class="field flex-1" />
-        <div id="modal-deduct-unit"
-          style="background:#f8fafc;border:1.5px solid #cbd5e1;
-                 display:flex;align-items:center;justify-content:center;
-                 border-radius:14px;padding:0 16px;font-size:14px;color:#475569;
-                 font-weight:600;flex-shrink:0;min-width:56px;">—</div>
-      </div>
-      <p id="modal-available-hint" class="text-xs text-slate-500 mt-1.5"></p>
+      <div id="modal-deductions-container" class="space-y-3">
+        </div>
     </div>
 
     <hr class="divider" />
