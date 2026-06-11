@@ -406,7 +406,7 @@
             <option value="">— Оберіть локацію обробки —</option>
           </select>
           <p class="text-xs text-slate-400 mt-2">
-            Локації визначаються адміністратором у таблиці "Обробка"
+            Локації визначаються адміністратором у Довіднику (колонка I)
           </p>
         </div>
 
@@ -676,6 +676,7 @@ async function loadDashboardData() {
     state.warehouseData       = data.warehouseData       || [];
     state.processingData      = data.processingData      || [];
     state.processingLocations = data.processingLocations || [];
+    state.storageLocations    = data.storageLocations    || [];
     renderDropdowns();
     hideLoader();
     showToast(
@@ -866,7 +867,9 @@ function addAdditionRowToModal() {
     return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
   }).join('');
 
-  var uniquePlaces = [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
+  var uniquePlaces = (state.storageLocations && state.storageLocations.length > 0)
+    ? state.storageLocations
+    : [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
   var placeOptionsHtml = uniquePlaces.map(function(p) {
     return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
   }).join('');
