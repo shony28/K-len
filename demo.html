@@ -867,6 +867,7 @@ function openFinishModalByPlace(place) {
 }
 
 // Додавання нового динамічного блоку продукту, що утворився
+// Додавання нового динамічного блоку продукту, що утворився
 function addAdditionRowToModal() {
   var container = document.getElementById('modal-additions-container');
   var rowId = state.finishModal.additionCounter++;
@@ -915,7 +916,11 @@ function addAdditionRowToModal() {
         '</div>',
         '<div style="flex:1">',
           '<p class="text-xs text-slate-500 mb-1">Од. виміру</p>',
-          '<input type="text" id="modal-result-unit-' + rowId + '" placeholder="кг, л, шт…" class="field" />',
+          '<select id="modal-result-unit-' + rowId + '" class="field">',
+            '<option value="кг">кг</option>',
+            '<option value="л">л</option>',
+            '<option value="шт">шт</option>',
+          '</select>',
         '</div>',
       '</div>',
       '<div>',
