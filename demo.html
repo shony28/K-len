@@ -543,6 +543,32 @@ function fmtNum(n) {
 }
 
 // ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — ДАТА/ЧАС
+// ──────────────────────────────────────────────────────────────
+// Парсить рядок 'yyyy-MM-dd HH:mm:ss' у timestamp (мс)
+function parseDateTime(str) {
+  if (!str) return null;
+  var m = String(str).trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  return new Date(
+    parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10),
+    parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6], 10)
+  ).getTime();
+}
+
+// Форматує тривалість (мс) у вигляд "Хд Yг" / "Yг Zхв" / "Zхв"
+function formatDuration(ms) {
+  if (!ms || ms < 0) ms = 0;
+  var totalMin = Math.floor(ms / 60000);
+  var days  = Math.floor(totalMin / 1440);
+  var hours = Math.floor((totalMin % 1440) / 60);
+  var mins  = totalMin % 60;
+  if (days > 0)  return days + 'д ' + hours + 'г';
+  if (hours > 0) return hours + 'г ' + mins + 'хв';
+  return mins + 'хв';
+}
+
+// ──────────────────────────────────────────────────────────────
 // API — GET / POST
 // ──────────────────────────────────────────────────────────────
 async function apiGet(params) {
@@ -778,8 +804,20 @@ function renderProcessingCards() {
     var borderColor = hasActive ? 'rgba(16,185,129,.25)' : '#e2e8f0';
     var bgColor     = hasActive ? 'rgba(16,185,129,.02)' : '#ffffff';
 
+    var durationLabel = '';
+    if (hasActive) {
+      var earliestTs = null;
+      activeItems.forEach(function(i) {
+        var ts = parseDateTime(i.createdAt);
+        if (ts && (earliestTs === null || ts < earliestTs)) earliestTs = ts;
+      });
+      if (earliestTs) {
+        durationLabel = formatDuration(Date.now() - earliestTs);
+      }
+    }
+
     var statusBadge = hasActive
-      ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.2);">В ОБРОБЦІ</span>'
+      ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.2);">В ОБРОБЦІ' + (durationLabel ? ' · ' + durationLabel : '') + '</span>'
       : '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;">ПОРОЖНЬО</span>';
 
     // Формуємо список продуктів всередині однієї локації
