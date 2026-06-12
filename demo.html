@@ -477,6 +477,7 @@ const state = {
   warehouseData:       [],  // [{name, qty, unit, place}]
   processingData:      [],  // [{name, qty, unit, place}]
   processingLocations: [],  // ["Танк №3", "Пастеризатор", …]
+  locationProducts:    {},  // { "Танк №3": ["Молоко", "Пастеризоване молоко"], ... }
   cartToProcessing:    [],  // [{name, place, qty, unit, available}]
   finishModal:         null, // {place, items: [...], additionCounter: 0} — поточна локація та її позиції в модалі
 };
@@ -676,6 +677,7 @@ async function loadDashboardData() {
     state.warehouseData       = data.warehouseData       || [];
     state.processingData      = data.processingData      || [];
     state.processingLocations = data.processingLocations || [];
+    state.locationProducts    = data.locationProducts    || {};
     state.storageLocations    = data.storageLocations    || [];
     renderDropdowns();
     hideLoader();
@@ -705,7 +707,14 @@ function buildWarehouseDropdown() {
   var sel = document.getElementById('select-warehouse-item');
   var cur = sel.value;
   sel.innerHTML = '<option value="">— Оберіть продукт —</option>';
+
+  var targetLocation = document.getElementById('select-target-location').value;
+  var allowedProducts = (targetLocation && state.locationProducts[targetLocation])
+    ? state.locationProducts[targetLocation]
+    : null;
+
   state.warehouseData.forEach(function(item, idx) {
+    if (allowedProducts && allowedProducts.indexOf(item.name) === -1) return;
     var opt = document.createElement('option');
     opt.value            = idx;
     opt.dataset.name     = item.name;
@@ -1186,6 +1195,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('tab-btn-' + n).classList.add('active');
     document.getElementById('tab-' + n).classList.add('active');
   }
+
+  document.getElementById('select-target-location').addEventListener('change', function() {
+    buildWarehouseDropdown();
+  });
 
   document.getElementById('select-warehouse-item').addEventListener('change', function() {
     var opt = this.options[this.selectedIndex];
