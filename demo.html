@@ -923,8 +923,12 @@ function addAdditionRowToModal() {
   var rowId = state.finishModal.additionCounter++;
   
   var uniqueNames = [...new Set(state.warehouseData.map(function(w) { return w.name; }))].sort();
+  var nameToUnit = {};
+  state.warehouseData.forEach(function(w) {
+    if (!(w.name in nameToUnit)) nameToUnit[w.name] = w.unit;
+  });
   var nameOptionsHtml = uniqueNames.map(function(n) {
-    return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+    return '<option value="' + escapeHtml(n) + '" data-unit="' + escapeHtml(nameToUnit[n] || '') + '">' + escapeHtml(n) + '</option>';
   }).join('');
 
   var uniquePlaces = (state.storageLocations && state.storageLocations.length > 0)
@@ -952,7 +956,7 @@ function addAdditionRowToModal() {
     '<div class="space-y-3">',
       '<div>',
         '<p class="text-xs text-slate-500 mb-1">Назва продукту</p>',
-        '<select id="modal-result-name-' + rowId + '" class="field" onchange="toggleCustomField(' + rowId + ', \'name\')">',
+        '<select id="modal-result-name-' + rowId + '" class="field" onchange="toggleCustomField(' + rowId + ', \'name\'); syncResultUnit(' + rowId + ')">',
           '<option value="">— Оберіть зі складу або введіть нову —</option>',
           nameOptionsHtml,
           '<option value="__new__">✏️ Ввести нову назву…</option>',
@@ -1000,6 +1004,15 @@ function toggleCustomField(rowId, type) {
     customEl.style.display = selectEl.value === '__new__' ? '' : 'none';
     if(selectEl.value === '__new__') customEl.focus();
   }
+}
+
+function syncResultUnit(rowId) {
+  var nameSel = document.getElementById('modal-result-name-' + rowId);
+  var unitSel = document.getElementById('modal-result-unit-' + rowId);
+  if(!nameSel || !unitSel) return;
+  var opt = nameSel.options[nameSel.selectedIndex];
+  var unit = opt ? opt.dataset.unit : '';
+  if(unit) unitSel.value = unit;
 }
 
 function openFinishModal(idx) {
