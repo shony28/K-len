@@ -970,11 +970,8 @@ function addAdditionRowToModal() {
         '</div>',
         '<div style="flex:1">',
           '<p class="text-xs text-slate-500 mb-1">Од. виміру</p>',
-          '<select id="modal-result-unit-' + rowId + '" class="field">',
-            '<option value="кг">кг</option>',
-            '<option value="л">л</option>',
-            '<option value="шт">шт</option>',
-          '</select>',
+          '<div id="modal-result-unit-badge-' + rowId + '" class="field flex items-center justify-center text-slate-500 bg-slate-100" style="cursor:not-allowed;">кг</div>',
+          '<input type="hidden" id="modal-result-unit-' + rowId + '" value="кг" />',
         '</div>',
       '</div>',
       '<div>',
@@ -1004,15 +1001,39 @@ function toggleCustomField(rowId, type) {
     customEl.style.display = selectEl.value === '__new__' ? '' : 'none';
     if(selectEl.value === '__new__') customEl.focus();
   }
+  if(type === 'name') {
+    var unitBadge = document.getElementById('modal-result-unit-badge-' + rowId);
+    var unitInput = document.getElementById('modal-result-unit-' + rowId);
+    if(unitBadge && unitInput) {
+      if(selectEl.value === '__new__' || selectEl.value === '') {
+        unitBadge.outerHTML =
+          '<select id="modal-result-unit-' + rowId + '" class="field">' +
+            '<option value="кг">кг</option>' +
+            '<option value="л">л</option>' +
+            '<option value="шт">шт</option>' +
+          '</select>';
+        unitInput.remove();
+      }
+    }
+  }
 }
 
 function syncResultUnit(rowId) {
   var nameSel = document.getElementById('modal-result-name-' + rowId);
-  var unitSel = document.getElementById('modal-result-unit-' + rowId);
-  if(!nameSel || !unitSel) return;
+  if(!nameSel) return;
   var opt = nameSel.options[nameSel.selectedIndex];
   var unit = opt ? opt.dataset.unit : '';
-  if(unit) unitSel.value = unit;
+  var unitInput = document.getElementById('modal-result-unit-' + rowId);
+  if(!unit) return; // new/empty selection handled by toggleCustomField
+  if(unitInput && unitInput.tagName === 'SELECT') {
+    unitInput.outerHTML =
+      '<div id="modal-result-unit-badge-' + rowId + '" class="field flex items-center justify-center text-slate-500 bg-slate-100" style="cursor:not-allowed;">' + unit + '</div>' +
+      '<input type="hidden" id="modal-result-unit-' + rowId + '" value="' + unit + '" />';
+    return;
+  }
+  var unitBadge = document.getElementById('modal-result-unit-badge-' + rowId);
+  unitInput.value = unit;
+  if(unitBadge) unitBadge.textContent = unit;
 }
 
 function openFinishModal(idx) {
