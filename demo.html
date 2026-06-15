@@ -259,6 +259,33 @@
 
     /* ——— Divider ——— */
     .divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+
+    /* ——— Searchable product dropdown ——— */
+    .product-search-wrap { position: relative; }
+    .product-search-wrap .product-dropdown {
+      display: none;
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+      background: #fff;
+      border: 1.5px solid #047857;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(4,120,87,.15);
+      z-index: 999;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .product-search-wrap .product-dropdown.open { display: block; }
+    .product-dropdown-item {
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #0f172a;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background .1s;
+    }
+    .product-dropdown-item:last-child { border-bottom: none; }
+    .product-dropdown-item:hover, .product-dropdown-item.highlighted { background: rgba(4,120,87,.08); color: #047857; }
+    .product-dropdown-item.new-item { color: #047857; font-weight: 600; }
+    .product-dropdown-empty { padding: 10px 14px; font-size: 13px; color: #94a3b8; text-align: center; }
   </style>
 </head>
 
@@ -917,20 +944,144 @@ function openFinishModalByPlace(place) {
   }, 80);
 }
 
-// Додавання нового динамічного блоку продукту, що утворився
-// Додавання нового динамічного блоку продукту, що утворився
-function addAdditionRowToModal() {
-  var container = document.getElementById('modal-additions-container');
-  var rowId = state.finishModal.additionCounter++;
-  
-  var uniqueNames = [...new Set(state.warehouseData.map(function(w) { return w.name; }))].sort();
+// Searchable product name field helpers
+function buildProductNameSearch(rowId) {
+  var uniqueNames = [...new Set(state.warehouseData.map(function(w) { return w.name; }))].sort(function(a,b){ return a.localeCompare(b,'uk'); });
   var nameToUnit = {};
   state.warehouseData.forEach(function(w) {
     if (!(w.name in nameToUnit)) nameToUnit[w.name] = w.unit;
   });
-  var nameOptionsHtml = uniqueNames.map(function(n) {
-    return '<option value="' + escapeHtml(n) + '" data-unit="' + escapeHtml(nameToUnit[n] || '') + '">' + escapeHtml(n) + '</option>';
-  }).join('');
+
+  var wrap = document.getElementById('product-search-wrap-' + rowId);
+  var input = document.getElementById('modal-result-name-search-' + rowId);
+  var dropdown = document.getElementById('product-search-dropdown-' + rowId);
+  var hiddenVal = document.getElementById('modal-result-name-' + rowId);
+  var hiddenUnit = document.getElementById('modal-result-unit-' + rowId);
+  var unitBadgeId = 'modal-result-unit-badge-' + rowId;
+
+  function renderDropdown(query) {
+    query = (query || '').toLowerCase().trim();
+    var filtered = query
+      ? uniqueNames.filter(function(n){ return n.toLowerCase().includes(query); })
+      : uniqueNames;
+
+    var html = '';
+    filtered.forEach(function(n) {
+      html += '<div class="product-dropdown-item" data-name="' + escapeHtml(n) + '" data-unit="' + escapeHtml(nameToUnit[n] || '') + '">' + escapeHtml(n) + '</div>';
+    });
+    // "Ввести нову" якщо запит не порожній і немає точного збігу
+    if (query && !uniqueNames.some(function(n){ return n.toLowerCase() === query; })) {
+      html += '<div class="product-dropdown-item new-item" data-name="__new__" data-unit="">✏️ Зберегти як нову: «' + escapeHtml(input.value.trim()) + '»</div>';
+    }
+    if (!html) {
+      html = '<div class="product-dropdown-empty">Нічого не знайдено</div>';
+    }
+    dropdown.innerHTML = html;
+
+    // bind clicks
+    dropdown.querySelectorAll('.product-dropdown-item').forEach(function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var name = el.dataset.name;
+        var unit = el.dataset.unit || '';
+        if (name === '__new__') {
+          var typed = input.value.trim();
+          hiddenVal.value = '__new__';
+          input.setAttribute('data-custom', typed);
+          // show unit selector
+          applyUnitSelector(rowId);
+        } else {
+          hiddenVal.value = name;
+          input.value = name;
+          input.removeAttribute('data-custom');
+          // set unit
+          hiddenUnit.value = unit;
+          var badge = document.getElementById(unitBadgeId);
+          if (badge) badge.textContent = unit || '—';
+          // restore badge if was selector
+          restoreUnitBadge(rowId, unit);
+        }
+        closeDropdown();
+      });
+    });
+  }
+
+  function openDropdown() {
+    renderDropdown(input.value);
+    dropdown.classList.add('open');
+  }
+  function closeDropdown() {
+    dropdown.classList.remove('open');
+  }
+
+  input.addEventListener('focus', function() { openDropdown(); });
+  input.addEventListener('input', function() {
+    hiddenVal.value = '';
+    openDropdown();
+    renderDropdown(input.value);
+  });
+  input.addEventListener('blur', function() {
+    setTimeout(function() { closeDropdown(); }, 150);
+  });
+  input.addEventListener('keydown', function(e) {
+    var items = dropdown.querySelectorAll('.product-dropdown-item');
+    var highlighted = dropdown.querySelector('.product-dropdown-item.highlighted');
+    var idx = -1;
+    items.forEach(function(it, i){ if(it === highlighted) idx = i; });
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (highlighted) highlighted.classList.remove('highlighted');
+      var next = items[idx + 1] || items[0];
+      if (next) next.classList.add('highlighted');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (highlighted) highlighted.classList.remove('highlighted');
+      var prev = items[idx - 1] || items[items.length - 1];
+      if (prev) prev.classList.add('highlighted');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlighted) highlighted.dispatchEvent(new MouseEvent('mousedown'));
+      else closeDropdown();
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  });
+}
+
+function applyUnitSelector(rowId) {
+  var unitBadge = document.getElementById('modal-result-unit-badge-' + rowId);
+  var unitInput = document.getElementById('modal-result-unit-' + rowId);
+  if (unitBadge) {
+    unitBadge.outerHTML =
+      '<select id="modal-result-unit-' + rowId + '" class="field">' +
+        '<option value="кг">кг</option>' +
+        '<option value="л">л</option>' +
+        '<option value="шт">шт</option>' +
+      '</select>';
+  } else if (unitInput && unitInput.tagName === 'INPUT') {
+    unitInput.outerHTML =
+      '<select id="modal-result-unit-' + rowId + '" class="field">' +
+        '<option value="кг">кг</option>' +
+        '<option value="л">л</option>' +
+        '<option value="шт">шт</option>' +
+      '</select>';
+  }
+}
+
+function restoreUnitBadge(rowId, unit) {
+  var el = document.getElementById('modal-result-unit-' + rowId);
+  if (!el) return;
+  if (el.tagName === 'SELECT') {
+    el.outerHTML =
+      '<div id="modal-result-unit-badge-' + rowId + '" class="field flex items-center justify-center text-slate-500 bg-slate-100" style="cursor:not-allowed;">' + escapeHtml(unit) + '</div>' +
+      '<input type="hidden" id="modal-result-unit-' + rowId + '" value="' + escapeHtml(unit) + '" />';
+  }
+}
+
+// Додавання нового динамічного блоку продукту, що утворився
+function addAdditionRowToModal() {
+  var container = document.getElementById('modal-additions-container');
+  var rowId = state.finishModal.additionCounter++;
 
   var uniquePlaces = (state.storageLocations && state.storageLocations.length > 0)
     ? state.storageLocations
@@ -942,11 +1093,10 @@ function addAdditionRowToModal() {
   var rowDiv = document.createElement('div');
   rowDiv.id = 'addition-row-' + rowId;
   rowDiv.className = 'p-4 mb-3 border border-slate-200 rounded-2xl bg-slate-50/50 relative';
-  
-  // Додаємо іконку видалення для всіх рядків, крім найпершого
+
   var removeBtnHtml = '';
   if (container.children.length > 0) {
-    removeBtnHtml = 
+    removeBtnHtml =
       '<button onclick="removeAdditionRowFromModal(' + rowId + ')" ' +
         'style="position:absolute;top:10px;right:10px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;' +
         'border-radius:8px;color:#94a3b8;background:#fff;border:1px solid #e2e8f0;font-size:12px;">✕</button>';
@@ -957,12 +1107,13 @@ function addAdditionRowToModal() {
     '<div class="space-y-3">',
       '<div>',
         '<p class="text-xs text-slate-500 mb-1">Назва продукту</p>',
-        '<select id="modal-result-name-' + rowId + '" class="field" onchange="toggleCustomField(' + rowId + ', \'name\'); syncResultUnit(' + rowId + ')">',
-          '<option value="">— Оберіть зі складу або введіть нову —</option>',
-          nameOptionsHtml,
-          '<option value="__new__">✏️ Ввести нову назву…</option>',
-        '</select>',
-        '<input type="text" id="modal-result-name-custom-' + rowId + '" placeholder="Нова назва продукту" class="field mt-2" style="display:none;" />',
+        '<div class="product-search-wrap" id="product-search-wrap-' + rowId + '">',
+          '<input type="text" id="modal-result-name-search-' + rowId + '" class="field"',
+            ' placeholder="🔍 Пошук або введіть нову назву…"',
+            ' autocomplete="off" autocorrect="off" spellcheck="false" />',
+          '<input type="hidden" id="modal-result-name-' + rowId + '" value="" />',
+          '<div class="product-dropdown" id="product-search-dropdown-' + rowId + '"></div>',
+        '</div>',
       '</div>',
       '<div class="flex gap-2">',
         '<div style="flex:1">',
@@ -988,6 +1139,9 @@ function addAdditionRowToModal() {
   ].join('');
 
   container.appendChild(rowDiv);
+
+  // Initialize searchable dropdown
+  buildProductNameSearch(rowId);
 }
 
 function removeAdditionRowFromModal(rowId) {
@@ -1136,9 +1290,17 @@ async function submitFinishProcessing() {
     var rowId = rowDiv.id.replace('addition-row-', '');
 
     var nameSel = document.getElementById('modal-result-name-' + rowId);
-    var resultName = nameSel.value === '__new__'
-      ? document.getElementById('modal-result-name-custom-' + rowId).value.trim()
-      : nameSel.value.trim();
+    var nameSearch = document.getElementById('modal-result-name-search-' + rowId);
+    var resultName;
+    if (nameSel.value === '__new__') {
+      // User typed a custom name (not from list)
+      resultName = (nameSearch ? nameSearch.value.trim() : '') || (nameSearch && nameSearch.getAttribute('data-custom')) || '';
+    } else if (nameSel.value) {
+      resultName = nameSel.value.trim();
+    } else {
+      // Nothing selected from dropdown — use typed text as new name
+      resultName = nameSearch ? nameSearch.value.trim() : '';
+    }
     if (!resultName) { showToast('Заповніть назву продукту у всіх рядках', 'warning'); return; }
 
     var resultQty = parseFloat(document.getElementById('modal-result-qty-' + rowId).value);
