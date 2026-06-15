@@ -49,6 +49,26 @@
     .form-group { margin-bottom: 15px; }
     .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
     .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+    .date-input-group { display: flex; gap: 8px; }
+    .date-input-group input[type="text"] { flex: 1; min-width: 0; }
+    .btn-calendar {
+      flex-shrink: 0;
+      min-width: 44px;
+      padding: 10px 12px;
+      background: #3498db;
+      font-size: 18px;
+      line-height: 1;
+      border-radius: 8px;
+    }
+    .btn-calendar:active { background: #2980b9; }
+    .date-picker-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      border: none;
+    }
     .btn-primary { background: #2ecc71; width: 100%; margin-top: 5px; }
     .btn-cancel { background: #95a5a6; width: 100%; margin-top: 5px; }
     .header-actions { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto; padding: 0 10px; }
@@ -743,8 +763,17 @@ function updateStatus(row, newStatus, overlay, selectEl) {
                          ${field.options.map(opt => `<option value="${opt}">`).join('')}
                        </datalist>`;
             } else if (field.type === 'date') {
-              html += `<input type="text" id="field-${field.col}" class="dynamic-field" 
-                        placeholder="DD.MM.YYYY" oninput="formatDateInput(this)" maxlength="10">`;
+              html += `<div class="date-input-group">
+                        <input type="text" id="field-${field.col}" class="dynamic-field" 
+                          placeholder="DD.MM.YYYY" oninput="formatDateInput(this)" maxlength="10"
+                          value="${getTodayFormatted()}">
+                        <input type="date" id="field-${field.col}-picker" class="date-picker-hidden" 
+                          value="${getTodayISO()}"
+                          onchange="onDatePickerChange(this, 'field-${field.col}')">
+                        <button type="button" class="btn-calendar" 
+                          onclick="openDatePicker('field-${field.col}-picker')" 
+                          title="Обрати дату з календаря">📅</button>
+                       </div>`;
             } else {
               html += `<input type="text" id="field-${field.col}" class="dynamic-field" placeholder="${field.label}">`;
             }
@@ -785,9 +814,18 @@ function updateStatus(row, newStatus, overlay, selectEl) {
                          ${field.options.map(opt => `<option value="${opt}">`).join('')}
                        </datalist>`;
             } else if (field.type === 'date') {
-              html += `<input type="text" id="field-${field.col}" class="dynamic-field" 
-                        placeholder="ДД.ММ.РРРР" oninput="formatDateInput(this)" maxlength="10" 
-                        style="width:100%; padding:8px; box-sizing:border-box;">`;
+              html += `<div class="date-input-group">
+                        <input type="text" id="field-${field.col}" class="dynamic-field" 
+                          placeholder="ДД.ММ.РРРР" oninput="formatDateInput(this)" maxlength="10" 
+                          value="${getTodayFormatted()}"
+                          style="padding:8px; box-sizing:border-box;">
+                        <input type="date" id="field-${field.col}-picker" class="date-picker-hidden" 
+                          value="${getTodayISO()}"
+                          onchange="onDatePickerChange(this, 'field-${field.col}')">
+                        <button type="button" class="btn-calendar" 
+                          onclick="openDatePicker('field-${field.col}-picker')" 
+                          title="Обрати дату з календаря">📅</button>
+                       </div>`;
             } else {
               html += `<input type="text" id="field-${field.col}" class="dynamic-field" 
                         placeholder="${field.label}" style="width:100%; padding:8px; box-sizing:border-box;">`;
@@ -874,6 +912,48 @@ function submitNewTask() {
     btn.innerText = "Зберегти";
   });
 }
+
+//функції-помічники для дати за замовчуванням і кнопки-календаря
+    function getTodayFormatted() {
+      const d = new Date();
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}.${mm}.${yyyy}`;
+    }
+
+    function getTodayISO() {
+      const d = new Date();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${d.getFullYear()}-${mm}-${dd}`;
+    }
+
+    // Відкриває нативний календар для вибору дати
+    function openDatePicker(pickerId) {
+      const picker = document.getElementById(pickerId);
+      if (!picker) return;
+      if (typeof picker.showPicker === 'function') {
+        try {
+          picker.showPicker();
+        } catch (e) {
+          picker.focus();
+          picker.click();
+        }
+      } else {
+        picker.focus();
+        picker.click();
+      }
+    }
+
+    // Переносить дату, вибрану в календарі, у текстове поле в форматі ДД.ММ.РРРР
+    function onDatePickerChange(picker, textFieldId) {
+      const val = picker.value; // формат YYYY-MM-DD
+      if (!val) return;
+      const [yyyy, mm, dd] = val.split('-');
+      const textField = document.getElementById(textFieldId);
+      if (textField) textField.value = `${dd}.${mm}.${yyyy}`;
+    }
 
 //функція для маски дати
     function formatDateInput(input) {
