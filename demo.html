@@ -1941,10 +1941,6 @@ function submitTransformOperation() {
     return;
   }
   
-  if (!confirm("Ви впевнені, що хочете виконати це миттєве перетворення? Дані на Складі оновляться відразу.")) {
-    return;
-  }
-  
   showLoader("Виконується перетворення товарів...");
   
   const payload = {
