@@ -1793,22 +1793,31 @@ function removeTransformInput(index) {
 function searchTransformDirectory(val) {
   const dropdown = document.getElementById('t-output-dropdown');
   dropdown.innerHTML = '';
-  
-  // Збираємо перелік усіх можливих назв товарів з Довідника (на основі state.locationProducts)
+
+  const query = val.trim().toLowerCase();
+
+  if (!query) { dropdown.classList.remove('open'); return; }
+
+  // 1. Спочатку беремо всі назви з Довідника (locationProducts)
   let allDirectoryProducts = [];
   if (state.locationProducts) {
     Object.values(state.locationProducts).forEach(arr => {
-      arr.forEach(p => { if(!allDirectoryProducts.includes(p)) allDirectoryProducts.push(p); });
+      arr.forEach(p => { if (!allDirectoryProducts.includes(p)) allDirectoryProducts.push(p); });
     });
   }
-  
-  const query = val.toLowerCase().trim();
-  
-  // Фільтруємо
+
+  // 2. Додаємо всі назви зі складу (warehouseData), яких ще немає в списку
+  state.warehouseData.forEach(item => {
+    if (!allDirectoryProducts.includes(item.name)) {
+      allDirectoryProducts.push(item.name);
+    }
+  });
+
+  // 3. Фільтруємо за запитом
   const filtered = allDirectoryProducts.filter(p => p.toLowerCase().includes(query));
-  
-  if (filtered.length === 0 && query.length > 0) {
-    // Дозволяємо створити новий продукт, якщо його немає в довіднику
+
+  if (filtered.length === 0) {
+    // Дозволяємо ввести довільну назву нового продукту
     const addNewRow = document.createElement('div');
     addNewRow.className = 'product-dropdown-item new-item';
     addNewRow.textContent = `➕ Створити новий: "${val}"`;
@@ -1818,7 +1827,7 @@ function searchTransformDirectory(val) {
     };
     dropdown.appendChild(addNewRow);
   } else {
-    filtered.slice(0, 10).forEach(name => {
+    filtered.slice(0, 15).forEach(name => {
       const row = document.createElement('div');
       row.className = 'product-dropdown-item';
       row.textContent = name;
