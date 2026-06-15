@@ -1211,6 +1211,140 @@ function closeWarehouseModal() {
   document.getElementById('warehouse-modal').style.display = 'none';
 }
 
+// ──────────────────────────────────────────────────────────────
+// MOVE MODAL — Переміщення між локаціями складу
+// ──────────────────────────────────────────────────────────────
+var _moveItemIdx = null;
+
+function openMoveModal(itemIdx) {
+  _moveItemIdx = itemIdx;
+  var item = state.warehouseData[itemIdx];
+  if (!item) return;
+
+  document.getElementById('move-item-name').textContent  = item.name;
+  document.getElementById('move-item-from').textContent  = '📍 Зараз: ' + item.place;
+  document.getElementById('move-item-qty').textContent   = fmtNum(item.qty);
+  document.getElementById('move-item-unit').textContent  = item.unit;
+  document.getElementById('move-modal-subtitle').textContent = item.name + ' · ' + item.place;
+  document.getElementById('move-qty').value = '';
+  document.getElementById('move-qty').max   = item.qty;
+  document.getElementById('move-place-search').value = '';
+  document.getElementById('move-place-value').value  = '';
+
+  // Close warehouse modal, open move modal
+  document.getElementById('warehouse-modal').style.display = 'none';
+  document.getElementById('move-modal').style.display = 'flex';
+
+  // Init place search
+  buildPlaceSearch(item.place);
+  setTimeout(function() { document.getElementById('move-qty').focus(); }, 80);
+}
+
+function closeMoveModal() {
+  document.getElementById('move-modal').style.display = 'none';
+  _moveItemIdx = null;
+}
+
+function buildPlaceSearch(excludePlace) {
+  var allPlaces = (state.storageLocations && state.storageLocations.length > 0)
+    ? state.storageLocations
+    : [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
+
+  // Filter out current place
+  var places = allPlaces.filter(function(p) { return p !== excludePlace; });
+
+  var input    = document.getElementById('move-place-search');
+  var dropdown = document.getElementById('move-place-dropdown');
+  var hidden   = document.getElementById('move-place-value');
+
+  function renderPlaceDropdown(query) {
+    query = (query || '').toLowerCase().trim();
+    var filtered = query ? places.filter(function(p){ return p.toLowerCase().includes(query); }) : places;
+    var html = '';
+    filtered.forEach(function(p) {
+      html += '<div class="product-dropdown-item" data-place="' + escapeHtml(p) + '">' + escapeHtml(p) + '</div>';
+    });
+    if (query && !places.some(function(p){ return p.toLowerCase() === query; })) {
+      html += '<div class="product-dropdown-item new-item" data-place="__typed__">✏️ Нове місце: «' + escapeHtml(input.value.trim()) + '»</div>';
+    }
+    if (!html) html = '<div class="product-dropdown-empty">Нічого не знайдено</div>';
+    dropdown.innerHTML = html;
+
+    dropdown.querySelectorAll('.product-dropdown-item').forEach(function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        if (el.dataset.place === '__typed__') {
+          hidden.value = input.value.trim();
+        } else {
+          hidden.value = el.dataset.place;
+          input.value  = el.dataset.place;
+        }
+        dropdown.classList.remove('open');
+      });
+    });
+  }
+
+  // Remove old listeners by replacing element
+  var newInput = input.cloneNode(true);
+  input.parentNode.replaceChild(newInput, input);
+  var inp = document.getElementById('move-place-search');
+
+  inp.addEventListener('focus',  function() { renderPlaceDropdown(inp.value); dropdown.classList.add('open'); });
+  inp.addEventListener('input',  function() { hidden.value = ''; renderPlaceDropdown(inp.value); dropdown.classList.add('open'); });
+  inp.addEventListener('blur',   function() { setTimeout(function(){ dropdown.classList.remove('open'); }, 150); });
+  inp.addEventListener('keydown', function(e) {
+    var items = dropdown.querySelectorAll('.product-dropdown-item');
+    var hl    = dropdown.querySelector('.highlighted');
+    var idx   = -1;
+    items.forEach(function(it, i){ if(it===hl) idx=i; });
+    if (e.key === 'ArrowDown') { e.preventDefault(); if(hl) hl.classList.remove('highlighted'); var next=items[idx+1]||items[0]; if(next) next.classList.add('highlighted'); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if(hl) hl.classList.remove('highlighted'); var prev=items[idx-1]||items[items.length-1]; if(prev) prev.classList.add('highlighted'); }
+    else if (e.key === 'Enter') { e.preventDefault(); if(hl) hl.dispatchEvent(new MouseEvent('mousedown')); else dropdown.classList.remove('open'); }
+    else if (e.key === 'Escape') { dropdown.classList.remove('open'); }
+  });
+}
+
+async function submitMoveItem() {
+  if (_moveItemIdx === null) return;
+  var item = state.warehouseData[_moveItemIdx];
+  if (!item) return;
+
+  var qty = parseFloat(document.getElementById('move-qty').value);
+  if (!qty || qty <= 0) { showToast('Введіть коректну кількість', 'warning'); return; }
+  if (qty > item.qty) { showToast('Кількість перевищує залишок (' + fmtNum(item.qty) + ' ' + item.unit + ')', 'error'); return; }
+
+  var toPlace = document.getElementById('move-place-value').value.trim()
+             || document.getElementById('move-place-search').value.trim();
+  if (!toPlace) { showToast('Вкажіть нове місце зберігання', 'warning'); return; }
+  if (toPlace === item.place) { showToast('Нове місце збігається з поточним', 'warning'); return; }
+
+  var payload = {
+    name:      item.name,
+    unit:      item.unit,
+    fromPlace: item.place,
+    toPlace:   toPlace,
+    qty:       qty,
+    operator:  state.user.email || state.user.name,
+  };
+
+  var btn = document.getElementById('move-submit-btn');
+  btn.disabled = true;
+  showLoader('Переміщення…');
+
+  try {
+    var result = await apiPost('moveWarehouseItem', payload);
+    hideLoader();
+    showToast('🔀 ' + result.message, 'success', 5000);
+    closeMoveModal();
+    await loadDashboardData();
+  } catch (err) {
+    hideLoader();
+    showToast(err.message, 'error', 9000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderWarehouseModalList() {
   var container = document.getElementById('warehouse-modal-list');
   var query = (document.getElementById('warehouse-search').value || '').toLowerCase().trim();
@@ -1229,16 +1363,26 @@ function renderWarehouseModalList() {
     return a.name.localeCompare(b.name, 'uk') || a.place.localeCompare(b.place, 'uk');
   });
 
-  container.innerHTML = sorted.map(function(item) {
-    return '<div class="glass rounded-2xl p-3 flex items-center justify-between">' +
-      '<div>' +
-        '<p class="font-semibold text-slate-900 text-sm">' + item.name + '</p>' +
-        '<p class="text-xs text-slate-500 mt-0.5">📍 ' + item.place + '</p>' +
+  container.innerHTML = sorted.map(function(item, idx) {
+    var itemIdx = state.warehouseData.indexOf(item);
+    return '<div class="glass rounded-2xl p-3 flex items-center justify-between gap-2">' +
+      '<div class="min-w-0 flex-1">' +
+        '<p class="font-semibold text-slate-900 text-sm truncate">' + escapeHtml(item.name) + '</p>' +
+        '<p class="text-xs text-slate-500 mt-0.5">📍 ' + escapeHtml(item.place) + '</p>' +
       '</div>' +
-      '<div class="text-right">' +
+      '<div class="text-right flex-shrink-0">' +
         '<p class="font-bold text-slate-900 text-sm">' + (parseFloat(item.qty.toFixed(3))) + '</p>' +
-        '<p class="text-xs text-slate-500">' + item.unit + '</p>' +
+        '<p class="text-xs text-slate-500">' + escapeHtml(item.unit) + '</p>' +
       '</div>' +
+      '<button onclick="openMoveModal(' + itemIdx + ')" title="Перемістити"' +
+        ' style="flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;' +
+        'border-radius:10px;background:rgba(37,99,235,.08);border:1.5px solid rgba(37,99,235,.2);color:#2563eb;transition:all .15s;"' +
+        ' onmouseover="this.style.background=\'rgba(37,99,235,.18)\'"' +
+        ' onmouseout="this.style.background=\'rgba(37,99,235,.08)\'">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>' +
+        '</svg>' +
+      '</button>' +
     '</div>';
   }).join('');
 }
@@ -1613,6 +1757,67 @@ document.addEventListener('DOMContentLoaded', function() {
     <input type="text" id="warehouse-search" class="field mb-3" placeholder="🔍 Пошук за назвою або місцем…" oninput="renderWarehouseModalList()" />
 
     <div id="warehouse-modal-list" class="space-y-2"></div>
+  </div>
+</div>
+
+<!-- ══════ MOVE MODAL ══════ -->
+<div id="move-modal" style="display:none;position:fixed;inset:0;z-index:9000;
+  background:rgba(15,23,42,0.45);backdrop-filter:blur(14px);
+  align-items:flex-end;justify-content:center;" role="dialog" aria-modal="true">
+  <div class="glass-strong w-full max-w-lg rounded-t-3xl p-6 pb-8 border-slate-200" style="border-bottom:none;max-height:92dvh;overflow-y:auto;">
+
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <p class="font-bold text-slate-900 text-base">🔀 Переміщення на склад</p>
+        <p id="move-modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+      </div>
+      <button onclick="closeMoveModal()"
+        style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+               border-radius:10px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Info card -->
+    <div id="move-info-card" class="rounded-2xl p-4 mb-5"
+      style="background:rgba(4,120,87,.06);border:1.5px solid rgba(4,120,87,.2);">
+      <div class="flex items-center justify-between">
+        <div>
+          <p id="move-item-name" class="font-bold text-slate-900 text-sm"></p>
+          <p id="move-item-from" class="text-xs text-slate-500 mt-0.5"></p>
+        </div>
+        <div class="text-right">
+          <p id="move-item-qty" class="font-bold text-brand-700 text-sm"></p>
+          <p id="move-item-unit" class="text-xs text-slate-500"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <p class="text-xs text-slate-500 mb-1 font-medium">Кількість для переміщення</p>
+        <input type="number" id="move-qty" class="field" placeholder="0.000"
+          min="0.001" step="0.001" inputmode="decimal" />
+      </div>
+
+      <div>
+        <p class="text-xs text-slate-500 mb-1 font-medium">Нове місце зберігання</p>
+        <div class="product-search-wrap" id="move-place-wrap">
+          <input type="text" id="move-place-search" class="field"
+            placeholder="🔍 Пошук або нове місце…"
+            autocomplete="off" autocorrect="off" spellcheck="false" />
+          <input type="hidden" id="move-place-value" value="" />
+          <div class="product-dropdown" id="move-place-dropdown"></div>
+        </div>
+      </div>
+    </div>
+
+    <button id="move-submit-btn" onclick="submitMoveItem()" class="btn-primary mt-6"
+      style="background:linear-gradient(135deg,#2563eb,#0891b2);box-shadow:0 4px 22px rgba(37,99,235,.35);">
+      🔀 Перемістити
+    </button>
   </div>
 </div>
 
