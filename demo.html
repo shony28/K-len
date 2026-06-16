@@ -1665,6 +1665,10 @@ function openTransformModal() {
   
   document.getElementById('t-output-search').value = '';
   document.getElementById('t-output-qty').value = '';
+  // Скидаємо одиницю виміру
+  const unitEl = document.getElementById('t-output-unit');
+  unitEl.textContent = '—';
+  unitEl.dataset.unit = '';
   
   // Заповнення місць зберігання у крок 2
   const placeSelect = document.getElementById('t-output-place');
@@ -1827,6 +1831,10 @@ function searchTransformDirectory(val) {
     addNewRow.onclick = () => {
       document.getElementById('t-output-search').value = val;
       dropdown.classList.remove('open');
+      // Новий продукт — одиниця невідома, очищаємо
+      const unitEl = document.getElementById('t-output-unit');
+      unitEl.textContent = '—';
+      unitEl.dataset.unit = '';
     };
     dropdown.appendChild(addNewRow);
   } else {
@@ -1837,6 +1845,16 @@ function searchTransformDirectory(val) {
       row.onclick = () => {
         document.getElementById('t-output-search').value = name;
         dropdown.classList.remove('open');
+        // Автоматично підтягуємо одиницю виміру зі складу або довідника
+        const warehouseMatch = state.warehouseData.find(i => i.name === name);
+        const unitEl = document.getElementById('t-output-unit');
+        if (warehouseMatch && warehouseMatch.unit) {
+          unitEl.textContent = warehouseMatch.unit;
+          unitEl.dataset.unit = warehouseMatch.unit;
+        } else {
+          unitEl.textContent = '—';
+          unitEl.dataset.unit = '';
+        }
       };
       dropdown.appendChild(row);
     });
@@ -1848,7 +1866,7 @@ function searchTransformDirectory(val) {
 function addTransformOutputItem() {
   const name = document.getElementById('t-output-search').value.trim();
   const qtyVal = parseFloat(document.getElementById('t-output-qty').value);
-  const unit = document.getElementById('t-output-unit').value;
+  const unit = document.getElementById('t-output-unit').dataset.unit || '—';
   const place = document.getElementById('t-output-place').value;
   
   if (!name) {
@@ -1874,6 +1892,10 @@ function addTransformOutputItem() {
   // Очищення полів форми для наступного продукту
   document.getElementById('t-output-search').value = '';
   document.getElementById('t-output-qty').value = '';
+  // Скидаємо одиницю виміру
+  const outUnitEl = document.getElementById('t-output-unit');
+  outUnitEl.textContent = '—';
+  outUnitEl.dataset.unit = '';
   
   renderTransformLists();
 }
@@ -2197,7 +2219,7 @@ document.addEventListener('click', function(e) {
         <p class="text-xs font-semibold text-slate-700">Додати готовий продукт:</p>
         
         <div class="product-search-wrap">
-          <input type="text" id="t-output-search" class="field" placeholder="🔍 Пошук назви готового продукту..." autocomplete="off" oninput="searchTransformDirectory(this.value)" />
+          <input type="text" id="t-output-search" class="field" placeholder="🔍 Пошук назви готового продукту..." autocomplete="off" oninput="searchTransformDirectory(this.value); if(!this.value.trim()){const u=document.getElementById('t-output-unit');u.textContent='—';u.dataset.unit='';}" />
           <div id="t-output-dropdown" class="product-dropdown"></div>
         </div>
 
@@ -2208,11 +2230,12 @@ document.addEventListener('click', function(e) {
           </div>
           <div class="col-span-1">
             <label class="text-[11px] text-slate-400 block mb-1 pl-1">Од. вим.</label>
-            <select id="t-output-unit" class="field">
-              <option value="кг">кг</option>
-              <option value="л">л</option>
-              <option value="шт">шт</option>
-            </select>
+            <div id="t-output-unit"
+              class="field flex items-center justify-center text-sm font-semibold text-slate-500
+                     bg-slate-50 border-slate-200 cursor-default select-none min-h-[50px]"
+              style="pointer-events:none; color:#64748b;">
+              —
+            </div>
           </div>
           <div class="col-span-1">
             <label class="text-[11px] text-slate-400 block mb-1 pl-1">Куди покласти</label>
