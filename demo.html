@@ -1665,10 +1665,6 @@ function openTransformModal() {
   
   document.getElementById('t-output-search').value = '';
   document.getElementById('t-output-qty').value = '';
-  // Скидаємо одиницю виміру
-  const unitEl = document.getElementById('t-output-unit');
-  unitEl.textContent = '—';
-  unitEl.dataset.unit = '';
   
   // Заповнення місць зберігання у крок 2
   const placeSelect = document.getElementById('t-output-place');
@@ -1824,19 +1820,11 @@ function searchTransformDirectory(val) {
   const filtered = allDirectoryProducts.filter(p => p.toLowerCase().includes(query));
 
   if (filtered.length === 0) {
-    // Дозволяємо ввести довільну назву нового продукту
-    const addNewRow = document.createElement('div');
-    addNewRow.className = 'product-dropdown-item new-item';
-    addNewRow.textContent = `➕ Створити новий: "${val}"`;
-    addNewRow.onclick = () => {
-      document.getElementById('t-output-search').value = val;
-      dropdown.classList.remove('open');
-      // Новий продукт — одиниця невідома, очищаємо
-      const unitEl = document.getElementById('t-output-unit');
-      unitEl.textContent = '—';
-      unitEl.dataset.unit = '';
-    };
-    dropdown.appendChild(addNewRow);
+    // Продукт не знайдено — заборонено додавати нові назви
+    const emptyRow = document.createElement('div');
+    emptyRow.className = 'product-dropdown-empty';
+    emptyRow.textContent = '❌ Продукт не знайдено у довіднику';
+    dropdown.appendChild(emptyRow);
   } else {
     filtered.slice(0, 15).forEach(name => {
       const row = document.createElement('div');
@@ -1845,16 +1833,6 @@ function searchTransformDirectory(val) {
       row.onclick = () => {
         document.getElementById('t-output-search').value = name;
         dropdown.classList.remove('open');
-        // Автоматично підтягуємо одиницю виміру зі складу або довідника
-        const warehouseMatch = state.warehouseData.find(i => i.name === name);
-        const unitEl = document.getElementById('t-output-unit');
-        if (warehouseMatch && warehouseMatch.unit) {
-          unitEl.textContent = warehouseMatch.unit;
-          unitEl.dataset.unit = warehouseMatch.unit;
-        } else {
-          unitEl.textContent = '—';
-          unitEl.dataset.unit = '';
-        }
       };
       dropdown.appendChild(row);
     });
@@ -1866,11 +1844,26 @@ function searchTransformDirectory(val) {
 function addTransformOutputItem() {
   const name = document.getElementById('t-output-search').value.trim();
   const qtyVal = parseFloat(document.getElementById('t-output-qty').value);
-  const unit = document.getElementById('t-output-unit').dataset.unit || '—';
+  const unit = document.getElementById('t-output-unit').value;
   const place = document.getElementById('t-output-place').value;
   
   if (!name) {
     showToast("Введіть або виберіть назву вихідного продукту!", "warning");
+    return;
+  }
+  
+  // Перевірка: продукт повинен бути у довіднику або на складі
+  let allKnownProducts = [];
+  if (state.locationProducts) {
+    Object.values(state.locationProducts).forEach(arr => {
+      arr.forEach(p => { if (!allKnownProducts.includes(p)) allKnownProducts.push(p); });
+    });
+  }
+  state.warehouseData.forEach(item => {
+    if (!allKnownProducts.includes(item.name)) allKnownProducts.push(item.name);
+  });
+  if (!allKnownProducts.includes(name)) {
+    showToast("Продукт не знайдено у довіднику. Оберіть зі списку!", "warning");
     return;
   }
   if (isNaN(qtyVal) || qtyVal <= 0) {
@@ -1892,10 +1885,6 @@ function addTransformOutputItem() {
   // Очищення полів форми для наступного продукту
   document.getElementById('t-output-search').value = '';
   document.getElementById('t-output-qty').value = '';
-  // Скидаємо одиницю виміру
-  const outUnitEl = document.getElementById('t-output-unit');
-  outUnitEl.textContent = '—';
-  outUnitEl.dataset.unit = '';
   
   renderTransformLists();
 }
@@ -1977,9 +1966,17 @@ function submitTransformOperation() {
   
   showLoader("Виконується перетворення товарів...");
   
+  // Для outputs НЕ передаємо unit — колонка C на вкладці Склад заповнюється
+  // формулою =ARRAYFORMULA(VLOOKUP(...'Довідник'...)) автоматично
+  const outputsWithoutUnit = transformModalState.outputs.map(o => ({
+    name: o.name,
+    place: o.place,
+    qty: o.qty
+  }));
+
   const payload = {
     inputs: transformModalState.inputs,
-    outputs: transformModalState.outputs,
+    outputs: outputsWithoutUnit,
     operator: state.user.email
   };
   
@@ -2219,7 +2216,7 @@ document.addEventListener('click', function(e) {
         <p class="text-xs font-semibold text-slate-700">Додати готовий продукт:</p>
         
         <div class="product-search-wrap">
-          <input type="text" id="t-output-search" class="field" placeholder="🔍 Пошук назви готового продукту..." autocomplete="off" oninput="searchTransformDirectory(this.value); if(!this.value.trim()){const u=document.getElementById('t-output-unit');u.textContent='—';u.dataset.unit='';}" />
+          <input type="text" id="t-output-search" class="field" placeholder="🔍 Пошук назви готового продукту..." autocomplete="off" oninput="searchTransformDirectory(this.value)" />
           <div id="t-output-dropdown" class="product-dropdown"></div>
         </div>
 
@@ -2230,12 +2227,11 @@ document.addEventListener('click', function(e) {
           </div>
           <div class="col-span-1">
             <label class="text-[11px] text-slate-400 block mb-1 pl-1">Од. вим.</label>
-            <div id="t-output-unit"
-              class="field flex items-center justify-center text-sm font-semibold text-slate-500
-                     bg-slate-50 border-slate-200 cursor-default select-none min-h-[50px]"
-              style="pointer-events:none; color:#64748b;">
-              —
-            </div>
+            <select id="t-output-unit" class="field">
+              <option value="кг">кг</option>
+              <option value="л">л</option>
+              <option value="шт">шт</option>
+            </select>
           </div>
           <div class="col-span-1">
             <label class="text-[11px] text-slate-400 block mb-1 pl-1">Куди покласти</label>
