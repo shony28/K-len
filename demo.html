@@ -1948,7 +1948,7 @@ function goToTransformStep2() {
   if (transformModalState.inputs.length === 0) return;
   document.getElementById('transform-step-1').classList.add('hidden');
   document.getElementById('transform-step-2').classList.remove('hidden');
-  document.getElementById('transform-step-desc').textContent = "Крок 2: Що утворюється (Вихід)";
+  document.getElementById('transform-step-desc').textContent = "Крок 2: Що утворюється";
 }
 
 function backToTransformStep1() {
@@ -2158,7 +2158,7 @@ document.addEventListener('click', function(e) {
     <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
       <div>
         <h3 class="text-lg font-bold text-slate-900" id="transform-title">🥛→🧀 Швидке перетворення</h3>
-        <p class="text-xs text-slate-500 mt-0.5" id="transform-step-desc">Крок 1: Що списуємо зі складу (Вхід)</p>
+        <p class="text-xs text-slate-500 mt-0.5" id="transform-step-desc">Крок 1: Що списуємо</p>
       </div>
       <button onclick="closeTransformModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 text-sm flex items-center justify-center font-bold">✕</button>
     </div>
@@ -2167,7 +2167,7 @@ document.addEventListener('click', function(e) {
 
 
       <div class="space-y-2">
-        <p class="section-label">Обрані компоненти на вхід:</p>
+        <p class="section-label">Що списуємо</p>
         <div id="transform-input-list" class="space-y-2 min-h-[50px] border border-dashed border-slate-200 rounded-2xl p-2 bg-slate-50/50">
           <p class="text-center text-xs text-slate-400 py-3 id-empty">Інгредієнти ще не додано</p>
         </div>
@@ -2206,7 +2206,7 @@ document.addEventListener('click', function(e) {
 
 
       <div class="space-y-2">
-        <p class="section-label">Продукти на вихід (Буде додано на склад):</p>
+        <p class="section-label">Що утворюється</p>
         <div id="transform-output-list" class="space-y-2 min-h-[50px] border border-dashed border-slate-200 rounded-2xl p-2 bg-slate-50/50">
           <p class="text-center text-xs text-slate-400 py-3 id-empty">Продукти на вихід ще не додано</p>
         </div>
