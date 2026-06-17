@@ -2009,11 +2009,11 @@ function submitTransformOperation() {
     qty: o.qty
   }));
 
-  const payload = {
-    inputs: transformModalState.inputs,
-    outputs: outputsWithoutUnit,
-    operator: state.user.email
-  };
+const payload = {
+  inputs: transformModalState.inputs,
+  outputs: transformModalState.outputs,  // ← unit тепер включено
+  operator: state.user.email
+};
   
   fetch(API_URL + '?action=instantTransform', {
     method: 'POST',
@@ -2073,7 +2073,7 @@ document.addEventListener('click', function(e) {
     </div>
 
     <div class="mb-4">
-      <p class="section-label">📉 Кількість для списання з обробки</p>
+      <p class="section-label">⚙️ Кількість для списання з обробки</p>
       <div id="modal-deductions-container" class="space-y-3"></div>
     </div>
 
