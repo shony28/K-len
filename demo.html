@@ -1948,13 +1948,13 @@ function goToTransformStep2() {
   if (transformModalState.inputs.length === 0) return;
   document.getElementById('transform-step-1').classList.add('hidden');
   document.getElementById('transform-step-2').classList.remove('hidden');
-  document.getElementById('transform-step-desc').textContent = "Крок 2: Що утворюється";
+  document.getElementById('transform-step-desc').textContent = "Крок 2";
 }
 
 function backToTransformStep1() {
   document.getElementById('transform-step-2').classList.add('hidden');
   document.getElementById('transform-step-1').classList.remove('hidden');
-  document.getElementById('transform-step-desc').textContent = "Крок 1: Що списуємо зі складу (Вхід)";
+  document.getElementById('transform-step-desc').textContent = "Крок 1";
 }
 
 // ВІДПРАВКА ДАНИХ НА СЕРВЕР (POST-запит)
