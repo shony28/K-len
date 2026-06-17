@@ -1753,7 +1753,7 @@ function selectTransformInputName(name) {
   
   batches.forEach((b, index) => {
     select.innerHTML += `<option value="${index}" data-place="${escapeHtml(b.place)}" data-unit="${escapeHtml(b.unit)}" data-qty="${b.qty}">
-      [${escapeHtml(b.place)}] Залишок: ${fmtNum(b.qty)} ${escapeHtml(b.unit)}
+      ${fmtNum(b.qty)} ${escapeHtml(b.unit)} [${escapeHtml(b.place)}]
     </option>`;
   });
   
@@ -2222,7 +2222,7 @@ document.addEventListener('click', function(e) {
             <input type="number" id="t-input-qty" placeholder="0.000" min="0.001" step="0.001" class="field" inputmode="decimal" />
           </div>
           <div>
-            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Локація / Од. вим.</label>
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Од. вим. / Локація</label>
             <select id="t-input-item-select" class="field" onchange="updateTransformInputUnit()">
               <option value="">— Оберіть партію —</option>
             </select>
