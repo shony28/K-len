@@ -1638,14 +1638,24 @@ document.addEventListener('DOMContentLoaded', function() {
     state.user.email   = savedEmail;
     state.user.name    = lsGet('user_name')    || savedEmail;
     state.user.picture = lsGet('user_picture') || '';
+    state.user.role    = lsGet('user_role')    || '';
 
     showLoader('Відновлення сесії…');
     apiGet({ action: 'checkStatus', email: savedEmail })
       .then(function(data) {
         hideLoader();
         if (data.isAllowed) {
-          initMainScreen();
-          loadDashboardData();
+          // Оновлюємо роль з сервера (актуальна) та зберігаємо в localStorage
+          var role = data.role || state.user.role || '';
+          state.user.role = role;
+          ls('user_role', role);
+
+          if (role === 'milkmaid') {
+            initMilkmaidScreen();
+          } else {
+            initMainScreen();
+            loadDashboardData();
+          }
         } else {
           document.getElementById('pending-email').textContent = savedEmail;
           showScreen('pending');
