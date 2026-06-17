@@ -1690,6 +1690,8 @@ function openTransformModal() {
   document.getElementById('t-input-item-select').innerHTML = '<option value="">— Спочатку знайдіть продукт —</option>';
   
   document.getElementById('t-output-search').value = '';
+  document.getElementById('t-output-unit').value = '';
+  if (document.getElementById('t-output-unit-badge')) document.getElementById('t-output-unit-badge').textContent = '—';
   document.getElementById('t-output-qty').value = '';
   
   // Заповнення місць зберігання у крок 2
@@ -1859,6 +1861,11 @@ function searchTransformDirectory(val) {
       row.onclick = () => {
         document.getElementById('t-output-search').value = name;
         dropdown.classList.remove('open');
+        // Підтягуємо одиницю виміру зі складу або довідника
+        const whItem = state.warehouseData.find(w => w.name === name);
+        const unit = whItem ? whItem.unit : '';
+        document.getElementById('t-output-unit').value = unit;
+        document.getElementById('t-output-unit-badge').textContent = unit || '—';
       };
       dropdown.appendChild(row);
     });
@@ -1911,6 +1918,8 @@ function addTransformOutputItem() {
   // Очищення полів форми для наступного продукту
   document.getElementById('t-output-search').value = '';
   document.getElementById('t-output-qty').value = '';
+  document.getElementById('t-output-unit').value = '';
+  document.getElementById('t-output-unit-badge').textContent = '—';
   
   renderTransformLists();
 }
@@ -2253,11 +2262,13 @@ document.addEventListener('click', function(e) {
           </div>
           <div class="col-span-1">
             <label class="text-[11px] text-slate-400 block mb-1 pl-1">Од. вим.</label>
-            <select id="t-output-unit" class="field">
-              <option value="кг">кг</option>
-              <option value="л">л</option>
-              <option value="шт">шт</option>
-            </select>
+            <div id="t-output-unit-badge"
+              style="width:100%;background:#f1f5f9;border:1.5px solid #e2e8f0;color:#475569;
+                     border-radius:14px;padding:14px 16px;font-size:14px;font-weight:600;
+                     text-align:center;min-height:50px;display:flex;align-items:center;justify-content:center;">
+              —
+            </div>
+            <input type="hidden" id="t-output-unit" value="" />
           </div>
           <div class="col-span-1">
             <label class="text-[11px] text-slate-400 block mb-1 pl-1">Куди покласти</label>
