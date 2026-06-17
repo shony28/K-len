@@ -512,13 +512,18 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbx6d5MzUQQ4yoHJM5CnDN3k
 // СТАН ДОДАТКУ
 // ──────────────────────────────────────────────────────────────
 const state = {
-  user: { email: '', name: '', picture: '' },
+  user: { email: '', name: '', picture: '', role: '' },
   warehouseData:       [],  // [{name, qty, unit, place}]
   processingData:      [],  // [{name, qty, unit, place}]
   processingLocations: [],  // ["Танк №3", "Пастеризатор", …]
   locationProducts:    {},  // { "Танк №3": ["Молоко", "Пастеризоване молоко"], ... }
   cartToProcessing:    [],  // [{name, place, qty, unit, available}]
   finishModal:         null, // {place, items: [...], additionCounter: 0} — поточна локація та її позиції в модалі
+  // Для доярки
+  milkUnit:            'л',
+  milkProductName:     'Молоко',
+  milkStoragePlace:    '',
+  milkTodayEntries:    [],
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -656,14 +661,19 @@ function handleGoogleLogin(response) {
   apiGet({ action: 'loginByToken', token: token })
     .then(function(data) {
       hideLoader();
-      state.user = { email: data.email, name: data.name, picture: data.picture };
+      state.user = { email: data.email, name: data.name, picture: data.picture, role: data.role || '' };
       ls('user_email',   data.email);
       ls('user_name',    data.name);
       ls('user_picture', data.picture);
+      ls('user_role',    data.role || '');
 
       if (data.isAllowed) {
-        initMainScreen();
-        loadDashboardData();
+        if (data.role === 'milkmaid') {
+          initMilkmaidScreen();
+        } else {
+          initMainScreen();
+          loadDashboardData();
+        }
       } else {
         document.getElementById('pending-email').textContent = data.email;
         showScreen('pending');
@@ -690,8 +700,13 @@ function checkAccessStatus() {
         state.user.email   = data.email;
         state.user.name    = lsGet('user_name')    || data.email;
         state.user.picture = lsGet('user_picture') || '';
-        initMainScreen();
-        loadDashboardData();
+        state.user.role    = lsGet('user_role')    || '';
+        if (state.user.role === 'milkmaid') {
+          initMilkmaidScreen();
+        } else {
+          initMainScreen();
+          loadDashboardData();
+        }
         showToast('🎉 Доступ надано! Вітаємо!', 'success');
       } else {
         showToast('Доступ ще не надано. Зверніться до адміністратора.', 'warning', 5000);
@@ -705,8 +720,9 @@ function checkAccessStatus() {
 // ──────────────────────────────────────────────────────────────
 function logout() {
   localStorage.clear();
-  state.user = { email: '', name: '', picture: '' };
+  state.user = { email: '', name: '', picture: '', role: '' };
   state.cartToProcessing   = [];
+  state.milkTodayEntries   = [];
   renderCart1();
   showScreen('auth');
   // Re-render Google button
@@ -1948,7 +1964,7 @@ function goToTransformStep2() {
   if (transformModalState.inputs.length === 0) return;
   document.getElementById('transform-step-1').classList.add('hidden');
   document.getElementById('transform-step-2').classList.remove('hidden');
-  document.getElementById('transform-step-desc').textContent = "Крок 2";
+  document.getElementById('transform-step-desc').textContent = "Крок 2: Що утворюється";
 }
 
 function backToTransformStep1() {
@@ -2252,4 +2268,204 @@ document.addEventListener('click', function(e) {
 </div>
 
 </body>
+
+<!-- ══════ MILKMAID SCREEN ══════ -->
+<div id="screen-milkmaid" class="screen bg-mesh">
+
+  <!-- Header -->
+  <header class="glass-strong border-b border-slate-200 sticky top-0 z-50">
+    <div class="flex items-center justify-between px-4 pt-4 pb-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-2xl"
+             style="background:linear-gradient(135deg,#047857,#0d9488);">🐄</div>
+        <div>
+          <p id="mm-header-name" class="font-bold text-slate-900 text-sm leading-tight">Доярка</p>
+          <p id="mm-header-email" class="text-xs text-slate-400 leading-tight"></p>
+        </div>
+      </div>
+      <button onclick="logout()"
+        class="text-xs text-slate-500 font-semibold px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all">
+        Вийти
+      </button>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="flex-1 overflow-y-auto pb-10">
+    <div class="max-w-md mx-auto px-4 pt-6 space-y-5">
+
+      <!-- Title card -->
+      <div class="glass-strong rounded-3xl p-5 text-center border-slate-200">
+        <div class="text-4xl mb-2">🥛</div>
+        <h2 class="text-xl font-extrabold text-slate-900">Облік надою</h2>
+        <p id="mm-date-label" class="text-xs text-slate-400 mt-1"></p>
+      </div>
+
+      <!-- Input card -->
+      <div class="glass-strong rounded-3xl p-5 border-slate-200 space-y-4">
+        <p class="section-label">Додати надій</p>
+
+        <div>
+          <label class="text-xs text-slate-500 font-medium block mb-1">Кількість надоєного молока</label>
+          <div class="flex gap-2 items-center">
+            <input type="number" id="mm-qty-input"
+              placeholder="0.000"
+              min="0.001" step="0.001"
+              inputmode="decimal"
+              class="field flex-1 text-2xl font-bold"
+              style="font-size:22px;font-weight:800;color:#047857;"
+              oninput="mmValidateInput()" />
+            <div id="mm-unit-badge"
+              class="flex items-center justify-center rounded-2xl font-bold text-brand-700
+                     px-5 py-3 text-lg bg-emerald-50 border-2 border-emerald-200 flex-shrink-0">
+              —
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1.5">
+            Продукт: <span id="mm-product-label" class="font-semibold text-slate-600"></span> →
+            Місце: <span id="mm-place-label" class="font-semibold text-slate-600"></span>
+          </p>
+        </div>
+
+        <button id="mm-submit-btn" onclick="mmSubmit()" class="btn-primary" disabled>
+          ➕ Записати надій
+        </button>
+      </div>
+
+      <!-- Today's entries -->
+      <div class="glass-strong rounded-3xl p-5 border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <p class="section-label" style="margin-bottom:0">📋 Мої записи сьогодні</p>
+          <button onclick="mmRefresh()" id="mm-refresh-btn"
+            class="text-xs text-brand-700 font-semibold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+            🔄 Оновити
+          </button>
+        </div>
+        <div id="mm-entries-list">
+          <p class="text-center text-slate-400 text-sm py-4">Завантаження…</p>
+        </div>
+        <div id="mm-total-row" class="hidden mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+          <span class="text-sm font-semibold text-slate-600">Разом за день:</span>
+          <span id="mm-total-value" class="text-lg font-extrabold text-brand-700"></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// MILKMAID — логіка екрану доярки
+// ══════════════════════════════════════════════════════════════
+
+function initMilkmaidScreen() {
+  var u = state.user;
+  document.getElementById('mm-header-name').textContent  = u.name  || u.email;
+  document.getElementById('mm-header-email').textContent = u.email;
+
+  // Поточна дата
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('mm-date-label').textContent = dateStr;
+
+  showScreen('milkmaid');
+  mmRefresh();
+}
+
+function mmValidateInput() {
+  var val = parseFloat(document.getElementById('mm-qty-input').value);
+  document.getElementById('mm-submit-btn').disabled = !(val > 0);
+}
+
+async function mmRefresh() {
+  var btn = document.getElementById('mm-refresh-btn');
+  if (btn) btn.disabled = true;
+
+  try {
+    var data = await apiGet({ action: 'getMilkData', email: state.user.email });
+    state.milkUnit          = data.unit          || 'л';
+    state.milkProductName   = data.productName   || 'Молоко';
+    state.milkStoragePlace  = data.storagPlace   || '';
+    state.milkTodayEntries  = data.todayEntries  || [];
+
+    document.getElementById('mm-unit-badge').textContent    = state.milkUnit;
+    document.getElementById('mm-product-label').textContent = state.milkProductName;
+    document.getElementById('mm-place-label').textContent   = state.milkStoragePlace;
+
+    mmRenderEntries();
+  } catch(err) {
+    showToast('Помилка оновлення: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function mmRenderEntries() {
+  var list = document.getElementById('mm-entries-list');
+  var totalRow = document.getElementById('mm-total-row');
+  var entries = state.milkTodayEntries;
+
+  if (!entries || entries.length === 0) {
+    list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6">Сьогодні записів ще немає</p>';
+    totalRow.classList.add('hidden');
+    return;
+  }
+
+  var total = 0;
+  var html = entries.map(function(e, i) {
+    total += e.qty || 0;
+    // Форматуємо час
+    var timeStr = '';
+    var dt = String(e.datetime || '');
+    var tm = dt.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (tm) timeStr = tm[1] + ':' + tm[2];
+
+    return (
+      '<div class="flex items-center justify-between py-2.5 ' + (i > 0 ? 'border-t border-slate-100' : '') + '">' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-lg">🥛</span>' +
+          '<div>' +
+            '<p class="text-sm font-semibold text-slate-800">' + fmtNum(e.qty) + ' ' + escapeHtml(e.unit || state.milkUnit) + '</p>' +
+            '<p class="text-xs text-slate-400">' + (timeStr ? 'о ' + timeStr : '') + ' · #' + escapeHtml(e.opId || '') + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<span class="text-xs text-brand-700 font-bold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100">✓ Записано</span>' +
+      '</div>'
+    );
+  }).join('');
+
+  list.innerHTML = html;
+  totalRow.classList.remove('hidden');
+  document.getElementById('mm-total-value').textContent = fmtNum(total) + ' ' + state.milkUnit;
+}
+
+async function mmSubmit() {
+  var input = document.getElementById('mm-qty-input');
+  var qty = parseFloat(input.value);
+  if (!(qty > 0)) { showToast('Введіть кількість молока', 'warning'); return; }
+
+  var btn = document.getElementById('mm-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Збереження…';
+
+  try {
+    var result = await apiPost('addMilk', {
+      qty:      qty,
+      operator: state.user.email,
+    });
+    input.value = '';
+    mmValidateInput();
+    showToast('✅ Записано ' + fmtNum(result.qty) + ' ' + result.unit + ' молока!', 'success', 4000);
+    // Оновити список
+    await mmRefresh();
+  } catch(err) {
+    showToast('Помилка: ' + err.message, 'error', 7000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '➕ Записати надій';
+  }
+}
+</script>
+
 </html>
