@@ -1,0 +1,2492 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Лагро — Облік виробництва</title>
+  <meta name="description" content="Мобільна система обліку рухів сировини та готової продукції для молочної ферми" />
+  <meta name="theme-color" content="#f8fafc" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              50:  '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0',
+              300: '#6ee7b7', 400: '#22c55e', 500: '#0d9f6e',
+              600: '#047857', 700: '#065f46', 800: '#064e3b', 900: '#022c22',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    * { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+    body { background: #f8fafc; overscroll-behavior: none; }
+
+    /* ——— Background gradient mesh (Light Edition) ——— */
+    .bg-mesh {
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 0%, rgba(4,120,87,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 100%, rgba(20,184,166,0.05) 0%, transparent 60%),
+        #f8fafc;
+    }
+
+    /* ——— Glassmorphism card (Light Edition) ——— */
+    .glass {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .glass-strong {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+    }
+
+    /* ——— Screen system ——— */
+    .screen { display: none; min-height: 100dvh; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* ——— Tab system ——— */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ——— Active tab button ——— */
+    .tab-btn { color: #475569; border-color: rgba(15, 23, 42, 0.08); transition: all .2s; }
+    .tab-btn.active {
+      background: rgba(4,120,87,.14);
+      border-color: rgba(4,120,87,.55);
+      color: #047857;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(4,120,87,.15);
+    }
+
+    /* ——— Inputs ——— */
+    .field {
+      width: 100%;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e3;
+      color: #0f172a;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      -webkit-appearance: none;
+    }
+    .field::placeholder { color: #94a3b8; }
+    .field:focus {
+      border-color: #047857;
+      box-shadow: 0 0 0 3px rgba(4,120,87,.2);
+    }
+    select.field {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+    select.field option { background: #ffffff; color: #0f172a; }
+
+    /* ——— Buttons ——— */
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #047857, #0d9488);
+      color: white;
+      font-weight: 800;
+      padding: 17px 24px;
+      border-radius: 16px;
+      font-size: 15px;
+      transition: all .2s;
+      box-shadow: 0 4px 22px rgba(4,120,87,.4);
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(4,120,87,.35); }
+    .btn-primary:active { transform: scale(.97); }
+    .btn-primary:disabled { background: linear-gradient(135deg, #e2e8f0, #e2e8f0); color: #94a3b8; box-shadow: none; cursor: not-allowed; }
+
+    .btn-secondary {
+      width: 100%;
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      color: #334155;
+      font-weight: 700;
+      padding: 14px 24px;
+      border-radius: 14px;
+      font-size: 14px;
+      transition: all .2s;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
+    .btn-secondary:active { transform: scale(.97); }
+
+    .btn-amber {
+      background: linear-gradient(135deg, #d97706, #ea580c);
+      box-shadow: 0 4px 20px rgba(217,119,6,.25);
+    }
+    .btn-amber:hover { filter: brightness(1.05); box-shadow: 0 6px 24px rgba(217,119,6,.35); }
+    .btn-amber:disabled { background: linear-gradient(135deg, #e2e8f0, #e2e8f0); color: #94a3b8; box-shadow: none; }
+
+    .btn-add {
+      width: 100%;
+      background: rgba(4,120,87,.08);
+      border: 2px dashed rgba(4,120,87,.55);
+      color: #047857;
+      font-weight: 700;
+      padding: 13px;
+      border-radius: 14px;
+      font-size: 14px;
+      transition: all .2s;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-add:hover { background: rgba(4,120,87,.15); border-color: #047857; }
+    .btn-add:active { transform: scale(.97); }
+
+    /* ——— Cart item ——— */
+    .cart-item {
+      animation: fadeSlideIn .2s ease-out;
+      display: flex; align-items: center; gap: 12px;
+      background: #f6f6f6;
+      border: 2.5px solid #8895a6;
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    /* ——— Loader overlay ——— */
+    #global-loader {
+      display: none;
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(248, 250, 252, 0.85);
+      backdrop-filter: blur(12px);
+      align-items: center; justify-content: center;
+    }
+    #global-loader.show { display: flex; }
+
+    /* ——— Toast ——— */
+    #toast-container {
+      position: fixed; bottom: 20px; left: 12px; right: 12px;
+      z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      font-size: 13.5px;
+      font-weight: 500;
+      backdrop-filter: blur(24px);
+      border: 1px solid;
+      animation: toastIn .3s cubic-bezier(.34,1.56,.64,1);
+      line-height: 1.4;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+    .toast.leaving { animation: toastOut .25s ease-in forwards; }
+    .toast-success { background: rgba(209, 250, 229, 0.95); border-color: rgba(16, 185, 129, 0.4); color: #064e3b; }
+    .toast-error   { background: rgba(254, 226, 226, 0.95); border-color: rgba(239, 68, 68, 0.4); color: #7f1d1d; }
+    .toast-warning { background: rgba(254, 243, 199, 0.95); border-color: rgba(245, 158, 11, 0.4); color: #78350f; }
+    .toast-info    { background: rgba(255, 255, 255, 0.95); border-color: rgba(226, 232, 240, 1); color: #1e293b; }
+
+    /* ——— Spinner ——— */
+    .spinner { animation: spin 1s linear infinite; }
+
+    /* ——— Badge ——— */
+    .badge {
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* ——— Animations ——— */
+    @keyframes spin      { to { transform: rotate(360deg); } }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px) scale(.95); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateY(16px) scale(.95); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(4,120,87,.3); }
+      50%       { box-shadow: 0 0 0 10px rgba(4,120,87,.0); }
+    }
+
+    /* ——— Avatar ——— */
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #047857, #0d9488);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: white;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ——— Scrollbar ——— */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(4,120,87,.2); border-radius: 2px; }
+
+    /* ——— Section label ——— */
+    .section-label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: #64748b; margin-bottom: 8px;
+    }
+
+    /* ——— Divider ——— */
+    .divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+
+    /* ——— Searchable product dropdown ——— */
+    .product-search-wrap { position: relative; }
+    .product-search-wrap .product-dropdown {
+      display: none;
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+      background: #fff;
+      border: 1.5px solid #047857;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(4,120,87,.15);
+      z-index: 999;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .product-search-wrap .product-dropdown.open { display: block; }
+    .product-dropdown-item {
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #0f172a;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background .1s;
+    }
+    .product-dropdown-item:last-child { border-bottom: none; }
+    .product-dropdown-item:hover, .product-dropdown-item.highlighted { background: rgba(4,120,87,.08); color: #047857; }
+    .product-dropdown-item.new-item { color: #047857; font-weight: 600; }
+    .product-dropdown-empty { padding: 10px 14px; font-size: 13px; color: #94a3b8; text-align: center; }
+    .flex.items-center.justify-between.bg-white.px-3.py-2.rounded-xl.border.border-slate-100.text-sm { font-size: 1.2rem; }
+  </style>
+</head>
+
+<body class="bg-mesh text-slate-800">
+
+<div id="toast-container"></div>
+
+<div id="global-loader" role="status" aria-live="polite">
+  <div class="glass-strong rounded-3xl p-8 flex flex-col items-center gap-4 mx-6 border-slate-200">
+    <svg class="spinner w-12 h-12 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+      <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+    </svg>
+    <p id="loader-text" class="text-sm text-slate-600 font-medium text-center">Завантаження…</p>
+  </div>
+</div>
+
+<div id="screen-auth" class="screen active items-center justify-center bg-mesh px-6 py-10">
+  <div class="w-full max-w-sm mx-auto">
+
+    <div class="text-center mb-10">
+      <div class="w-24 h-24 rounded-[28px] mx-auto mb-5 flex items-center justify-center text-5xl
+                  shadow-xl shadow-brand-500/20"
+           style="background: linear-gradient(135deg, #047857 0%, #0d9488 100%);
+                  animation: pulse-glow 3s ease-in-out infinite;">
+        🥛
+      </div>
+      <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">Лагро</h1>
+      <p class="text-sm text-slate-500 mt-1 font-medium">Система обліку виробництва</p>
+    </div>
+
+    <div class="glass-strong rounded-3xl p-7">
+      <p class="text-sm text-slate-600 leading-relaxed text-center mb-6">
+        Увійдіть через акаунт Google.<br/>
+        <span class="text-slate-400 text-xs">Доступ лише для авторизованих співробітників.</span>
+      </p>
+
+      <div id="g_id_onload"
+        data-client_id="1041458356226-cl2pekuc96jegjs0lu0jdj3kvo9kfgep.apps.googleusercontent.com"
+        data-callback="handleGoogleLogin"
+        data-auto_prompt="false">
+      </div>
+      <div class="flex justify-center">
+        <div class="g_id_signin"
+          data-type="standard"
+          data-size="large"
+          data-theme="outline"
+          data-text="sign_in_with"
+          data-shape="rectangular"
+          data-logo_alignment="left"
+          data-width="320">
+        </div>
+      </div>
+
+      <p class="text-center text-xs text-slate-400 mt-5">
+        Дані захищені Google OAuth 2.0 / JWT
+      </p>
+    </div>
+
+    <p class="text-center text-xs text-slate-400 mt-6">v1.0.0</p>
+  </div>
+</div>
+
+<div id="screen-pending" class="screen items-center justify-center bg-mesh px-6 py-10">
+  <div class="w-full max-w-sm mx-auto text-center">
+
+    <div class="w-20 h-20 rounded-[22px] mx-auto mb-6 flex items-center justify-center text-4xl shadow-xl shadow-amber-500/20"
+         style="background: linear-gradient(135deg, #d97706, #ea580c);">
+      ⏳
+    </div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">Очікування доступу</h2>
+    <p class="text-sm text-slate-500 leading-relaxed mb-6">
+      Ваш акаунт знайдено, але він не внесений до списку авторизованих співробітників.
+      Зверніться до адміністратора.
+    </p>
+
+    <div class="glass rounded-2xl p-4 text-left">
+      <p class="text-xs text-slate-400 font-medium mb-1">Ваш Google-акаунт:</p>
+      <p id="pending-email" class="text-brand-700 font-semibold break-all">—</p>
+    </div>
+
+    <button id="btn-check-status"
+      class="btn-primary mt-6 mb-3"
+      aria-label="Перевірити статус доступу">
+      🔄 Оновити статус доступу
+    </button>
+    <button onclick="logout()" class="btn-secondary">
+      Вийти з акаунту
+    </button>
+  </div>
+</div>
+
+<div id="screen-main" class="screen bg-mesh">
+
+  <header class="glass sticky top-0 z-30 safe-top border-b border-slate-200/60">
+    <div class="flex items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="avatar" id="header-avatar">
+          <span id="header-avatar-initials">?</span>
+        </div>
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-slate-900 leading-tight truncate" id="header-name">—</p>
+          <p class="text-xs text-slate-500 truncate" id="header-email">—</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button id="btn-refresh"
+          title="Оновити дані зі складу"
+          aria-label="Оновити дані"
+          class="w-9 h-9 rounded-xl glass flex items-center justify-center text-slate-500 border border-slate-200
+                 hover:text-brand-600 hover:border-brand-500/40 transition-all active:scale-90 bg-white">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+        <button id="btn-logout" onclick="logout()"
+          title="Вийти"
+          class="h-9 px-3 rounded-xl glass text-slate-500 text-xs font-semibold border border-slate-200 bg-white
+                 hover:text-red-600 hover:border-red-500/20 transition-all active:scale-90">
+          Вийти
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 px-4 pb-3">
+      <button id="tab-btn-1" class="tab-btn active glass rounded-2xl py-3 px-3 text-center text-sm font-semibold border">
+        <span class="block text-base mb-0.5">📦</span>
+        <span class="block text-xs">Продукти для обробки</span>
+      </button>
+      <button id="tab-btn-2" class="tab-btn glass rounded-2xl py-3 px-3 text-center text-sm font-semibold border">
+        <span class="block text-base mb-0.5">⚙️</span>
+        <span class="block text-xs">Обробка</span>
+      </button>
+      <button onclick="openTransformModal()"
+        title="Швидке перетворення"
+        aria-label="Перетворення"
+        class="glass rounded-2xl py-3 px-3 text-center text-sm font-semibold border text-brand-700 border-brand-200 bg-emerald-50
+               hover:bg-brand-100 transition-all active:scale-90">
+        <span class="block text-base mb-0.5">🥛→🧀</span>
+        <span class="block text-xs">Швидке перетворення</span>
+      </button>
+
+
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-8">
+    <div class="max-w-lg mx-auto px-4 pt-4">
+
+      <div id="tab-1" class="tab-content active space-y-4">
+
+        <div class="glass-strong rounded-3xl p-5">
+          <p class="section-label">⚙️ Обробки / процеси</p>
+          <select id="select-target-location" class="field" aria-label="Оберіть цільову локацію обробки">
+            <option value="">— Оберіть локацію обробки —</option>
+          </select>
+        </div>
+
+        <div class="glass-strong rounded-3xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <p class="font-semibold text-slate-900 text-sm">📋 Позиції для передачі</p>
+              <p class="text-xs text-slate-500 mt-0.5">Продукти зі складу для передачі в обробку</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openWarehouseModal()" class="badge" style="background:rgba(59,130,246,.1);color:#2563eb;border:1px solid rgba(59,130,246,.2);cursor:pointer;">📦 Склад</button>
+              <span id="cart-badge-1" class="badge"
+                style="background:rgba(4,120,87,.1);color:#047857;border:1px solid rgba(4,120,87,.2);">0</span>
+            </div>
+          </div>
+
+          <div id="cart-list-1" class="space-y-2 mb-4">
+            <div id="cart-empty-1" class="text-center py-4">
+              <p class="text-slate-400 text-xs">Додайте позиції нижче</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <select id="select-warehouse-item" class="field" aria-label="Оберіть продукт зі складу">
+              <option value="">— Оберіть продукт зі складу —</option>
+            </select>
+
+            <div class="flex gap-2">
+              <input type="number" id="input-wh-qty"
+                placeholder="Кількість" min="0.001" step="0.001"
+                class="field flex-1" aria-label="Кількість"
+                inputmode="decimal" />
+              <div id="unit-badge-1"
+                class="flex items-center justify-center rounded-2xl text-sm font-semibold text-slate-500
+                       px-4 py-3 min-w-[60px] text-center flex-shrink-0 bg-slate-100 border border-slate-200">
+                —
+              </div>
+            </div>
+
+            <button id="btn-add-to-cart-1" class="btn-add"
+              aria-label="Додати продукт">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+              </svg>
+              Додати продукт
+            </button>
+          </div>
+        </div>
+
+        <button id="btn-submit-1" class="btn-primary" aria-label="Передати в обробку">
+          ⚙️ Передати в обробку
+        </button>
+
+      </div>
+
+      <div id="tab-2" class="tab-content space-y-3">
+        <div id="processing-cards-container" class="space-y-3"></div>
+      </div>
+
+    </div></div></div><script>
+// ──────────────────────────────────────────────────────────────
+// КОНФІГУРАЦІЯ
+// ──────────────────────────────────────────────────────────────
+const API_URL = 'https://script.google.com/macros/s/AKfycbx6d5MzUQQ4yoHJM5CnDN3koS38fNSXEVwpzav_RMtjmE7qb68T5F7RIf13YWkK0GQ6/exec'; // ← Замінити на URL задеплоєного GAS Web App
+
+// ──────────────────────────────────────────────────────────────
+// СТАН ДОДАТКУ
+// ──────────────────────────────────────────────────────────────
+const state = {
+  user: { email: '', name: '', picture: '', role: '' },
+  warehouseData:       [],  // [{name, qty, unit, place}]
+  processingData:      [],  // [{name, qty, unit, place}]
+  processingLocations: [],  // ["Танк №3", "Пастеризатор", …]
+  locationProducts:    {},  // { "Танк №3": ["Молоко", "Пастеризоване молоко"], ... }
+  cartToProcessing:    [],  // [{name, place, qty, unit, available}]
+  finishModal:         null, // {place, items: [...], additionCounter: 0} — поточна локація та її позиції в модалі
+  // Для доярки
+  milkUnit:            'л',
+  milkProductName:     'Молоко',
+  milkStoragePlace:    '',
+  milkTodayEntries:    [],
+};
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — ЕКРАНИ
+// ──────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — LOADER
+// ──────────────────────────────────────────────────────────────
+function showLoader(text) {
+  document.getElementById('loader-text').textContent = text || 'Завантаження…';
+  document.getElementById('global-loader').classList.add('show');
+}
+function hideLoader() {
+  document.getElementById('global-loader').classList.remove('show');
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — TOAST
+// ──────────────────────────────────────────────────────────────
+function showToast(message, type, duration) {
+  type     = type     || 'info';
+  duration = duration || 4000;
+
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML =
+    '<span style="font-size:16px;flex-shrink:0;margin-top:1px">' + (icons[type] || icons.info) + '</span>' +
+    '<span style="flex:1">' + escapeHtml(message) + '</span>' +
+    '<button onclick="dismissToast(this.parentElement)" style="flex-shrink:0;opacity:.6;font-size:16px;line-height:1;margin-left:4px">✕</button>';
+
+  container.appendChild(el);
+
+  setTimeout(function() { dismissToast(el); }, duration);
+}
+
+function dismissToast(el) {
+  if (!el || !el.parentElement) return;
+  el.classList.add('leaving');
+  setTimeout(function() { if (el.parentElement) el.remove(); }, 260);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — ЧИСЛА
+// ──────────────────────────────────────────────────────────────
+function fmtNum(n) {
+  var v = parseFloat(n) || 0;
+  return v.toLocaleString('uk-UA', { maximumFractionDigits: 3 });
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — ДАТА/ЧАС
+// ──────────────────────────────────────────────────────────────
+// Парсить рядок 'dd.MM.yyyy H:mm:ss' або 'yyyy-MM-dd HH:mm:ss' у timestamp (мс)
+function parseDateTime(str) {
+  if (!str) return null;
+  str = String(str).trim();
+  // Формат dd.MM.yyyy H:mm:ss (українська локаль)
+  var m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})[ T](\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m) {
+    return new Date(
+      parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10),
+      parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6], 10)
+    ).getTime();
+  }
+  // Формат yyyy-MM-dd HH:mm:ss
+  m = str.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  if (m) {
+    return new Date(
+      parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10),
+      parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6], 10)
+    ).getTime();
+  }
+  return null;
+}
+
+// Форматує тривалість (мс) у вигляд "Хд Yг" / "Yг Zхв" / "Zхв"
+function formatDuration(ms) {
+  if (!ms || ms < 0) ms = 0;
+  var totalMin = Math.floor(ms / 60000);
+  var days  = Math.floor(totalMin / 1440);
+  var hours = Math.floor((totalMin % 1440) / 60);
+  var mins  = totalMin % 60;
+  if (days > 0)  return days + 'д ' + hours + 'г';
+  if (hours > 0) return hours + 'г ' + mins + 'хв';
+  return mins + 'хв';
+}
+
+// ──────────────────────────────────────────────────────────────
+// API — GET / POST
+// ──────────────────────────────────────────────────────────────
+async function apiGet(params) {
+  var url = new URL(API_URL);
+  Object.entries(params).forEach(function([k, v]) { url.searchParams.set(k, v); });
+  var res = await fetch(url.toString());
+  if (!res.ok) throw new Error('Мережева помилка: ' + res.status);
+  var json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Невідома помилка сервера');
+  return json.data;
+}
+
+async function apiPost(action, body) {
+  var url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  var res = await fetch(url.toString(), {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:    JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Мережева помилка: ' + res.status);
+  var json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Невідома помилка сервера');
+  return json.data;
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTH — Google One Tap callback
+// ──────────────────────────────────────────────────────────────
+function handleGoogleLogin(response) {
+  var token = response.credential;
+  showLoader('Перевірка доступу…');
+
+  apiGet({ action: 'loginByToken', token: token })
+    .then(function(data) {
+      hideLoader();
+      state.user = { email: data.email, name: data.name, picture: data.picture, role: data.role || '' };
+      ls('user_email',   data.email);
+      ls('user_name',    data.name);
+      ls('user_picture', data.picture);
+      ls('user_role',    data.role || '');
+
+      if (data.isAllowed) {
+        if (data.role === 'milkmaid') {
+          initMilkmaidScreen();
+        } else {
+          initMainScreen();
+          loadDashboardData();
+        }
+      } else {
+        document.getElementById('pending-email').textContent = data.email;
+        showScreen('pending');
+      }
+    })
+    .catch(function(err) {
+      hideLoader();
+      showToast(err.message, 'error', 7000);
+    });
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTH — Check status (pending screen button)
+// ──────────────────────────────────────────────────────────────
+function checkAccessStatus() {
+  var email = lsGet('user_email');
+  if (!email) { showToast('Email не знайдено. Спробуйте увійти знову.', 'warning'); return; }
+
+  showLoader('Перевірка статусу…');
+  apiGet({ action: 'checkStatus', email: email })
+    .then(function(data) {
+      hideLoader();
+      if (data.isAllowed) {
+        state.user.email   = data.email;
+        state.user.name    = lsGet('user_name')    || data.email;
+        state.user.picture = lsGet('user_picture') || '';
+        state.user.role    = lsGet('user_role')    || '';
+        if (state.user.role === 'milkmaid') {
+          initMilkmaidScreen();
+        } else {
+          initMainScreen();
+          loadDashboardData();
+        }
+        showToast('🎉 Доступ надано! Вітаємо!', 'success');
+      } else {
+        showToast('Доступ ще не надано. Зверніться до адміністратора.', 'warning', 5000);
+      }
+    })
+    .catch(function(err) { hideLoader(); showToast(err.message, 'error'); });
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTH — Logout
+// ──────────────────────────────────────────────────────────────
+function logout() {
+  localStorage.clear();
+  state.user = { email: '', name: '', picture: '', role: '' };
+  state.cartToProcessing   = [];
+  state.milkTodayEntries   = [];
+  renderCart1();
+  showScreen('auth');
+  // Re-render Google button
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.initialize({
+      client_id: '1041458356226-cl2pekuc96jegjs0lu0jdj3kvo9kfgep.apps.googleusercontent.com',
+      callback: handleGoogleLogin,
+    });
+    google.accounts.id.renderButton(
+      document.querySelector('.g_id_signin'),
+      { type: 'standard', size: 'large', theme: 'outline', text: 'sign_in_with', shape: 'rectangular', width: 320 }
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// MAIN SCREEN — Init header
+// ──────────────────────────────────────────────────────────────
+function initMainScreen() {
+  var u = state.user;
+  document.getElementById('header-name').textContent  = u.name  || u.email;
+  document.getElementById('header-email').textContent = u.email;
+
+  var avatarEl      = document.getElementById('header-avatar');
+  var initialsEl    = document.getElementById('header-avatar-initials');
+  var displayName   = u.name || u.email || '?';
+  initialsEl.textContent = displayName.charAt(0).toUpperCase();
+
+  if (u.picture) {
+    avatarEl.innerHTML = '<img src="' + u.picture + '" alt="Avatar" referrerpolicy="no-referrer"/>';
+  }
+  showScreen('main');
+}
+
+// ──────────────────────────────────────────────────────────────
+// DATA — Load dashboard
+// ──────────────────────────────────────────────────────────────
+async function loadDashboardData() {
+  var btn = document.getElementById('btn-refresh');
+  if (btn) btn.disabled = true;
+  showLoader('Оновлення даних…');
+
+  try {
+    var data = await apiGet({ action: 'getInitialData' });
+    state.warehouseData       = data.warehouseData       || [];
+    state.processingData      = data.processingData      || [];
+    state.processingLocations = data.processingLocations || [];
+    state.locationProducts    = data.locationProducts    || {};
+    state.storageLocations    = data.storageLocations    || [];
+    renderDropdowns();
+    hideLoader();
+    showToast(
+      'Дані оновлено: ' + state.warehouseData.length + ' поз. на складі, ' +
+      state.processingData.length + ' поз. в обробці',
+      'success', 3000
+    );
+  } catch (err) {
+    hideLoader();
+    showToast('Помилка оновлення: ' + err.message, 'error', 8000);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// RENDER — Dropdowns
+// ──────────────────────────────────────────────────────────────
+function renderDropdowns() {
+  buildWarehouseDropdown();
+  buildTargetLocationDropdown();
+  renderProcessingCards();
+}
+
+function buildWarehouseDropdown() {
+  var sel = document.getElementById('select-warehouse-item');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">— Оберіть продукт —</option>';
+
+  var targetLocation = document.getElementById('select-target-location').value;
+  var allowedProducts = (targetLocation && state.locationProducts[targetLocation])
+    ? state.locationProducts[targetLocation]
+    : null;
+
+  state.warehouseData.forEach(function(item, idx) {
+    if (allowedProducts && allowedProducts.indexOf(item.name) === -1) return;
+    var opt = document.createElement('option');
+    opt.value            = idx;
+    opt.dataset.name     = item.name;
+    opt.dataset.place    = item.place;
+    opt.dataset.unit     = item.unit;
+    opt.dataset.qty      = item.qty;
+    opt.textContent      = item.name + ' | ' + item.place +
+                           ' (Доступно: ' + fmtNum(item.qty) + ' ' + item.unit + ')';
+    if (item.qty <= 0) { opt.style.color = '#94a3b8'; }
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+}
+
+function buildTargetLocationDropdown() {
+  var sel = document.getElementById('select-target-location');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">— Оберіть локацію обробки —</option>';
+  state.processingLocations.forEach(function(loc) {
+    var opt = document.createElement('option');
+    opt.value = loc;
+    opt.textContent = loc;
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+}
+
+// ──────────────────────────────────────────────────────────────
+// RENDER — Processing Cards (Tab 2) — ОБ'ЄДНАННЯ ЗА ЛОКАЦІЄЮ
+// ──────────────────────────────────────────────────────────────
+function renderProcessingCards() {
+  var container = document.getElementById('processing-cards-container');
+  if (!container) return;
+
+  if (state.processingData.length === 0) {
+    container.innerHTML =
+      '<div class="glass-strong rounded-3xl p-8 text-center border-slate-200">' +
+        '<p class="text-3xl mb-3">⚙️</p>' +
+        '<p class="text-slate-500 font-medium text-sm">Немає позицій в обробці</p>' +
+        '<p class="text-slate-400 text-xs mt-1">Спочатку передайте сировину на вкладці «📦 Продукти для обробки»</p>' +
+      '</div>';
+    return;
+  }
+
+  // Групуємо елементи обробки за полем place (локація)
+  var groups = {};
+  state.processingData.forEach(function(item) {
+    if (!groups[item.place]) {
+      groups[item.place] = [];
+    }
+    groups[item.place].push(item);
+  });
+
+  var html = '';
+  Object.keys(groups).forEach(function(place) {
+    var items = groups[place];
+    // Фільтруємо позиції, які дійсно мають залишок
+    var activeItems = items.filter(function(i) { return i.qty > 0; });
+    var hasActive = activeItems.length > 0;
+
+    var borderColor = hasActive ? 'rgba(4,120,87,.25)' : '#e2e8f0';
+    var bgColor     = hasActive ? 'rgba(4,120,87,.02)' : '#ffffff';
+
+    var durationLabel = '';
+    if (hasActive) {
+      var earliestTs = null;
+      activeItems.forEach(function(i) {
+        var ts = parseDateTime(i.createdAt);
+        if (ts && (earliestTs === null || ts < earliestTs)) earliestTs = ts;
+      });
+      if (earliestTs) {
+        durationLabel = formatDuration(Date.now() - earliestTs);
+      }
+    }
+
+    var statusBadge = hasActive
+      ? '<span style="font-size:14px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(4,120,87,.1);color:#047857;border:1px solid rgba(4,120,87,.2);">В ОБРОБЦІ' + (durationLabel ? ' · ' + durationLabel : '') + '</span>'
+      : '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;">ПОРОЖНЬО</span>';
+
+    // Формуємо список продуктів всередині однієї локації
+    var itemsListHtml = items.map(function(item) {
+      var itemActive = item.qty > 0;
+      var colorStyle = itemActive ? 'color:#0f172a' : 'color:#94a3b8';
+      var qtyStyle = itemActive ? 'color:#047857; font-weight:700;' : 'color:#94a3b8;';
+      return (
+        '<div style="display:flex; justify-content:between; items-center; font-size:15px; border-bottom:1px dashed #e2e8f0; padding:6px 0; gap:8px;">' +
+          '<span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ' + colorStyle + '">' + escapeHtml(item.name) + '</span>' +
+          '<span style="flex-shrink:0; ' + qtyStyle + '">' + fmtNum(item.qty) + ' <span style="font-size:11px; font-weight:400; color:#64748b;">' + escapeHtml(item.unit) + '</span></span>' +
+        '</div>'
+      );
+    }).join('');
+
+    var btn = hasActive
+      ? '<button onclick="openFinishModalByPlace(\'' + escapeHtml(place) + '\')" ' +
+          'style="width:100%;margin-top:14px;background:linear-gradient(135deg,#047857,#0d9488);' +
+          'color:#fff;font-weight:700;padding:12px 16px;border-radius:13px;font-size:13.5px;' +
+          'border:none;cursor:pointer;box-shadow:0 4px 14px rgba(4,120,87,.2);transition:all .2s;"' +
+          ' onmouseover="this.style.filter=\'brightness(1.05)\'"' +
+          ' onmouseout="this.style.filter=\'\'">' +
+          '✅ Завершити обробку' +
+        '</button>'
+      : '<div style="margin-top:12px;padding:10px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;text-align:center;font-size:12px;color:#94a3b8;">Немає залишку</div>';
+
+    html += (
+      '<div style="background:' + bgColor + ';border:1px solid ' + borderColor + ';' +
+        'border-radius:20px;padding:16px 18px;box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); transition:all .2s; margin-bottom:12px;">' +
+        '<div style="display:flex;align-items:center;justify-content:between;margin-bottom:10px;gap:10px;">' +
+          '<p style="font-size:17px;font-weight:800;color:#0f172a;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ' + escapeHtml(place) + '</p>' +
+          '<div style="flex-shrink:0;">' + statusBadge + '</div>' +
+        '</div>' +
+        '<div style="background:#ffffff; border-radius:12px; padding:4px 12px; border:1px solid rgba(15,23,42,0.04);">' +
+          itemsListHtml +
+        '</div>' +
+        btn +
+      '</div>'
+    );
+  });
+
+  container.innerHTML = html;
+}
+
+// ──────────────────────────────────────────────────────────────
+// MODAL — Finish Processing — ПІДТРИМКА КІЛЬКОХ ПОЗИЦІЙ ВХОДУ ТА ВИХОДУ
+// ──────────────────────────────────────────────────────────────
+function openFinishModalByPlace(place) {
+  var items = state.processingData.filter(function(i) { return i.place === place && i.qty > 0; });
+  if (items.length === 0) return;
+
+  state.finishModal = { place: place, items: items, additionCounter: 0 };
+
+  document.getElementById('modal-source-label').textContent = 'Локація: ' + place;
+
+  // Динамічно будуємо поля списання для кожної позиції
+  var deductionsContainer = document.getElementById('modal-deductions-container');
+  deductionsContainer.innerHTML = items.map(function(item, idx) {
+    return (
+      '<div style="margin-bottom:12px;">' +
+        '<p class="text-xs font-semibold text-slate-700 mb-1">' + escapeHtml(item.name) + ' (макс. ' + fmtNum(item.qty) + ' ' + item.unit + '):</p>' +
+        '<div class="flex gap-2">' +
+          '<input type="number" id="modal-deduct-qty-' + idx + '" ' +
+            'placeholder="Кількість" min="0" max="' + item.qty + '" step="0.001" inputmode="decimal" ' +
+            'value="' + item.qty + '" class="field flex-1 modal-deduct-input" data-idx="' + idx + '" />' +
+          '<div style="background:#f8fafc;border:1.5px solid #cbd5e1;display:flex;align-items:center;justify-content:center;border-radius:14px;padding:0 16px;font-size:14px;color:#475569;font-weight:600;flex-shrink:0;min-width:56px;">' +
+            escapeHtml(item.unit) +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  // Очищаємо контейнер згенерованих продуктів та додаємо перший рядок за замовчуванням
+  document.getElementById('modal-additions-container').innerHTML = '';
+  addAdditionRowToModal();
+
+  var modal = document.getElementById('finish-modal');
+  modal.style.display = 'flex';
+  
+  setTimeout(function() { 
+    var firstInput = document.getElementById('modal-deduct-qty-0');
+    if(firstInput) firstInput.focus(); 
+  }, 80);
+}
+
+// Searchable product name field helpers
+function buildProductNameSearch(rowId) {
+  var uniqueNames = [...new Set(state.warehouseData.map(function(w) { return w.name; }))].sort(function(a,b){ return a.localeCompare(b,'uk'); });
+  var nameToUnit = {};
+  state.warehouseData.forEach(function(w) {
+    if (!(w.name in nameToUnit)) nameToUnit[w.name] = w.unit;
+  });
+
+  var wrap = document.getElementById('product-search-wrap-' + rowId);
+  var input = document.getElementById('modal-result-name-search-' + rowId);
+  var dropdown = document.getElementById('product-search-dropdown-' + rowId);
+  var hiddenVal = document.getElementById('modal-result-name-' + rowId);
+  var hiddenUnit = document.getElementById('modal-result-unit-' + rowId);
+  var unitBadgeId = 'modal-result-unit-badge-' + rowId;
+
+  function renderDropdown(query) {
+    query = (query || '').toLowerCase().trim();
+    var filtered = query
+      ? uniqueNames.filter(function(n){ return n.toLowerCase().includes(query); })
+      : uniqueNames;
+
+    var html = '';
+    filtered.forEach(function(n) {
+      html += '<div class="product-dropdown-item" data-name="' + escapeHtml(n) + '" data-unit="' + escapeHtml(nameToUnit[n] || '') + '">' + escapeHtml(n) + '</div>';
+    });
+    // "Ввести нову" якщо запит не порожній і немає точного збігу
+    if (query && !uniqueNames.some(function(n){ return n.toLowerCase() === query; })) {
+      html += '<div class="product-dropdown-item new-item" data-name="__new__" data-unit="">✏️ Зберегти як нову: «' + escapeHtml(input.value.trim()) + '»</div>';
+    }
+    if (!html) {
+      html = '<div class="product-dropdown-empty">Нічого не знайдено</div>';
+    }
+    dropdown.innerHTML = html;
+
+    // bind clicks
+    dropdown.querySelectorAll('.product-dropdown-item').forEach(function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var name = el.dataset.name;
+        var unit = el.dataset.unit || '';
+        if (name === '__new__') {
+          var typed = input.value.trim();
+          hiddenVal.value = '__new__';
+          input.setAttribute('data-custom', typed);
+          // show unit selector
+          applyUnitSelector(rowId);
+        } else {
+          hiddenVal.value = name;
+          input.value = name;
+          input.removeAttribute('data-custom');
+          // set unit
+          hiddenUnit.value = unit;
+          var badge = document.getElementById(unitBadgeId);
+          if (badge) badge.textContent = unit || '—';
+          // restore badge if was selector
+          restoreUnitBadge(rowId, unit);
+        }
+        closeDropdown();
+      });
+    });
+  }
+
+  function openDropdown() {
+    renderDropdown(input.value);
+    dropdown.classList.add('open');
+  }
+  function closeDropdown() {
+    dropdown.classList.remove('open');
+  }
+
+  input.addEventListener('focus', function() { openDropdown(); });
+  input.addEventListener('input', function() {
+    hiddenVal.value = '';
+    openDropdown();
+    renderDropdown(input.value);
+  });
+  input.addEventListener('blur', function() {
+    setTimeout(function() { closeDropdown(); }, 150);
+  });
+  input.addEventListener('keydown', function(e) {
+    var items = dropdown.querySelectorAll('.product-dropdown-item');
+    var highlighted = dropdown.querySelector('.product-dropdown-item.highlighted');
+    var idx = -1;
+    items.forEach(function(it, i){ if(it === highlighted) idx = i; });
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (highlighted) highlighted.classList.remove('highlighted');
+      var next = items[idx + 1] || items[0];
+      if (next) next.classList.add('highlighted');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (highlighted) highlighted.classList.remove('highlighted');
+      var prev = items[idx - 1] || items[items.length - 1];
+      if (prev) prev.classList.add('highlighted');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlighted) highlighted.dispatchEvent(new MouseEvent('mousedown'));
+      else closeDropdown();
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  });
+}
+
+function applyUnitSelector(rowId) {
+  var unitBadge = document.getElementById('modal-result-unit-badge-' + rowId);
+  var unitInput = document.getElementById('modal-result-unit-' + rowId);
+  if (unitBadge) {
+    unitBadge.outerHTML =
+      '<select id="modal-result-unit-' + rowId + '" class="field">' +
+        '<option value="кг">кг</option>' +
+        '<option value="л">л</option>' +
+        '<option value="шт">шт</option>' +
+      '</select>';
+  } else if (unitInput && unitInput.tagName === 'INPUT') {
+    unitInput.outerHTML =
+      '<select id="modal-result-unit-' + rowId + '" class="field">' +
+        '<option value="кг">кг</option>' +
+        '<option value="л">л</option>' +
+        '<option value="шт">шт</option>' +
+      '</select>';
+  }
+}
+
+function restoreUnitBadge(rowId, unit) {
+  var el = document.getElementById('modal-result-unit-' + rowId);
+  if (!el) return;
+  if (el.tagName === 'SELECT') {
+    el.outerHTML =
+      '<div id="modal-result-unit-badge-' + rowId + '" class="field flex items-center justify-center text-slate-500 bg-slate-100" style="cursor:not-allowed;">' + escapeHtml(unit) + '</div>' +
+      '<input type="hidden" id="modal-result-unit-' + rowId + '" value="' + escapeHtml(unit) + '" />';
+  }
+}
+
+// Додавання нового динамічного блоку продукту, що утворився
+function addAdditionRowToModal() {
+  var container = document.getElementById('modal-additions-container');
+  var rowId = state.finishModal.additionCounter++;
+
+  var uniquePlaces = (state.storageLocations && state.storageLocations.length > 0)
+    ? state.storageLocations
+    : [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
+  var placeOptionsHtml = uniquePlaces.map(function(p) {
+    return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+  }).join('');
+
+  var rowDiv = document.createElement('div');
+  rowDiv.id = 'addition-row-' + rowId;
+  rowDiv.className = 'p-4 mb-3 border border-slate-200 rounded-2xl bg-slate-50/50 relative';
+
+  var removeBtnHtml = '';
+  if (container.children.length > 0) {
+    removeBtnHtml =
+      '<button onclick="removeAdditionRowFromModal(' + rowId + ')" ' +
+        'style="position:absolute;top:10px;right:10px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;' +
+        'border-radius:8px;color:#94a3b8;background:#fff;border:1px solid #e2e8f0;font-size:12px;">✕</button>';
+  }
+
+  rowDiv.innerHTML = [
+    removeBtnHtml,
+    '<div class="space-y-3">',
+      '<div>',
+        '<p class="text-xs text-slate-500 mb-1">Назва продукту</p>',
+        '<div class="product-search-wrap" id="product-search-wrap-' + rowId + '">',
+          '<input type="text" id="modal-result-name-search-' + rowId + '" class="field"',
+            ' placeholder="🔍 Пошук або введіть нову назву…"',
+            ' autocomplete="off" autocorrect="off" spellcheck="false" />',
+          '<input type="hidden" id="modal-result-name-' + rowId + '" value="" />',
+          '<div class="product-dropdown" id="product-search-dropdown-' + rowId + '"></div>',
+        '</div>',
+      '</div>',
+      '<div class="flex gap-2">',
+        '<div style="flex:1">',
+          '<p class="text-xs text-slate-500 mb-1">Кількість</p>',
+          '<input type="number" id="modal-result-qty-' + rowId + '" placeholder="0.000" min="0.001" step="0.001" inputmode="decimal" class="field" />',
+        '</div>',
+        '<div style="flex:1">',
+          '<p class="text-xs text-slate-500 mb-1">Од. виміру</p>',
+          '<div id="modal-result-unit-badge-' + rowId + '" class="field flex items-center justify-center text-slate-500 bg-slate-100" style="cursor:not-allowed;">кг</div>',
+          '<input type="hidden" id="modal-result-unit-' + rowId + '" value="кг" />',
+        '</div>',
+      '</div>',
+      '<div>',
+        '<p class="text-xs text-slate-500 mb-1">Місце зберігання</p>',
+        '<select id="modal-result-place-' + rowId + '" class="field" onchange="toggleCustomField(' + rowId + ', \'place\')">',
+          '<option value="">— Оберіть місце або введіть нове —</option>',
+          placeOptionsHtml,
+          '<option value="__new__">✏️ Ввести нове місце…</option>',
+        '</select>',
+        '<input type="text" id="modal-result-place-custom-' + rowId + '" placeholder="Нове місце зберігання" class="field mt-2" style="display:none;" />',
+      '</div>',
+    '</div>'
+  ].join('');
+
+  container.appendChild(rowDiv);
+
+  // Initialize searchable dropdown
+  buildProductNameSearch(rowId);
+}
+
+function removeAdditionRowFromModal(rowId) {
+  var row = document.getElementById('addition-row-' + rowId);
+  if (row) row.remove();
+}
+
+function toggleCustomField(rowId, type) {
+  var selectEl = document.getElementById('modal-result-' + type + '-' + rowId);
+  var customEl = document.getElementById('modal-result-' + type + '-custom-' + rowId);
+  if(selectEl && customEl) {
+    customEl.style.display = selectEl.value === '__new__' ? '' : 'none';
+    if(selectEl.value === '__new__') customEl.focus();
+  }
+  if(type === 'name') {
+    var unitBadge = document.getElementById('modal-result-unit-badge-' + rowId);
+    var unitInput = document.getElementById('modal-result-unit-' + rowId);
+    if(unitBadge && unitInput) {
+      if(selectEl.value === '__new__' || selectEl.value === '') {
+        unitBadge.outerHTML =
+          '<select id="modal-result-unit-' + rowId + '" class="field">' +
+            '<option value="кг">кг</option>' +
+            '<option value="л">л</option>' +
+            '<option value="шт">шт</option>' +
+          '</select>';
+        unitInput.remove();
+      }
+    }
+  }
+}
+
+function syncResultUnit(rowId) {
+  var nameSel = document.getElementById('modal-result-name-' + rowId);
+  if(!nameSel) return;
+  var opt = nameSel.options[nameSel.selectedIndex];
+  var unit = opt ? opt.dataset.unit : '';
+  var unitInput = document.getElementById('modal-result-unit-' + rowId);
+  if(!unit) return; // new/empty selection handled by toggleCustomField
+  if(unitInput && unitInput.tagName === 'SELECT') {
+    unitInput.outerHTML =
+      '<div id="modal-result-unit-badge-' + rowId + '" class="field flex items-center justify-center text-slate-500 bg-slate-100" style="cursor:not-allowed;">' + unit + '</div>' +
+      '<input type="hidden" id="modal-result-unit-' + rowId + '" value="' + unit + '" />';
+    return;
+  }
+  var unitBadge = document.getElementById('modal-result-unit-badge-' + rowId);
+  unitInput.value = unit;
+  if(unitBadge) unitBadge.textContent = unit;
+}
+
+function openFinishModal(idx) {
+  var item = state.processingData[idx];
+  if(item) openFinishModalByPlace(item.place);
+}
+
+function closeFinishModal() {
+  document.getElementById('finish-modal').style.display = 'none';
+  state.finishModal = null;
+}
+
+function openWarehouseModal() {
+  document.getElementById('warehouse-search').value = '';
+  renderWarehouseModalList();
+  document.getElementById('warehouse-modal').style.display = 'flex';
+}
+
+function closeWarehouseModal() {
+  document.getElementById('warehouse-modal').style.display = 'none';
+}
+
+// ──────────────────────────────────────────────────────────────
+// MOVE MODAL — Переміщення між локаціями складу
+// ──────────────────────────────────────────────────────────────
+var _moveItemIdx = null;
+
+function openMoveModal(itemIdx) {
+  _moveItemIdx = itemIdx;
+  var item = state.warehouseData[itemIdx];
+  if (!item) return;
+
+  document.getElementById('move-item-name').textContent  = item.name;
+  document.getElementById('move-item-from').textContent  = '📍 Зараз: ' + item.place;
+  document.getElementById('move-item-qty').textContent   = fmtNum(item.qty);
+  document.getElementById('move-item-unit').textContent  = item.unit;
+  document.getElementById('move-modal-subtitle').textContent = item.name + ' · ' + item.place;
+  document.getElementById('move-qty').value = '';
+  document.getElementById('move-qty').max   = item.qty;
+  document.getElementById('move-unit-badge').textContent = item.unit || '—';
+
+  // Build place select (exclude current place)
+  var allPlaces = (state.storageLocations && state.storageLocations.length > 0)
+    ? state.storageLocations
+    : [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
+  var places = allPlaces.filter(function(p) { return p !== item.place; });
+  var sel = document.getElementById('move-place-select');
+  sel.innerHTML = '<option value="">— Оберіть місце —</option>' +
+    places.map(function(p) { return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>'; }).join('');
+
+  // Close warehouse modal, open move modal
+  document.getElementById('warehouse-modal').style.display = 'none';
+  document.getElementById('move-modal').style.display = 'flex';
+
+  setTimeout(function() { document.getElementById('move-qty').focus(); }, 80);
+}
+
+function closeMoveModal() {
+  document.getElementById('move-modal').style.display = 'none';
+  _moveItemIdx = null;
+}
+
+async function submitMoveItem() {
+  if (_moveItemIdx === null) return;
+  var item = state.warehouseData[_moveItemIdx];
+  if (!item) return;
+
+  var qty = parseFloat(document.getElementById('move-qty').value);
+  if (!qty || qty <= 0) { showToast('Введіть коректну кількість', 'warning'); return; }
+  if (qty > item.qty) { showToast('Кількість перевищує залишок (' + fmtNum(item.qty) + ' ' + item.unit + ')', 'error'); return; }
+
+  var toPlace = document.getElementById('move-place-select').value.trim();
+  if (!toPlace) { showToast('Вкажіть нове місце зберігання', 'warning'); return; }
+
+  var payload = {
+    name:      item.name,
+    unit:      item.unit,
+    fromPlace: item.place,
+    toPlace:   toPlace,
+    qty:       qty,
+    operator:  state.user.email || state.user.name,
+  };
+
+  var btn = document.getElementById('move-submit-btn');
+  btn.disabled = true;
+  showLoader('Переміщення…');
+
+  try {
+    var result = await apiPost('moveWarehouseItem', payload);
+    hideLoader();
+    showToast('🔀 ' + result.message, 'success', 5000);
+    closeMoveModal();
+    await loadDashboardData();
+  } catch (err) {
+    hideLoader();
+    showToast(err.message, 'error', 9000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderWarehouseModalList() {
+  var container = document.getElementById('warehouse-modal-list');
+  var query = (document.getElementById('warehouse-search').value || '').toLowerCase().trim();
+
+  var items = state.warehouseData.filter(function(item) {
+    if (!query) return true;
+    return item.name.toLowerCase().includes(query) || item.place.toLowerCase().includes(query);
+  });
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="text-center py-6"><p class="text-slate-400 text-xs">Нічого не знайдено</p></div>';
+    return;
+  }
+
+  var sorted = items.slice().sort(function(a, b) {
+    return a.name.localeCompare(b.name, 'uk') || a.place.localeCompare(b.place, 'uk');
+  });
+
+  container.innerHTML = sorted.map(function(item, idx) {
+    var itemIdx = state.warehouseData.indexOf(item);
+    return '<div class="glass rounded-2xl p-3 flex items-center justify-between gap-2">' +
+      '<div class="min-w-0 flex-1">' +
+        '<p class="font-semibold text-slate-900 text-sm truncate">' + escapeHtml(item.name) + '</p>' +
+        '<p class="text-xs text-slate-500 mt-0.5">📍 ' + escapeHtml(item.place) + '</p>' +
+      '</div>' +
+      '<div class="text-right flex-shrink-0">' +
+        '<p class="font-bold text-slate-900 text-sm">' + (parseFloat(item.qty.toFixed(3))) + ' <span style="font-size:11px;font-weight:500;color:#64748b;">' + escapeHtml(item.unit) + '</span></p>' +
+      '</div>' +
+      '<button onclick="openMoveModal(' + itemIdx + ')" title="Перемістити"' +
+        ' style="flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;' +
+        'border-radius:10px;background:rgba(37,99,235,.08);border:1.5px solid rgba(37,99,235,.2);color:#2563eb;transition:all .15s;"' +
+        ' onmouseover="this.style.background=\'rgba(37,99,235,.18)\'"' +
+        ' onmouseout="this.style.background=\'rgba(37,99,235,.08)\'">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>' +
+        '</svg>' +
+      '</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function submitFinishProcessing() {
+  if (!state.finishModal) return;
+  var items = state.finishModal.items;
+
+  var deductions = [];
+  var hasPositiveDeduction = false;
+
+  // 1. Валідація та збір даних для Списання
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var inputEl = document.getElementById('modal-deduct-qty-' + i);
+    var deductQty = parseFloat(inputEl.value) || 0;
+
+    if (deductQty < 0) { 
+      showToast('Введіть коректну кількість для ' + item.name, 'warning'); 
+      return; 
+    }
+    if (deductQty > item.qty) { 
+      showToast('Кількість для ' + item.name + ' перевищує залишок (' + fmtNum(item.qty) + ')', 'error'); 
+      return; 
+    }
+
+    if (deductQty > 0) {
+      hasPositiveDeduction = true;
+      deductions.push({ name: item.name, place: item.place, qty: deductQty });
+    }
+  }
+
+  if (!hasPositiveDeduction) {
+    showToast('Вкажіть кількість для списання хоча б для однієї позиції', 'warning');
+    return;
+  }
+
+  // 2. Валідація та збір даних для Зарахування (Кількох продуктів)
+  var additions = [];
+  var additionRows = document.getElementById('modal-additions-container').children;
+  
+  if (additionRows.length === 0) {
+    showToast('Додайте хоча б один готовий продукт для зарахування', 'warning');
+    return;
+  }
+
+  for (var i = 0; i < additionRows.length; i++) {
+    var rowDiv = additionRows[i];
+    var rowId = rowDiv.id.replace('addition-row-', '');
+
+    var nameSel = document.getElementById('modal-result-name-' + rowId);
+    var nameSearch = document.getElementById('modal-result-name-search-' + rowId);
+    var resultName;
+    if (nameSel.value === '__new__') {
+      // User typed a custom name (not from list)
+      resultName = (nameSearch ? nameSearch.value.trim() : '') || (nameSearch && nameSearch.getAttribute('data-custom')) || '';
+    } else if (nameSel.value) {
+      resultName = nameSel.value.trim();
+    } else {
+      // Nothing selected from dropdown — use typed text as new name
+      resultName = nameSearch ? nameSearch.value.trim() : '';
+    }
+    if (!resultName) { showToast('Заповніть назву продукту у всіх рядках', 'warning'); return; }
+
+    var resultQty = parseFloat(document.getElementById('modal-result-qty-' + rowId).value);
+    if (!resultQty || resultQty <= 0) { showToast('Введіть коректну кількість для продукту: ' + resultName, 'warning'); return; }
+
+    var resultUnit = document.getElementById('modal-result-unit-' + rowId).value.trim();
+    if (!resultUnit) { showToast('Вкажіть одиницю виміру для продукту: ' + resultName, 'warning'); return; }
+
+    var placeSel = document.getElementById('modal-result-place-' + rowId);
+    var resultPlace = placeSel.value === '__new__'
+      ? document.getElementById('modal-result-place-custom-' + rowId).value.trim()
+      : placeSel.value.trim();
+    if (!resultPlace) { showToast('Оберіть місце зберігання для продукту: ' + resultName, 'warning'); return; }
+
+    additions.push({ name: resultName, qty: resultQty, unit: resultUnit, place: resultPlace });
+  }
+
+  // Модифікуємо payload для передачі масиву additions замість одиночного об'єкта addition
+  var payload = {
+    deductions: deductions,
+    additions:  additions, 
+    operator:   state.user.email || state.user.name,
+  };
+
+  var btn = document.getElementById('modal-submit-btn');
+  btn.disabled = true;
+  showLoader('Виконання операції…');
+
+  try {
+    var result = await apiPost('transferToWarehouse', payload);
+    hideLoader();
+    closeFinishModal();
+    showToast('🎉 ' + result.message, 'success', 6000);
+    await loadDashboardData();
+  } catch (err) {
+    hideLoader();
+    showToast(err.message, 'error', 9000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function addToCart1() {
+  var sel = document.getElementById('select-warehouse-item');
+  var opt = sel.options[sel.selectedIndex];
+
+  if (!opt || !opt.value && opt.value !== 0) {
+    showToast('Оберіть продукт зі складу', 'warning'); return;
+  }
+
+  var qty = parseFloat(document.getElementById('input-wh-qty').value);
+  if (!qty || qty <= 0) { showToast('Введіть коректну кількість (більше 0)', 'warning'); return; }
+
+  var available = parseFloat(opt.dataset.qty) || 0;
+  if (qty > available) {
+    showToast('Перевищено доступний залишок: ' + fmtNum(available) + ' ' + opt.dataset.unit, 'error'); return;
+  }
+  if (available <= 0) {
+    showToast('Цей продукт відсутній на складі', 'error'); return;
+  }
+
+  var name  = opt.dataset.name;
+  var place = opt.dataset.place;
+  var unit  = opt.dataset.unit;
+
+  var dupIdx = state.cartToProcessing.findIndex(function(i) {
+    return i.name === name && i.place === place;
+  });
+
+  if (dupIdx !== -1) {
+    var newQty = state.cartToProcessing[dupIdx].qty + qty;
+    if (newQty > available) {
+      showToast('Сума перевищує залишок: ' + fmtNum(available) + ' ' + unit, 'error'); return;
+    }
+    state.cartToProcessing[dupIdx].qty = newQty;
+    showToast('Кількість оновлено → ' + fmtNum(newQty) + ' ' + unit, 'info', 2500);
+  } else {
+    state.cartToProcessing.push({ name: name, place: place, qty: qty, unit: unit, available: available });
+  }
+
+  sel.value = '';
+  document.getElementById('input-wh-qty').value = '';
+  document.getElementById('unit-badge-1').textContent = '—';
+  renderCart1();
+}
+
+function removeFromCart1(idx) { state.cartToProcessing.splice(idx, 1); renderCart1(); }
+
+function renderCart1() {
+  renderSingleCart('cart-list-1', 'cart-empty-1', 'cart-badge-1',
+    state.cartToProcessing, 'removeFromCart1', 'brand');
+}
+
+function renderSingleCart(listId, emptyId, badgeId, items, removeFn, color) {
+  var list  = document.getElementById(listId);
+  var empty = document.getElementById(emptyId);
+  var badge = document.getElementById(badgeId);
+
+  badge.textContent = items.length;
+
+  if (items.length === 0) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+  var accentColor = '#047857';
+
+  list.innerHTML = items.map(function(item, idx) {
+    return [
+      '<div class="cart-item">',
+        '<div style="flex:1;min-width:0">',
+          '<p style="font-size:18px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">',
+            escapeHtml(item.name),
+          '</p>',
+          '<p style="font-size:16px;color:#64748b;margin-top:2px">',
+            escapeHtml(item.place), ' • ',
+            '<span style="color:' + accentColor + ';font-weight:600">',
+              fmtNum(item.qty), ' ', escapeHtml(item.unit),
+            '</span>',
+          '</p>',
+        '</div>',
+        '<button onclick="' + removeFn + '(' + idx + ')"',
+          ' aria-label="Видалити ' + escapeHtml(item.name) + ' з кошика"',
+          ' style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;',
+            'border-radius:10px;color:#94a3b8;background:transparent;flex-shrink:0;transition:all .15s"',
+          ' onmouseover="this.style.color=\'#ef4444\';this.style.background=\'rgba(239,68,68,.08)\'"',
+          ' onmouseout="this.style.color=\'#94a3b8\';this.style.background=\'transparent\'">',
+          '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">',
+            '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>',
+          '</svg>',
+        '</button>',
+      '</div>',
+    ].join('');
+  }).join('');
+}
+
+async function submitToProcessing() {
+  if (state.cartToProcessing.length === 0) {
+    showToast('Додайте хоча б одну позицію до кошика', 'warning'); return;
+  }
+
+  var targetLocation = document.getElementById('select-target-location').value;
+  if (!targetLocation) {
+    showToast('Оберіть цільову локацію обробки', 'warning'); return;
+  }
+
+  var payload = {
+    items: state.cartToProcessing.map(function(i) {
+      return { name: i.name, place: i.place, qty: i.qty, unit: i.unit };
+    }),
+    targetLocation: targetLocation,
+    operator: state.user.email || state.user.name,
+  };
+
+  var btn = document.getElementById('btn-submit-1');
+  btn.disabled = true;
+  showLoader('Виконання операції…');
+
+  try {
+    var result = await apiPost('transferToProcessing', payload);
+    hideLoader();
+    showToast('🎉 ' + result.message, 'success', 6000);
+    state.cartToProcessing = [];
+    renderCart1();
+    await loadDashboardData();
+  } catch (err) {
+    hideLoader();
+    showToast(err.message, 'error', 9000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function ls(k, v)   { try { localStorage.setItem(k, v); } catch(e) {} }
+function lsGet(k)   { try { return localStorage.getItem(k); } catch(e) { return null; } }
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('tab-btn-1').addEventListener('click', function() { switchTab(1); });
+  document.getElementById('tab-btn-2').addEventListener('click', function() { switchTab(2); });
+
+  function switchTab(n) {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    document.getElementById('tab-btn-' + n).classList.add('active');
+    document.getElementById('tab-' + n).classList.add('active');
+  }
+
+  document.getElementById('select-target-location').addEventListener('change', function() {
+    buildWarehouseDropdown();
+  });
+
+  document.getElementById('select-warehouse-item').addEventListener('change', function() {
+    var opt = this.options[this.selectedIndex];
+    var unit = (opt && opt.dataset.unit) ? opt.dataset.unit : '—';
+    document.getElementById('unit-badge-1').textContent = unit;
+    var qtyInput = document.getElementById('input-wh-qty');
+    qtyInput.max = (opt && opt.dataset.qty) ? opt.dataset.qty : '';
+    qtyInput.value = '';
+    qtyInput.focus();
+  });
+
+  document.getElementById('input-wh-qty').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') addToCart1();
+  });
+
+  document.getElementById('btn-add-to-cart-1').addEventListener('click', addToCart1);
+  document.getElementById('btn-submit-1').addEventListener('click', submitToProcessing);
+
+  document.getElementById('finish-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeFinishModal();
+  });
+
+  document.getElementById('btn-refresh').addEventListener('click', loadDashboardData);
+  document.getElementById('btn-check-status').addEventListener('click', checkAccessStatus);
+
+  var savedEmail = lsGet('user_email');
+  if (savedEmail) {
+    state.user.email   = savedEmail;
+    state.user.name    = lsGet('user_name')    || savedEmail;
+    state.user.picture = lsGet('user_picture') || '';
+    state.user.role    = lsGet('user_role')    || '';
+
+    showLoader('Відновлення сесії…');
+    apiGet({ action: 'checkStatus', email: savedEmail })
+      .then(function(data) {
+        hideLoader();
+        if (data.isAllowed) {
+          // Оновлюємо роль з сервера (актуальна) та зберігаємо в localStorage
+          var role = data.role || state.user.role || '';
+          state.user.role = role;
+          ls('user_role', role);
+
+          if (role === 'milkmaid') {
+            initMilkmaidScreen();
+          } else {
+            initMainScreen();
+            loadDashboardData();
+          }
+        } else {
+          document.getElementById('pending-email').textContent = savedEmail;
+          showScreen('pending');
+        }
+      })
+      .catch(function() {
+        hideLoader();
+        localStorage.clear();
+        showScreen('auth');
+      });
+  }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+// ЛОГІКА МИТТЄВОГО СПРОЩЕНОГО ПЕРЕТВОРЕННЯ (СКЛАД-СКЛАД)
+// ──────────────────────────────────────────────────────────────
+let transformModalState = {
+  inputs: [],   // [{name, place, qty, unit}]
+  outputs: [],  // [{name, place, qty, unit}]
+  currentWarehouseItem: null // збережений поточний об'єкт при виборі вхідного продукту
+};
+
+function openTransformModal() {
+  transformModalState.inputs = [];
+  transformModalState.outputs = [];
+  transformModalState.currentWarehouseItem = null;
+  
+  // Очищення полів форми
+  document.getElementById('t-input-search').value = '';
+  document.getElementById('t-input-qty').value = '';
+  document.getElementById('t-input-item-select').innerHTML = '<option value="">— Спочатку знайдіть продукт —</option>';
+  
+  document.getElementById('t-output-search').value = '';
+  document.getElementById('t-output-unit').value = '';
+  if (document.getElementById('t-output-unit-badge')) document.getElementById('t-output-unit-badge').textContent = '—';
+  document.getElementById('t-output-qty').value = '';
+  
+  // Заповнення місць зберігання у крок 2
+  const placeSelect = document.getElementById('t-output-place');
+  placeSelect.innerHTML = '';
+  if (state.storageLocations && state.storageLocations.length > 0) {
+    state.storageLocations.forEach(loc => {
+      placeSelect.innerHTML += `<option value="${escapeHtml(loc)}">${escapeHtml(loc)}</option>`;
+    });
+  }
+
+  renderTransformLists();
+  backToTransformStep1();
+  
+  document.getElementById('modal-transform').classList.remove('hidden');
+}
+
+function closeTransformModal() {
+  document.getElementById('modal-transform').classList.add('hidden');
+}
+
+// Крок 1: Пошук компонентів на складі за введеною назвою
+function searchTransformWarehouse(val) {
+  const dropdown = document.getElementById('t-input-dropdown');
+  dropdown.innerHTML = '';
+  if (!val.trim()) { dropdown.classList.remove('open'); return; }
+  
+  const query = val.toLowerCase();
+  // Групуємо унікальні назви, які є на складі
+  const uniqueNames = [];
+  state.warehouseData.forEach(item => {
+    if (item.name.toLowerCase().includes(query) && !uniqueNames.includes(item.name)) {
+      uniqueNames.push(item.name);
+    }
+  });
+
+  if (uniqueNames.length === 0) {
+    dropdown.innerHTML = '<div class="product-dropdown-empty">Нічого не знайдено на складі</div>';
+  } else {
+    uniqueNames.slice(0, 10).forEach(name => {
+      const row = document.createElement('div');
+      row.className = 'product-dropdown-item';
+      row.textContent = name;
+      row.onclick = () => selectTransformInputName(name);
+      dropdown.appendChild(row);
+    });
+  }
+  dropdown.classList.add('open');
+}
+
+function selectTransformInputName(name) {
+  document.getElementById('t-input-search').value = name;
+  document.getElementById('t-input-dropdown').classList.remove('open');
+  
+  // Знаходимо всі локації та залишки для цієї назви на складі
+  const batches = state.warehouseData.filter(i => i.name === name);
+  const select = document.getElementById('t-input-item-select');
+  select.innerHTML = '';
+  
+  batches.forEach((b, index) => {
+    select.innerHTML += `<option value="${index}" data-place="${escapeHtml(b.place)}" data-unit="${escapeHtml(b.unit)}" data-qty="${b.qty}">
+      ${fmtNum(b.qty)} ${escapeHtml(b.unit)} [${escapeHtml(b.place)}]
+    </option>`;
+  });
+  
+  updateTransformInputUnit();
+}
+
+function updateTransformInputUnit() {
+  const select = document.getElementById('t-input-item-select');
+  const selectedOpt = select.options[select.selectedIndex];
+  if (selectedOpt && selectedOpt.value !== "") {
+    document.getElementById('t-input-qty').placeholder = "макс. " + selectedOpt.getAttribute('data-qty');
+  } else {
+    document.getElementById('t-input-qty').placeholder = "0.000";
+  }
+}
+
+// Додавання інгредієнта у список списання (Крок 1)
+function addTransformInputItem() {
+  const name = document.getElementById('t-input-search').value.trim();
+  const qtyVal = parseFloat(document.getElementById('t-input-qty').value);
+  const select = document.getElementById('t-input-item-select');
+  const selectedOpt = select.options[select.selectedIndex];
+  
+  if (!name || !selectedOpt || selectedOpt.value === "") {
+    showToast("Будь ласка, знайдіть продукт та оберіть партію (локацію)!", "warning");
+    return;
+  }
+  if (isNaN(qtyVal) || qtyVal <= 0) {
+    showToast("Введіть коректну кількість більше 0!", "warning");
+    return;
+  }
+  
+  const place = selectedOpt.getAttribute('data-place');
+  const unit = selectedOpt.getAttribute('data-unit');
+  const maxQty = parseFloat(selectedOpt.getAttribute('data-qty'));
+  
+  if (qtyVal > maxQty) {
+    showToast(`Недостатньо залишку! Доступно тільки ${fmtNum(maxQty)} ${unit}`, "error");
+    return;
+  }
+  
+  // Перевірка на дублікат у списку
+  const exists = transformModalState.inputs.find(i => i.name === name && i.place === place);
+  if (exists) {
+    if ((exists.qty + qtyVal) > maxQty) {
+      showToast(`Сумарна кількість перевищить залишок на локації!`, "error");
+      return;
+    }
+    exists.qty += qtyVal;
+  } else {
+    transformModalState.inputs.push({ name, place, qty: qtyVal, unit });
+  }
+  
+  // Скидання полів форми додавання
+  document.getElementById('t-input-search').value = '';
+  document.getElementById('t-input-qty').value = '';
+  select.innerHTML = '<option value="">— Спочатку знайдіть продукт —</option>';
+  
+  renderTransformLists();
+}
+
+function removeTransformInput(index) {
+  transformModalState.inputs.splice(index, 1);
+  renderTransformLists();
+}
+
+// Крок 2: Динамічний пошук назв готової продукції з Довідника
+function searchTransformDirectory(val) {
+  const dropdown = document.getElementById('t-output-dropdown');
+  dropdown.innerHTML = '';
+
+  const query = val.trim().toLowerCase();
+
+  if (!query) { dropdown.classList.remove('open'); return; }
+
+  // 1. Спочатку беремо всі назви з Довідника (locationProducts)
+  let allDirectoryProducts = [];
+  if (state.locationProducts) {
+    Object.values(state.locationProducts).forEach(arr => {
+      arr.forEach(p => { if (!allDirectoryProducts.includes(p)) allDirectoryProducts.push(p); });
+    });
+  }
+
+  // 2. Додаємо всі назви зі складу (warehouseData), яких ще немає в списку
+  state.warehouseData.forEach(item => {
+    if (!allDirectoryProducts.includes(item.name)) {
+      allDirectoryProducts.push(item.name);
+    }
+  });
+
+  // 3. Фільтруємо за запитом
+  const filtered = allDirectoryProducts.filter(p => p.toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    // Продукт не знайдено — заборонено додавати нові назви
+    const emptyRow = document.createElement('div');
+    emptyRow.className = 'product-dropdown-empty';
+    emptyRow.textContent = '❌ Продукт не знайдено у довіднику';
+    dropdown.appendChild(emptyRow);
+  } else {
+    filtered.slice(0, 15).forEach(name => {
+      const row = document.createElement('div');
+      row.className = 'product-dropdown-item';
+      row.textContent = name;
+      row.onclick = () => {
+        document.getElementById('t-output-search').value = name;
+        dropdown.classList.remove('open');
+        // Підтягуємо одиницю виміру зі складу або довідника
+        const whItem = state.warehouseData.find(w => w.name === name);
+        const unit = whItem ? whItem.unit : '';
+        document.getElementById('t-output-unit').value = unit;
+        document.getElementById('t-output-unit-badge').textContent = unit || '—';
+      };
+      dropdown.appendChild(row);
+    });
+  }
+  dropdown.classList.add('open');
+}
+
+// Додавання готового продукту у список утворення (Крок 2)
+function addTransformOutputItem() {
+  const name = document.getElementById('t-output-search').value.trim();
+  const qtyVal = parseFloat(document.getElementById('t-output-qty').value);
+  const unit = document.getElementById('t-output-unit').value;
+  const place = document.getElementById('t-output-place').value;
+  
+  if (!name) {
+    showToast("Введіть або виберіть назву вихідного продукту!", "warning");
+    return;
+  }
+  
+  // Перевірка: продукт повинен бути у довіднику або на складі
+  let allKnownProducts = [];
+  if (state.locationProducts) {
+    Object.values(state.locationProducts).forEach(arr => {
+      arr.forEach(p => { if (!allKnownProducts.includes(p)) allKnownProducts.push(p); });
+    });
+  }
+  state.warehouseData.forEach(item => {
+    if (!allKnownProducts.includes(item.name)) allKnownProducts.push(item.name);
+  });
+  if (!allKnownProducts.includes(name)) {
+    showToast("Продукт не знайдено у довіднику. Оберіть зі списку!", "warning");
+    return;
+  }
+  if (isNaN(qtyVal) || qtyVal <= 0) {
+    showToast("Введіть кількість виходу!", "warning");
+    return;
+  }
+  if (!place) {
+    showToast("Оберіть місце зберігання для результату!", "warning");
+    return;
+  }
+  
+  const exists = transformModalState.outputs.find(o => o.name === name && o.place === place);
+  if (exists) {
+    exists.qty += qtyVal;
+  } else {
+    transformModalState.outputs.push({ name, place, qty: qtyVal, unit });
+  }
+  
+  // Очищення полів форми для наступного продукту
+  document.getElementById('t-output-search').value = '';
+  document.getElementById('t-output-qty').value = '';
+  document.getElementById('t-output-unit').value = '';
+  document.getElementById('t-output-unit-badge').textContent = '—';
+  
+  renderTransformLists();
+}
+
+function removeTransformOutput(index) {
+  transformModalState.outputs.splice(index, 1);
+  renderTransformLists();
+}
+
+// Оновлення списків у інтерфейсі модалки
+function renderTransformLists() {
+  // 1. Вхідний список
+  const inList = document.getElementById('transform-input-list');
+  if (transformModalState.inputs.length === 0) {
+    inList.innerHTML = '<p class="text-center text-xs text-slate-400 py-3 id-empty">Інгредієнти ще не додано</p>';
+    document.getElementById('btn-t-next').disabled = true;
+  } else {
+    inList.innerHTML = '';
+    transformModalState.inputs.forEach((item, idx) => {
+      inList.innerHTML += `
+        <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-100 text-sm">
+          <div>
+            <span class="font-semibold text-slate-900">${escapeHtml(item.name)}</span>
+            <span class="text-xs text-slate-400 block">[Звідки: ${escapeHtml(item.place)}]</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-amber-600">-${fmtNum(item.qty)} ${escapeHtml(item.unit)}</span>
+            <button onclick="removeTransformInput(${idx})" class="text-red-500 hover:text-red-700 font-bold px-1">✕</button>
+          </div>
+        </div>`;
+    });
+    document.getElementById('btn-t-next').disabled = false;
+  }
+  
+  // 2. Вихідний список
+  const outList = document.getElementById('transform-output-list');
+  if (transformModalState.outputs.length === 0) {
+    outList.innerHTML = '<p class="text-center text-xs text-slate-400 py-3 id-empty">Продукти на вихід ще не додано</p>';
+    document.getElementById('btn-t-submit').disabled = true;
+  } else {
+    outList.innerHTML = '';
+    transformModalState.outputs.forEach((item, idx) => {
+      outList.innerHTML += `
+        <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-100 text-sm">
+          <div>
+            <span class="font-semibold text-slate-900">${escapeHtml(item.name)}</span>
+            <span class="text-xs text-slate-400 block">[Куди: ${escapeHtml(item.place)}]</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-brand-600">+${fmtNum(item.qty)} ${escapeHtml(item.unit)}</span>
+            <button onclick="removeTransformOutput(${idx})" class="text-red-500 hover:text-red-700 font-bold px-1">✕</button>
+          </div>
+        </div>`;
+    });
+    document.getElementById('btn-t-submit').disabled = false;
+  }
+}
+
+// Навігація між кроками
+function goToTransformStep2() {
+  if (transformModalState.inputs.length === 0) return;
+  document.getElementById('transform-step-1').classList.add('hidden');
+  document.getElementById('transform-step-2').classList.remove('hidden');
+  document.getElementById('transform-step-desc').textContent = "Крок 2: Що утворюється";
+}
+
+function backToTransformStep1() {
+  document.getElementById('transform-step-2').classList.add('hidden');
+  document.getElementById('transform-step-1').classList.remove('hidden');
+  document.getElementById('transform-step-desc').textContent = "Крок 1";
+}
+
+// ВІДПРАВКА ДАНИХ НА СЕРВЕР (POST-запит)
+function submitTransformOperation() {
+  if (transformModalState.inputs.length === 0 || transformModalState.outputs.length === 0) {
+    showToast("Обидва списки (Вхід і Вихід) повинні мати хоча б один товар!", "warning");
+    return;
+  }
+  
+  showLoader("Виконується перетворення товарів...");
+  
+  // Для outputs НЕ передаємо unit — колонка C на вкладці Склад заповнюється
+  // формулою =ARRAYFORMULA(VLOOKUP(...'Довідник'...)) автоматично
+  const outputsWithoutUnit = transformModalState.outputs.map(o => ({
+    name: o.name,
+    place: o.place,
+    qty: o.qty
+  }));
+
+const payload = {
+  inputs: transformModalState.inputs,
+  outputs: transformModalState.outputs,  // ← unit тепер включено
+  operator: state.user.email
+};
+  
+  fetch(API_URL + '?action=instantTransform', {
+    method: 'POST',
+    mode: 'cors',
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(res => {
+    hideLoader();
+    if (res.success) {
+      showToast(res.message || "Перетворення успішно проведено!", "success");
+      closeTransformModal();
+      // Викликаємо стандартне оновлення даних, яке вже прописане у вашій системі
+      if (typeof refreshData === 'function') {
+        refreshData();
+      } else if (document.getElementById('btn-refresh')) {
+        document.getElementById('btn-refresh').click();
+      }
+    } else {
+      showToast("Помилка бекенду: " + res.error, "error");
+    }
+  })
+  .catch(err => {
+    hideLoader();
+    showToast("Помилка мережі: " + err.message, "error");
+  });
+}
+
+// Закриття дропдаунів при кліку повз них
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.product-search-wrap')) {
+    const d1 = document.getElementById('t-input-dropdown');
+    const d2 = document.getElementById('t-output-dropdown');
+    if(d1) d1.classList.remove('open');
+    if(d2) d2.classList.remove('open');
+  }
+});
+</script>
+
+<div id="finish-modal" style="display:none;position:fixed;inset:0;z-index:8000;
+  background:rgba(15, 23, 42, 0.4);backdrop-filter:blur(14px);
+  align-items:flex-end;justify-content:center;" role="dialog" aria-modal="true">
+  <div class="glass-strong w-full max-w-lg rounded-t-3xl p-6 pb-8 border-slate-200" style="border-bottom:none;max-height:92dvh;overflow-y:auto;">
+
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <p class="font-bold text-slate-900 text-base">✅ Завершити обробку</p>
+        <p id="modal-source-label" class="text-xs text-slate-500 mt-0.5"></p>
+      </div>
+      <button onclick="closeFinishModal()"
+        style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+               border-radius:10px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="mb-4">
+      <p class="section-label">⚙️ Кількість для списання з обробки</p>
+      <div id="modal-deductions-container" class="space-y-3"></div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="mb-5">
+      <p class="section-label mb-3">📦 Що утворилось (зарахувати на склад)</p>
+      
+      <div id="modal-additions-container" class="space-y-3"></div>
+      
+      <button onclick="addAdditionRowToModal()" class="btn-add mt-2 bg-brand-50/50" style="padding: 10px; font-size: 13px;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        Додати ще один продукт
+      </button>
+    </div>
+
+    <button id="modal-submit-btn" onclick="submitFinishProcessing()"
+      class="btn-primary btn-amber">
+      ✅ Прийняти на склад
+    </button>
+  </div>
+</div>
+
+<div id="warehouse-modal" style="display:none;position:fixed;inset:0;z-index:8000;
+  background:rgba(15, 23, 42, 0.4);backdrop-filter:blur(14px);
+  align-items:flex-end;justify-content:center;" role="dialog" aria-modal="true">
+  <div class="glass-strong w-full max-w-lg rounded-t-3xl p-6 pb-8 border-slate-200" style="border-bottom:none;max-height:92dvh;overflow-y:auto;">
+
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <p class="font-bold text-slate-900 text-base">📦 Склад</p>
+        <p class="text-xs text-slate-500 mt-0.5">Поточні залишки на складі</p>
+      </div>
+      <button onclick="closeWarehouseModal()"
+        style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+               border-radius:10px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <input type="text" id="warehouse-search" class="field mb-3" placeholder="🔍 Пошук за назвою або місцем…" oninput="renderWarehouseModalList()" />
+
+    <div id="warehouse-modal-list" class="space-y-2"></div>
+  </div>
+</div>
+
+<!-- ══════ MOVE MODAL ══════ -->
+<div id="move-modal" style="display:none;position:fixed;inset:0;z-index:9000;
+  background:rgba(15,23,42,0.45);backdrop-filter:blur(14px);
+  align-items:flex-end;justify-content:center;" role="dialog" aria-modal="true">
+  <div class="glass-strong w-full max-w-lg rounded-t-3xl p-6 pb-8 border-slate-200" style="border-bottom:none;max-height:92dvh;overflow-y:auto;">
+
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <p class="font-bold text-slate-900 text-base">🔀 Переміщення на склад</p>
+        <p id="move-modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+      </div>
+      <button onclick="closeMoveModal()"
+        style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+               border-radius:10px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Info card -->
+    <div id="move-info-card" class="rounded-2xl p-4 mb-5"
+      style="background:rgba(4,120,87,.06);border:1.5px solid rgba(4,120,87,.2);">
+      <div class="flex items-center justify-between">
+        <div>
+          <p id="move-item-name" class="font-bold text-slate-900 text-sm"></p>
+          <p id="move-item-from" class="text-xs text-slate-500 mt-0.5"></p>
+        </div>
+        <div class="text-right">
+          <p id="move-item-qty" class="font-bold text-brand-700 text-sm"></p>
+          <p id="move-item-unit" class="text-xs text-slate-500"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <p class="text-xs text-slate-500 mb-1 font-medium">Кількість для переміщення</p>
+        <div class="flex gap-2">
+          <input type="number" id="move-qty" class="field flex-1" placeholder="0.000"
+            min="0.001" step="0.001" inputmode="decimal" />
+          <div id="move-unit-badge"
+            class="flex items-center justify-center rounded-2xl text-sm font-semibold text-slate-500
+                   px-4 py-3 min-w-[60px] text-center flex-shrink-0 bg-slate-100 border border-slate-200">
+            —
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="text-xs text-slate-500 mb-1 font-medium">Нове місце зберігання</p>
+        <select id="move-place-select" class="field"></select>
+      </div>
+    </div>
+
+    <button id="move-submit-btn" onclick="submitMoveItem()" class="btn-primary mt-6"
+      style="background:linear-gradient(135deg,#2563eb,#0891b2);box-shadow:0 4px 22px rgba(37,99,235,.35);">
+      🔀 Перемістити
+    </button>
+  </div>
+</div>
+
+<!-- HTML-структура Модального вікна Перетворення -->
+<div id="modal-transform" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="glass-strong w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 max-h-[90dvh] overflow-y-auto flex flex-col border-slate-200">
+    
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900" id="transform-title">🥛→🧀 Швидке перетворення</h3>
+        <p class="text-xs text-slate-500 mt-0.5" id="transform-step-desc">Крок 1: Що списуємо</p>
+      </div>
+      <button onclick="closeTransformModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 text-sm flex items-center justify-center font-bold">✕</button>
+    </div>
+
+    <div id="transform-step-1" class="space-y-4 flex-1">
+
+
+      <div class="space-y-2">
+        <p class="section-label">Що списуємо</p>
+        <div id="transform-input-list" class="space-y-2 min-h-[50px] border border-dashed border-slate-200 rounded-2xl p-2 bg-slate-50/50">
+          <p class="text-center text-xs text-slate-400 py-3 id-empty">Інгредієнти ще не додано</p>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 space-y-3">
+        <p class="text-xs font-semibold text-slate-700">Додати продукт на вхід:</p>
+        
+        <div class="product-search-wrap">
+          <input type="text" id="t-input-search" class="field" placeholder="🔍 Введіть назву компонента зі складу..." autocomplete="off" oninput="searchTransformWarehouse(this.value)" />
+          <div id="t-input-dropdown" class="product-dropdown"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Кількість</label>
+            <input type="number" id="t-input-qty" placeholder="0.000" min="0.001" step="0.001" class="field" inputmode="decimal" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Од. вим. / Локація</label>
+            <select id="t-input-item-select" class="field" onchange="updateTransformInputUnit()">
+              <option value="">— Оберіть партію —</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" onclick="addTransformInputItem()" class="btn-add">➕ Додати до списку списання</button>
+      </div>
+
+      <div class="pt-4">
+        <button onclick="goToTransformStep2()" id="btn-t-next" class="btn-primary" disabled>Далі (Що утворюється) ➔</button>
+      </div>
+    </div>
+
+    <div id="transform-step-2" class="space-y-4 flex-1 hidden">
+
+
+      <div class="space-y-2">
+        <p class="section-label">Що утворюється</p>
+        <div id="transform-output-list" class="space-y-2 min-h-[50px] border border-dashed border-slate-200 rounded-2xl p-2 bg-slate-50/50">
+          <p class="text-center text-xs text-slate-400 py-3 id-empty">Продукти на вихід ще не додано</p>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 space-y-3">
+        <p class="text-xs font-semibold text-slate-700">Додати готовий продукт:</p>
+        
+        <div class="product-search-wrap">
+          <input type="text" id="t-output-search" class="field" placeholder="🔍 Пошук назви готового продукту..." autocomplete="off" oninput="searchTransformDirectory(this.value)" />
+          <div id="t-output-dropdown" class="product-dropdown"></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-1">
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Кількість</label>
+            <input type="number" id="t-output-qty" placeholder="0.000" min="0.001" step="0.001" class="field" inputmode="decimal" />
+          </div>
+          <div class="col-span-1">
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Од. вим.</label>
+            <div id="t-output-unit-badge"
+              style="width:100%;background:#f1f5f9;border:1.5px solid #e2e8f0;color:#475569;
+                     border-radius:14px;padding:14px 16px;font-size:14px;font-weight:600;
+                     text-align:center;min-height:50px;display:flex;align-items:center;justify-content:center;">
+              —
+            </div>
+            <input type="hidden" id="t-output-unit" value="" />
+          </div>
+          <div class="col-span-1">
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Куди покласти</label>
+            <select id="t-output-place" class="field"></select>
+          </div>
+        </div>
+
+        <button type="button" onclick="addTransformOutputItem()" class="btn-add">🥛→🧀 Додати до списку утворення</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100">
+        <button onclick="backToTransformStep1()" class="btn-secondary">⬅️ Назад</button>
+        <button onclick="submitTransformOperation()" id="btn-t-submit" class="btn-primary btn-amber" disabled>🥛→🧀 Виконати перетворення</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+
+<!-- ══════ MILKMAID SCREEN ══════ -->
+<div id="screen-milkmaid" class="screen bg-mesh">
+
+  <!-- Header -->
+  <header class="glass-strong border-b border-slate-200 sticky top-0 z-50">
+    <div class="flex items-center justify-between px-4 pt-4 pb-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-2xl"
+             style="background:linear-gradient(135deg,#047857,#0d9488);">🐄</div>
+        <div>
+          <p id="mm-header-name" class="font-bold text-slate-900 text-sm leading-tight">Доярка</p>
+          <p id="mm-header-email" class="text-xs text-slate-400 leading-tight"></p>
+        </div>
+      </div>
+      <button onclick="logout()"
+        class="text-xs text-slate-500 font-semibold px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all">
+        Вийти
+      </button>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="flex-1 overflow-y-auto pb-10">
+    <div class="max-w-md mx-auto px-4 pt-6 space-y-5">
+
+      <!-- Title card -->
+      <div class="glass-strong rounded-3xl p-5 text-center border-slate-200">
+        <div class="text-4xl mb-2">🥛</div>
+        <h2 class="text-xl font-extrabold text-slate-900">Облік надою</h2>
+        <p id="mm-date-label" class="text-xs text-slate-400 mt-1"></p>
+      </div>
+
+      <!-- Input card -->
+      <div class="glass-strong rounded-3xl p-5 border-slate-200 space-y-4">
+        <p class="section-label">Додати надій</p>
+
+        <div>
+          <label class="text-xs text-slate-500 font-medium block mb-1">Кількість надоєного молока</label>
+          <div class="flex gap-2 items-center">
+            <input type="number" id="mm-qty-input"
+              placeholder="0.000"
+              min="0.001" step="0.001"
+              inputmode="decimal"
+              class="field flex-1 text-2xl font-bold"
+              style="font-size:22px;font-weight:800;color:#047857;"
+              oninput="mmValidateInput()" />
+            <div id="mm-unit-badge"
+              class="flex items-center justify-center rounded-2xl font-bold text-brand-700
+                     px-5 py-3 text-lg bg-emerald-50 border-2 border-emerald-200 flex-shrink-0">
+              —
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1.5">
+            Продукт: <span id="mm-product-label" class="font-semibold text-slate-600"></span> →
+            Місце: <span id="mm-place-label" class="font-semibold text-slate-600"></span>
+          </p>
+        </div>
+
+        <button id="mm-submit-btn" onclick="mmSubmit()" class="btn-primary" disabled>
+          ➕ Записати надій
+        </button>
+      </div>
+
+      <!-- Today's entries -->
+      <div class="glass-strong rounded-3xl p-5 border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <p class="section-label" style="margin-bottom:0">📋 Мої записи сьогодні</p>
+          <button onclick="mmRefresh()" id="mm-refresh-btn"
+            class="text-xs text-brand-700 font-semibold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+            🔄 Оновити
+          </button>
+        </div>
+        <div id="mm-entries-list">
+          <p class="text-center text-slate-400 text-sm py-4">Завантаження…</p>
+        </div>
+        <div id="mm-total-row" class="hidden mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+          <span class="text-sm font-semibold text-slate-600">Разом за день:</span>
+          <span id="mm-total-value" class="text-lg font-extrabold text-brand-700"></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// MILKMAID — логіка екрану доярки
+// ══════════════════════════════════════════════════════════════
+
+function initMilkmaidScreen() {
+  var u = state.user;
+  document.getElementById('mm-header-name').textContent  = u.name  || u.email;
+  document.getElementById('mm-header-email').textContent = u.email;
+
+  // Поточна дата
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('mm-date-label').textContent = dateStr;
+
+  showScreen('milkmaid');
+  mmRefresh();
+}
+
+function mmValidateInput() {
+  var val = parseFloat(document.getElementById('mm-qty-input').value);
+  document.getElementById('mm-submit-btn').disabled = !(val > 0);
+}
+
+async function mmRefresh() {
+  var btn = document.getElementById('mm-refresh-btn');
+  if (btn) btn.disabled = true;
+
+  try {
+    var data = await apiGet({ action: 'getMilkData', email: state.user.email });
+    state.milkUnit          = data.unit          || 'л';
+    state.milkProductName   = data.productName   || 'Молоко';
+    state.milkStoragePlace  = data.storagPlace   || '';
+    state.milkTodayEntries  = data.todayEntries  || [];
+
+    document.getElementById('mm-unit-badge').textContent    = state.milkUnit;
+    document.getElementById('mm-product-label').textContent = state.milkProductName;
+    document.getElementById('mm-place-label').textContent   = state.milkStoragePlace;
+
+    mmRenderEntries();
+  } catch(err) {
+    showToast('Помилка оновлення: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function mmRenderEntries() {
+  var list = document.getElementById('mm-entries-list');
+  var totalRow = document.getElementById('mm-total-row');
+  var entries = state.milkTodayEntries;
+
+  if (!entries || entries.length === 0) {
+    list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6">Сьогодні записів ще немає</p>';
+    totalRow.classList.add('hidden');
+    return;
+  }
+
+  var total = 0;
+  var html = entries.map(function(e, i) {
+    total += e.qty || 0;
+    // Форматуємо час
+    var timeStr = '';
+    var dt = String(e.datetime || '');
+    var tm = dt.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (tm) timeStr = tm[1] + ':' + tm[2];
+
+    return (
+      '<div class="flex items-center justify-between py-2.5 ' + (i > 0 ? 'border-t border-slate-100' : '') + '">' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-lg">🥛</span>' +
+          '<div>' +
+            '<p class="text-sm font-semibold text-slate-800">' + fmtNum(e.qty) + ' ' + escapeHtml(e.unit || state.milkUnit) + '</p>' +
+            '<p class="text-xs text-slate-400">' + (timeStr ? 'о ' + timeStr : '') + ' · #' + escapeHtml(e.opId || '') + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<span class="text-xs text-brand-700 font-bold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100">✓ Записано</span>' +
+      '</div>'
+    );
+  }).join('');
+
+  list.innerHTML = html;
+  totalRow.classList.remove('hidden');
+  document.getElementById('mm-total-value').textContent = fmtNum(total) + ' ' + state.milkUnit;
+}
+
+async function mmSubmit() {
+  var input = document.getElementById('mm-qty-input');
+  var qty = parseFloat(input.value);
+  if (!(qty > 0)) { showToast('Введіть кількість молока', 'warning'); return; }
+
+  var btn = document.getElementById('mm-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Збереження…';
+
+  try {
+    var result = await apiPost('addMilk', {
+      qty:      qty,
+      operator: state.user.email,
+    });
+    input.value = '';
+    mmValidateInput();
+    showToast('✅ Записано ' + fmtNum(result.qty) + ' ' + result.unit + ' молока!', 'success', 4000);
+    // Оновити список
+    await mmRefresh();
+  } catch(err) {
+    showToast('Помилка: ' + err.message, 'error', 7000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '➕ Записати надій';
+  }
+}
+</script>
+
+</html>
