@@ -906,6 +906,20 @@
     </select>
   </div>
 
+  <div class="reg-label">ТТН</div>
+  <div class="reg-input-wrap">
+    <input
+      type="text"
+      id="ttn-input"
+      class="reg-input"
+      placeholder="Номер ТТН"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      style="font-size:20px;"
+    />
+  </div>
+
   <div class="reg-label">Порода деревини</div>
   <div class="reg-input-wrap">
     <select id="wood-select" class="reg-input" style="font-size:20px; letter-spacing:1px; cursor:pointer;">
@@ -915,8 +929,15 @@
     </select>
   </div>
 
-  <button class="btn-start" onclick="startSession()">ПОЧАТИ РОБОТУ</button>
+  <div class="reg-label">Тип</div>
+  <div class="reg-input-wrap">
+    <select id="type-select" class="reg-input" style="font-size:20px; letter-spacing:1px; cursor:pointer;">
+      <option value="Звичайна">Звичайна</option>
+      <option value="FSC">FSC</option>
+    </select>
+  </div>
 
+  <button class="btn-start" onclick="startSession()">ПОЧАТИ РОБОТУ</button>
 </div>
 
 <!-- ══════ MAIN SCREEN ══════ -->
@@ -1048,7 +1069,9 @@ let state = {
   entries: [],        // {id, length, diameter, volume, synced, sortC}
   nextId: 1,
   currentLength: '',   
-  currentDiameter: ''  
+  currentDiameter: '',
+  ttn: '',
+  woodTypeType: 'Звичайна'
 };
 
 let activeField = 'diameter'; // 'length' | 'diameter'
@@ -1093,6 +1116,8 @@ function startSession() {
   const carInput = document.getElementById('car-input');
   const orgSelect = document.getElementById('org-select');
   const woodSelect = document.getElementById('wood-select');
+  const ttnInput = document.getElementById('ttn-input');
+  const typeSelect = document.getElementById('type-select');
   const car = carInput.value.trim().toUpperCase();
 
   if (!car) { carInput.style.borderColor = 'var(--red)'; return; }
@@ -1102,6 +1127,8 @@ function startSession() {
   state.carNumber = car;
   state.organization = orgSelect.value;
   state.woodType = woodSelect.value;
+  state.ttn = ttnInput.value.trim();
+  state.woodTypeType = typeSelect.value || 'Звичайна';
   state.entries = [];
   state.nextId = 1;
   saveState();
@@ -1619,6 +1646,8 @@ async function finishSession() {
           carNumber: state.carNumber,
           organization: state.organization || '',
           woodType: state.woodType || '',
+          ttn: state.ttn || '',
+          woodTypeType: state.woodTypeType || 'Звичайна',
           entries: unsynced.map(e => ({
             id: e.id, length: e.length, diameter: e.diameter, volume: e.volume, sortC: e.sortC || false
           }))
@@ -1627,7 +1656,7 @@ async function finishSession() {
     } catch(e) {}
   }
 
-  state = { carNumber: '', entries: [], nextId: 1, currentLength: '', currentDiameter: '' };
+  state = { carNumber: '', entries: [], nextId: 1, currentLength: '', currentDiameter: '', ttn: '', woodTypeType: 'Звичайна' };
   saveState();
 
   loadingEl.style.display = 'none';
@@ -1635,6 +1664,8 @@ async function finishSession() {
   document.getElementById('car-input').value = '';
   document.getElementById('org-select').value = '';
   document.getElementById('wood-select').value = '';
+  document.getElementById('ttn-input').value = '';
+  document.getElementById('type-select').value = 'Звичайна';
   document.getElementById('screen-reg').style.display = 'flex';
   _finishing = false;
   showToast('Машину завершено. Дякуємо!', 'success');
