@@ -1103,6 +1103,9 @@ function updateCartQty(productId, value) {
   if (isNaN(qty) || qty <= 0) {
     // Якщо введено 0 або порожньо — не видаляємо одразу, дамо можливість виправити
     item.qty = 0;
+  } else if (isPieceUnit(item.unit)) {
+    // Для штучних товарів — тільки ціле число
+    item.qty = Math.round(qty);
   } else {
     item.qty = Math.round(qty * 1000) / 1000;
   }
@@ -1112,7 +1115,9 @@ function updateCartQty(productId, value) {
 function changeQty(productId, delta) {
   const item = APP.cart.find(c => String(c.id) === String(productId));
   if (!item) return;
-  const newQty = Math.round((item.qty + delta) * 1000) / 1000;
+  const newQty = isPieceUnit(item.unit)
+    ? Math.round(item.qty) + delta
+    : Math.round((item.qty + delta) * 1000) / 1000;
   if (newQty <= 0) {
     removeFromCart(productId);
     return;
@@ -1163,11 +1168,13 @@ function renderCart() {
             id="qty-inp-${item.id}"
             class="qty-input"
             type="number"
-            step="0.100"
-            min="0.100"
+            step="${isPieceUnit(item.unit) ? '1' : '0.100'}"
+            min="${isPieceUnit(item.unit) ? '1' : '0.100'}"
+            inputmode="${isPieceUnit(item.unit) ? 'numeric' : 'decimal'}"
             value="${item.qty}"
+            onkeydown="return blockDecimalForPiece(event, '${escHtml(item.unit)}')"
+            oninput="sanitizeQtyInput(this, '${escHtml(item.unit)}'); updateCartQty('${item.id}', this.value)"
             onchange="updateCartQty('${item.id}', this.value)"
-            oninput="updateCartQty('${item.id}', this.value)"
           >
           <button class="qty-btn qty-btn-plus" onclick="changeQty('${item.id}', 1)">+</button>
         </div>
@@ -1452,6 +1459,34 @@ function formatQty(val) {
   const n = parseFloat(val) || 0;
   // Видаляємо зайві нулі в дробовій частині
   return n % 1 === 0 ? n.toString() : n.toFixed(3).replace(/0+$/, '');
+}
+
+/** Перевіряє, чи одиниця вимірювання товару — штучна (тільки цілі числа) */
+function isPieceUnit(unit) {
+  return String(unit || '').trim().toLowerCase() === 'шт';
+}
+
+/**
+ * Видаляє з поля кількості крапку/кому та все після неї, якщо одиниця — "шт".
+ * Викликається на oninput, щоб не дати ввести дробове число навіть
+ * на мобільних клавіатурах, де keydown не завжди блокується.
+ */
+function sanitizeQtyInput(inputEl, unit) {
+  if (!isPieceUnit(unit)) return;
+  const cleaned = inputEl.value.replace(/[.,].*$/, '');
+  if (cleaned !== inputEl.value) {
+    inputEl.value = cleaned;
+  }
+}
+
+/** Блокує введення крапки/коми з клавіатури для штучних товарів */
+function blockDecimalForPiece(event, unit) {
+  if (!isPieceUnit(unit)) return true;
+  if (event.key === '.' || event.key === ',') {
+    event.preventDefault();
+    return false;
+  }
+  return true;
 }
 
 /** Екранує HTML-символи, щоб уникнути XSS */
