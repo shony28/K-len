@@ -1792,8 +1792,9 @@ function _handleScanResult(code) {
       <button class="wcalc-key" onclick="wcalcKey('1')">1</button>
       <button class="wcalc-key" onclick="wcalcKey('2')">2</button>
       <button class="wcalc-key" onclick="wcalcKey('3')">3</button>
-      <button class="wcalc-key wcalc-key-zero" onclick="wcalcKey('0')">0</button>
+      <button class="wcalc-key" onclick="wcalcKey('0')">0</button>
       <button class="wcalc-key wcalc-key-dot" onclick="wcalcKey('.')">·</button>
+      <button class="wcalc-key" onclick="wcalcKey('+')" style="background:#fef9c3;border-color:#fde68a;color:#92400e;font-size:1.5rem;">+</button>
     </div>
 
     <!-- Стерти -->
@@ -1811,12 +1812,14 @@ function _handleScanResult(code) {
 // ── КАЛЬКУЛЯТОР ВАГИ ─────────────────────────────────────────────────────────
 let _wcalcProductId = null;
 let _wcalcStr = '';
+let _wcalcAccum = 0;
 
 function openWeightCalc(productId) {
   const item = APP.cart.find(c => String(c.id) === String(productId));
   if (!item) return;
   _wcalcProductId = productId;
   _wcalcStr = '';
+  _wcalcAccum = 0;
   document.getElementById('wcalc-product-name').textContent = item.name;
   document.getElementById('wcalc-unit').textContent = item.unit;
   _wcalcUpdateDisplay(item);
@@ -1834,6 +1837,14 @@ function closeWeightCalc() {
 function wcalcKey(char) {
   const item = APP.cart.find(c => String(c.id) === String(_wcalcProductId));
   if (!item) return;
+  if (char === '+') {
+    // Додаємо поточне значення до акумулятора і починаємо новий ввід
+    const cur = parseFloat(_wcalcStr) || 0;
+    if (cur > 0) _wcalcAccum += cur;
+    _wcalcStr = '';
+    _wcalcUpdateDisplay(item);
+    return;
+  }
   // Запобігаємо кільком крапкам
   if (char === '.' && _wcalcStr.includes('.')) return;
   // Обмеження довжини
@@ -1850,24 +1861,25 @@ function wcalcDelete() {
 }
 
 function _wcalcUpdateDisplay(item) {
-  const val = _wcalcStr === '' ? '0' : _wcalcStr;
-  document.getElementById('wcalc-val').textContent = val;
-  const num = parseFloat(val) || 0;
-  const total = num * parsePrice(item.price);
-  document.getElementById('wcalc-total').textContent = '= ' + formatPrice(total) + ' ₴';
+  const cur = parseFloat(_wcalcStr) || 0;
+  const total_qty = _wcalcAccum + cur;
+  const displayVal = _wcalcStr === '' ? (_wcalcAccum > 0 ? String(_wcalcAccum) : '0') : (_wcalcAccum > 0 ? _wcalcAccum + ' + ' + _wcalcStr : _wcalcStr);
+  document.getElementById('wcalc-val').textContent = displayVal;
+  const total = total_qty * parsePrice(item.price);
+  document.getElementById('wcalc-total').textContent = '= ' + formatPrice(total) + ' ₴' + (total_qty !== cur && cur > 0 ? ' (' + formatPrice(Math.round(total_qty*1000)/1000) + ' ' + item.unit + ')' : '');
 }
 
 function wcalcConfirm() {
   if (!_wcalcProductId) return;
   const item = APP.cart.find(c => String(c.id) === String(_wcalcProductId));
   if (!item) return;
-  const val = parseFloat(_wcalcStr);
-  if (!val || val <= 0) {
+  const cur = parseFloat(_wcalcStr) || 0;
+  const total_qty = Math.round((_wcalcAccum + cur) * 1000) / 1000;
+  if (!total_qty || total_qty <= 0) {
     showToast('❌ Введіть коректну кількість', 'error');
     return;
   }
-  item.qty = Math.round(val * 1000) / 1000;
-  // Оновлюємо поле qty-input без повного перерендеру
+  item.qty = total_qty;
   const inp = document.getElementById(`qty-inp-${_wcalcProductId}`);
   if (inp) inp.value = item.qty;
   updateCartTotal(_wcalcProductId);
