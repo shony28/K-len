@@ -1150,7 +1150,16 @@ function addAdditionRowToModal() {
     ? state.storageLocations
     : [...new Set(state.warehouseData.map(function(w) { return w.place; }))].sort();
   var placeOptionsHtml = uniquePlaces.map(function(p) {
-    return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+    return '<option value="' + escapeHtml(p) + '" data-dest="warehouse">' + escapeHtml(p) + '</option>';
+  }).join('');
+
+  var uniqueProcLocations = (state.processingLocations && state.processingLocations.length > 0)
+    ? state.processingLocations
+    : [...new Set(state.processingData.map(function(p) { return p.place; }))].sort();
+  var currentPlace = state.finishModal ? state.finishModal.place : null;
+  uniqueProcLocations = uniqueProcLocations.filter(function(p) { return p !== currentPlace; });
+  var procOptionsHtml = uniqueProcLocations.map(function(p) {
+    return '<option value="' + escapeHtml(p) + '" data-dest="processing">' + escapeHtml(p) + '</option>';
   }).join('');
 
   var rowDiv = document.createElement('div');
@@ -1193,8 +1202,13 @@ function addAdditionRowToModal() {
         '<p class="text-xs text-slate-500 mb-1">Місце зберігання</p>',
         '<select id="modal-result-place-' + rowId + '" class="field" onchange="toggleCustomField(' + rowId + ', \'place\')">',
           '<option value="">— Оберіть місце або введіть нове —</option>',
-          placeOptionsHtml,
-          '<option value="__new__">✏️ Ввести нове місце…</option>',
+          '<optgroup label="📦 Склад">',
+            placeOptionsHtml,
+          '</optgroup>',
+          '<optgroup label="⚙️ Інша обробка">',
+            procOptionsHtml,
+          '</optgroup>',
+          '<option value="__new__" data-dest="warehouse">✏️ Ввести нове місце (на Склад)…</option>',
         '</select>',
         '<input type="text" id="modal-result-place-custom-' + rowId + '" placeholder="Нове місце зберігання" class="field mt-2" style="display:none;" />',
       '</div>',
@@ -1466,7 +1480,10 @@ async function submitFinishProcessing() {
       : placeSel.value.trim();
     if (!resultPlace) { showToast('Оберіть місце зберігання для продукту: ' + resultName, 'warning'); return; }
 
-    additions.push({ name: resultName, qty: resultQty, unit: resultUnit, place: resultPlace });
+    var selectedOpt = placeSel.options[placeSel.selectedIndex];
+    var destType = (selectedOpt && selectedOpt.getAttribute('data-dest') === 'processing') ? 'processing' : 'warehouse';
+
+    additions.push({ name: resultName, qty: resultQty, unit: resultUnit, place: resultPlace, destination: destType });
   }
 
   // Модифікуємо payload для передачі масиву additions замість одиночного об'єкта addition
