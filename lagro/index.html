@@ -1688,6 +1688,7 @@ function openTransformModal() {
   document.getElementById('t-input-search').value = '';
   document.getElementById('t-input-qty').value = '';
   document.getElementById('t-input-item-select').innerHTML = '<option value="">— Спочатку знайдіть продукт —</option>';
+  clearTransformInputPropsFields();
   
   document.getElementById('t-output-search').value = '';
   document.getElementById('t-output-unit').value = '';
@@ -1770,6 +1771,18 @@ function updateTransformInputUnit() {
   }
 }
 
+function toggleTransformInputProps() {
+  var block = document.getElementById('t-input-props-block');
+  block.classList.toggle('hidden');
+}
+
+function clearTransformInputPropsFields() {
+  document.getElementById('t-input-prop-fat').value = '';
+  document.getElementById('t-input-prop-ph').value = '';
+  document.getElementById('t-input-prop-protein').value = '';
+  document.getElementById('t-input-props-block').classList.add('hidden');
+}
+
 // Додавання інгредієнта у список списання (Крок 1)
 function addTransformInputItem() {
   const name = document.getElementById('t-input-search').value.trim();
@@ -1794,6 +1807,18 @@ function addTransformInputItem() {
     showToast(`Недостатньо залишку! Доступно тільки ${fmtNum(maxQty)} ${unit}`, "error");
     return;
   }
+
+  // Зчитуємо властивості продукту, якщо їх вказано
+  var fatVal     = document.getElementById('t-input-prop-fat').value;
+  var phVal      = document.getElementById('t-input-prop-ph').value;
+  var proteinVal = document.getElementById('t-input-prop-protein').value;
+  var properties = null;
+  if (fatVal !== '' || phVal !== '' || proteinVal !== '') {
+    properties = {};
+    if (fatVal !== '')     properties.fat     = parseFloat(fatVal);
+    if (phVal !== '')      properties.ph      = parseFloat(phVal);
+    if (proteinVal !== '') properties.protein = parseFloat(proteinVal);
+  }
   
   // Перевірка на дублікат у списку
   const exists = transformModalState.inputs.find(i => i.name === name && i.place === place);
@@ -1803,14 +1828,16 @@ function addTransformInputItem() {
       return;
     }
     exists.qty += qtyVal;
+    if (properties) exists.properties = properties;
   } else {
-    transformModalState.inputs.push({ name, place, qty: qtyVal, unit });
+    transformModalState.inputs.push({ name, place, qty: qtyVal, unit, properties: properties });
   }
   
   // Скидання полів форми додавання
   document.getElementById('t-input-search').value = '';
   document.getElementById('t-input-qty').value = '';
   select.innerHTML = '<option value="">— Спочатку знайдіть продукт —</option>';
+  clearTransformInputPropsFields();
   
   renderTransformLists();
 }
@@ -1939,11 +1966,22 @@ function renderTransformLists() {
   } else {
     inList.innerHTML = '';
     transformModalState.inputs.forEach((item, idx) => {
+      var propsLine = '';
+      if (item.properties) {
+        var parts = [];
+        if (item.properties.fat     !== undefined) parts.push('жир ' + fmtNum(item.properties.fat) + '%');
+        if (item.properties.ph      !== undefined) parts.push('pH ' + fmtNum(item.properties.ph));
+        if (item.properties.protein !== undefined) parts.push('білок ' + fmtNum(item.properties.protein) + '%');
+        if (parts.length > 0) {
+          propsLine = '<span class="text-[11px] text-emerald-600 block mt-0.5">🧪 ' + parts.join(' · ') + '</span>';
+        }
+      }
       inList.innerHTML += `
         <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-100 text-sm">
           <div>
             <span class="font-semibold text-slate-900">${escapeHtml(item.name)}</span>
             <span class="text-xs text-slate-400 block">[Звідки: ${escapeHtml(item.place)}]</span>
+            ${propsLine}
           </div>
           <div class="flex items-center gap-3">
             <span class="font-bold text-amber-600">-${fmtNum(item.qty)} ${escapeHtml(item.unit)}</span>
@@ -2226,6 +2264,26 @@ document.addEventListener('click', function(e) {
             <select id="t-input-item-select" class="field" onchange="updateTransformInputUnit()">
               <option value="">— Оберіть партію —</option>
             </select>
+          </div>
+        </div>
+
+        <button type="button" onclick="toggleTransformInputProps()" id="t-input-props-toggle"
+          class="text-xs text-brand-700 font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+          🧪 Додати властивості продукту
+        </button>
+
+        <div id="t-input-props-block" class="hidden grid grid-cols-3 gap-2 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-2">
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Жирність, %</label>
+            <input type="number" id="t-input-prop-fat" placeholder="0.0" min="0" step="0.01" class="field" inputmode="decimal" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">pH</label>
+            <input type="number" id="t-input-prop-ph" placeholder="0.0" min="0" step="0.01" class="field" inputmode="decimal" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Білок, %</label>
+            <input type="number" id="t-input-prop-protein" placeholder="0.0" min="0" step="0.01" class="field" inputmode="decimal" />
           </div>
         </div>
 
