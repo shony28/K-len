@@ -2320,10 +2320,31 @@ document.addEventListener('click', function(e) {
         <div class="text-4xl mb-2">🥛</div>
         <h2 class="text-xl font-extrabold text-slate-900">Облік надою</h2>
         <p id="mm-date-label" class="text-xs text-slate-400 mt-1"></p>
+
+        <div class="mt-4 pt-4 border-t border-slate-100 text-left">
+          <label class="text-xs text-slate-500 font-medium block mb-1">Кількість корів сьогодні</label>
+          <div class="flex gap-2 items-center">
+            <input type="number" id="mm-cows-input"
+              placeholder="Напр. 12"
+              min="1" step="1"
+              inputmode="numeric"
+              class="field flex-1 text-2xl font-bold"
+              style="font-size:22px;font-weight:800;color:#047857;"
+              oninput="mmValidateCows()" />
+            <span class="text-2xl flex-shrink-0">🐄</span>
+          </div>
+          <div id="mm-cows-saved-row" class="hidden mt-2 flex items-center justify-between">
+            <p class="text-xs text-brand-700 font-semibold">✓ Збережено: <span id="mm-cows-saved-value"></span> корів сьогодні</p>
+            <button onclick="mmEditCows()" class="text-xs text-slate-500 font-semibold px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all">✏️ Змінити</button>
+          </div>
+          <button id="mm-cows-save-btn" onclick="mmSaveCows()" class="btn-primary mt-2" disabled>
+            💾 Зберегти кількість корів
+          </button>
+        </div>
       </div>
 
       <!-- Input card -->
-      <div class="glass-strong rounded-3xl p-5 border-slate-200 space-y-4">
+      <div id="mm-input-card" class="glass-strong rounded-3xl p-5 border-slate-200 space-y-4">
         <p class="section-label">Додати надій</p>
 
         <div>
@@ -2380,6 +2401,76 @@ document.addEventListener('click', function(e) {
 // MILKMAID — логіка екрану доярки
 // ══════════════════════════════════════════════════════════════
 
+// ── Кількість корів: ключі та допоміжні функції локального сховища ──
+var MM_COWS_KEY_PREFIX = 'mm_cows_count_';
+
+function mmTodayKey() {
+  var now = new Date();
+  var tz  = -now.getTimezoneOffset();
+  var local = new Date(now.getTime() + tz * 60000);
+  var dateStr = local.toISOString().slice(0, 10); // yyyy-MM-dd за локальним часом
+  return MM_COWS_KEY_PREFIX + (state.user ? state.user.email : '') + '_' + dateStr;
+}
+
+function mmGetSavedCows() {
+  try {
+    var raw = localStorage.getItem(mmTodayKey());
+    var n = parseInt(raw, 10);
+    return (n > 0) ? n : null;
+  } catch (e) { return null; }
+}
+
+function mmSetSavedCows(n) {
+  try { localStorage.setItem(mmTodayKey(), String(n)); } catch (e) {}
+}
+
+function mmApplyCowsState() {
+  var saved = mmGetSavedCows();
+  var input      = document.getElementById('mm-cows-input');
+  var savedRow   = document.getElementById('mm-cows-saved-row');
+  var savedValue = document.getElementById('mm-cows-saved-value');
+  var saveBtn    = document.getElementById('mm-cows-save-btn');
+  var inputCard  = document.getElementById('mm-input-card');
+
+  state.milkCowsCount = saved;
+
+  if (saved) {
+    input.value = saved;
+    input.disabled = true;
+    savedRow.classList.remove('hidden');
+    savedValue.textContent = saved;
+    saveBtn.classList.add('hidden');
+    inputCard.style.opacity = '';
+    inputCard.style.pointerEvents = '';
+  } else {
+    input.value = '';
+    input.disabled = false;
+    savedRow.classList.add('hidden');
+    saveBtn.classList.remove('hidden');
+    saveBtn.disabled = true;
+    inputCard.style.opacity = '0.45';
+    inputCard.style.pointerEvents = 'none';
+  }
+}
+
+function mmValidateCows() {
+  var val = parseInt(document.getElementById('mm-cows-input').value, 10);
+  document.getElementById('mm-cows-save-btn').disabled = !(val > 0);
+}
+
+function mmSaveCows() {
+  var val = parseInt(document.getElementById('mm-cows-input').value, 10);
+  if (!(val > 0)) { showToast('Введіть кількість корів', 'warning'); return; }
+  mmSetSavedCows(val);
+  mmApplyCowsState();
+  showToast('✅ Збережено кількість корів: ' + val, 'success', 3000);
+}
+
+function mmEditCows() {
+  try { localStorage.removeItem(mmTodayKey()); } catch (e) {}
+  mmApplyCowsState();
+}
+
 function initMilkmaidScreen() {
   var u = state.user;
   document.getElementById('mm-header-name').textContent  = u.name  || u.email;
@@ -2390,13 +2481,14 @@ function initMilkmaidScreen() {
   var dateStr = now.toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   document.getElementById('mm-date-label').textContent = dateStr;
 
+  mmApplyCowsState();
   showScreen('milkmaid');
   mmRefresh();
 }
 
 function mmValidateInput() {
   var val = parseFloat(document.getElementById('mm-qty-input').value);
-  document.getElementById('mm-submit-btn').disabled = !(val > 0);
+  document.getElementById('mm-submit-btn').disabled = !(val > 0 && state.milkCowsCount);
 }
 
 async function mmRefresh() {
@@ -2466,14 +2558,18 @@ async function mmSubmit() {
   var qty = parseFloat(input.value);
   if (!(qty > 0)) { showToast('Введіть кількість молока', 'warning'); return; }
 
+  var cows = mmGetSavedCows();
+  if (!cows) { showToast('Спочатку вкажіть кількість корів сьогодні', 'warning'); return; }
+
   var btn = document.getElementById('mm-submit-btn');
   btn.disabled = true;
   btn.textContent = '⏳ Збереження…';
 
   try {
     var result = await apiPost('addMilk', {
-      qty:      qty,
-      operator: state.user.email,
+      qty:       qty,
+      operator:  state.user.email,
+      cowsCount: cows,
     });
     input.value = '';
     mmValidateInput();
