@@ -482,6 +482,26 @@
               </div>
             </div>
 
+            <button type="button" onclick="toggleCart1Props()" id="cart1-props-toggle"
+              class="text-xs text-brand-700 font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+              🧪 Додати властивості продукту
+            </button>
+
+            <div id="cart1-props-block" class="hidden grid grid-cols-3 gap-2 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-2">
+              <div>
+                <label class="text-[11px] text-slate-400 block mb-1 pl-1">Жирність, %</label>
+                <input type="number" id="cart1-prop-fat" placeholder="0.0" min="0" step="0.01" class="field" inputmode="decimal" />
+              </div>
+              <div>
+                <label class="text-[11px] text-slate-400 block mb-1 pl-1">pH</label>
+                <input type="number" id="cart1-prop-ph" placeholder="0.0" min="0" step="0.01" class="field" inputmode="decimal" />
+              </div>
+              <div>
+                <label class="text-[11px] text-slate-400 block mb-1 pl-1">Білок, %</label>
+                <input type="number" id="cart1-prop-protein" placeholder="0.0" min="0" step="0.01" class="field" inputmode="decimal" />
+              </div>
+            </div>
+
             <button id="btn-add-to-cart-1" class="btn-add"
               aria-label="Додати продукт">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -892,10 +912,26 @@ function renderProcessingCards() {
       var itemActive = item.qty > 0;
       var colorStyle = itemActive ? 'color:#0f172a' : 'color:#94a3b8';
       var qtyStyle = itemActive ? 'color:#047857; font-weight:700;' : 'color:#94a3b8;';
+      var propsHtml = '';
+      if (item.properties) {
+        var parts = [];
+        Object.keys(item.properties).forEach(function(key) {
+          var val = item.properties[key];
+          var label = (key === 'ph') ? 'pH' : key;
+          var suffix = (key === 'ph') ? '' : '%';
+          parts.push(label + ' ' + fmtNum(val) + suffix);
+        });
+        if (parts.length > 0) {
+          propsHtml = '<div style="font-size:12px;color:#059669;padding:0 0 6px 0;">🧪 ' + parts.join(' · ') + '</div>';
+        }
+      }
       return (
-        '<div style="display:flex; justify-content:between; items-center; font-size:15px; border-bottom:1px dashed #e2e8f0; padding:6px 0; gap:8px;">' +
-          '<span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ' + colorStyle + '">' + escapeHtml(item.name) + '</span>' +
-          '<span style="flex-shrink:0; ' + qtyStyle + '">' + fmtNum(item.qty) + ' <span style="font-size:11px; font-weight:400; color:#64748b;">' + escapeHtml(item.unit) + '</span></span>' +
+        '<div style="border-bottom:1px dashed #e2e8f0; padding:6px 0;">' +
+          '<div style="display:flex; justify-content:between; items-center; font-size:15px; gap:8px;">' +
+            '<span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ' + colorStyle + '">' + escapeHtml(item.name) + '</span>' +
+            '<span style="flex-shrink:0; ' + qtyStyle + '">' + fmtNum(item.qty) + ' <span style="font-size:11px; font-weight:400; color:#64748b;">' + escapeHtml(item.unit) + '</span></span>' +
+          '</div>' +
+          propsHtml +
         '</div>'
       );
     }).join('');
@@ -1458,6 +1494,17 @@ async function submitFinishProcessing() {
   }
 }
 
+function toggleCart1Props() {
+  document.getElementById('cart1-props-block').classList.toggle('hidden');
+}
+
+function clearCart1PropsFields() {
+  document.getElementById('cart1-prop-fat').value = '';
+  document.getElementById('cart1-prop-ph').value = '';
+  document.getElementById('cart1-prop-protein').value = '';
+  document.getElementById('cart1-props-block').classList.add('hidden');
+}
+
 function addToCart1() {
   var sel = document.getElementById('select-warehouse-item');
   var opt = sel.options[sel.selectedIndex];
@@ -1481,6 +1528,17 @@ function addToCart1() {
   var place = opt.dataset.place;
   var unit  = opt.dataset.unit;
 
+  var fatVal     = document.getElementById('cart1-prop-fat').value;
+  var phVal      = document.getElementById('cart1-prop-ph').value;
+  var proteinVal = document.getElementById('cart1-prop-protein').value;
+  var properties = null;
+  if (fatVal !== '' || phVal !== '' || proteinVal !== '') {
+    properties = {};
+    if (fatVal !== '')     properties.fat     = parseFloat(fatVal);
+    if (phVal !== '')      properties.ph      = parseFloat(phVal);
+    if (proteinVal !== '') properties.protein = parseFloat(proteinVal);
+  }
+
   var dupIdx = state.cartToProcessing.findIndex(function(i) {
     return i.name === name && i.place === place;
   });
@@ -1491,14 +1549,16 @@ function addToCart1() {
       showToast('Сума перевищує залишок: ' + fmtNum(available) + ' ' + unit, 'error'); return;
     }
     state.cartToProcessing[dupIdx].qty = newQty;
+    if (properties) state.cartToProcessing[dupIdx].properties = properties;
     showToast('Кількість оновлено → ' + fmtNum(newQty) + ' ' + unit, 'info', 2500);
   } else {
-    state.cartToProcessing.push({ name: name, place: place, qty: qty, unit: unit, available: available });
+    state.cartToProcessing.push({ name: name, place: place, qty: qty, unit: unit, available: available, properties: properties });
   }
 
   sel.value = '';
   document.getElementById('input-wh-qty').value = '';
   document.getElementById('unit-badge-1').textContent = '—';
+  clearCart1PropsFields();
   renderCart1();
 }
 
@@ -1526,6 +1586,16 @@ function renderSingleCart(listId, emptyId, badgeId, items, removeFn, color) {
   var accentColor = '#047857';
 
   list.innerHTML = items.map(function(item, idx) {
+    var propsLine = '';
+    if (item.properties) {
+      var parts = [];
+      if (item.properties.fat     !== undefined && item.properties.fat     !== '') parts.push('жир ' + fmtNum(item.properties.fat) + '%');
+      if (item.properties.ph      !== undefined && item.properties.ph      !== '') parts.push('pH ' + fmtNum(item.properties.ph));
+      if (item.properties.protein !== undefined && item.properties.protein !== '') parts.push('білок ' + fmtNum(item.properties.protein) + '%');
+      if (parts.length > 0) {
+        propsLine = '<p style="font-size:13px;color:#059669;margin-top:2px">🧪 ' + parts.join(' · ') + '</p>';
+      }
+    }
     return [
       '<div class="cart-item">',
         '<div style="flex:1;min-width:0">',
@@ -1538,6 +1608,7 @@ function renderSingleCart(listId, emptyId, badgeId, items, removeFn, color) {
               fmtNum(item.qty), ' ', escapeHtml(item.unit),
             '</span>',
           '</p>',
+          propsLine,
         '</div>',
         '<button onclick="' + removeFn + '(' + idx + ')"',
           ' aria-label="Видалити ' + escapeHtml(item.name) + ' з кошика"',
@@ -1566,7 +1637,7 @@ async function submitToProcessing() {
 
   var payload = {
     items: state.cartToProcessing.map(function(i) {
-      return { name: i.name, place: i.place, qty: i.qty, unit: i.unit };
+      return { name: i.name, place: i.place, qty: i.qty, unit: i.unit, properties: i.properties || null };
     }),
     targetLocation: targetLocation,
     operator: state.user.email || state.user.name,
@@ -1582,6 +1653,7 @@ async function submitToProcessing() {
     showToast('🎉 ' + result.message, 'success', 6000);
     state.cartToProcessing = [];
     renderCart1();
+    clearCart1PropsFields();
     await loadDashboardData();
   } catch (err) {
     hideLoader();
