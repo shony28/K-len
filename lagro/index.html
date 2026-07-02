@@ -2516,6 +2516,18 @@ document.addEventListener('click', function(e) {
           </p>
         </div>
 
+        <div>
+          <button type="button" onclick="toggleMmCowNumber()" id="mm-cow-toggle"
+            class="text-xs text-brand-700 font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+            🐄 Додати номер
+          </button>
+
+          <div id="mm-cow-block" class="hidden mt-2 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-2">
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Номер корови</label>
+            <input type="text" id="mm-cow-number-input" placeholder="Напр. 12" class="field" inputmode="numeric" />
+          </div>
+        </div>
+
         <button id="mm-submit-btn" onclick="mmSubmit()" class="btn-primary" disabled>
           ➕ Записати надій
         </button>
@@ -2638,6 +2650,10 @@ function mmValidateInput() {
   document.getElementById('mm-submit-btn').disabled = !(val > 0 && state.milkCowsCount);
 }
 
+function toggleMmCowNumber() {
+  document.getElementById('mm-cow-block').classList.toggle('hidden');
+}
+
 async function mmRefresh() {
   var btn = document.getElementById('mm-refresh-btn');
   if (btn) btn.disabled = true;
@@ -2686,7 +2702,7 @@ function mmRenderEntries() {
         '<div class="flex items-center gap-2">' +
           '<span class="text-lg">🥛</span>' +
           '<div>' +
-            '<p class="text-sm font-semibold text-slate-800">' + fmtNum(e.qty) + ' ' + escapeHtml(e.unit || state.milkUnit) + '</p>' +
+            '<p class="text-sm font-semibold text-slate-800">' + fmtNum(e.qty) + ' ' + escapeHtml(e.unit || state.milkUnit) + (e.cowNumber ? ' · 🐄 ' + escapeHtml(e.cowNumber) : '') + '</p>' +
             '<p class="text-xs text-slate-400">' + (timeStr ? 'о ' + timeStr : '') + ' · #' + escapeHtml(e.opId || '') + '</p>' +
           '</div>' +
         '</div>' +
@@ -2708,6 +2724,9 @@ async function mmSubmit() {
   var cows = mmGetSavedCows();
   if (!cows) { showToast('Спочатку вкажіть кількість корів сьогодні', 'warning'); return; }
 
+  var cowNumberInput = document.getElementById('mm-cow-number-input');
+  var cowNumber = cowNumberInput ? cowNumberInput.value.trim() : '';
+
   var btn = document.getElementById('mm-submit-btn');
   btn.disabled = true;
   btn.textContent = '⏳ Збереження…';
@@ -2717,8 +2736,11 @@ async function mmSubmit() {
       qty:       qty,
       operator:  state.user.email,
       cowsCount: cows,
+      cowNumber: cowNumber,
     });
     input.value = '';
+    if (cowNumberInput) cowNumberInput.value = '';
+    document.getElementById('mm-cow-block').classList.add('hidden');
     mmValidateInput();
     showToast('✅ Записано ' + fmtNum(result.qty) + ' ' + result.unit + ' молока!', 'success', 4000);
     // Оновити список
