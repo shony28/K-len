@@ -907,20 +907,6 @@
     </select>
   </div>
 
-  <div class="reg-label">ТТН</div>
-  <div class="reg-input-wrap">
-    <input
-      type="text"
-      id="ttn-input"
-      class="reg-input"
-      placeholder="Номер ТТН"
-      autocomplete="off"
-      autocorrect="off"
-      spellcheck="false"
-      style="font-size:20px;"
-    />
-  </div>
-
   <div class="reg-label">Порода деревини</div>
   <div class="reg-input-wrap">
     <select id="wood-select" class="reg-input" style="font-size:20px; letter-spacing:1px; cursor:pointer;">
@@ -1071,7 +1057,6 @@ let state = {
   nextId: 1,
   currentLength: '',   
   currentDiameter: '',
-  ttn: '',
   woodTypeType: 'Звичайна'
 };
 
@@ -1117,7 +1102,6 @@ function startSession() {
   const carInput = document.getElementById('car-input');
   const orgSelect = document.getElementById('org-select');
   const woodSelect = document.getElementById('wood-select');
-  const ttnInput = document.getElementById('ttn-input');
   const typeSelect = document.getElementById('type-select');
   const car = carInput.value.trim().toUpperCase();
 
@@ -1128,7 +1112,6 @@ function startSession() {
   state.carNumber = car;
   state.organization = orgSelect.value;
   state.woodType = woodSelect.value;
-  state.ttn = ttnInput.value.trim();
   state.woodTypeType = typeSelect.value || 'Звичайна';
   state.entries = [];
   state.nextId = 1;
@@ -1647,7 +1630,6 @@ async function finishSession() {
           carNumber: state.carNumber,
           organization: state.organization || '',
           woodType: state.woodType || '',
-          ttn: state.ttn || '',
           woodTypeType: state.woodTypeType || 'Звичайна',
           entries: unsynced.map(e => ({
             id: e.id, length: e.length, diameter: e.diameter, volume: e.volume, sortC: e.sortC || false
@@ -1657,7 +1639,7 @@ async function finishSession() {
     } catch(e) {}
   }
 
-  state = { carNumber: '', entries: [], nextId: 1, currentLength: '', currentDiameter: '', ttn: '', woodTypeType: 'Звичайна' };
+  state = { carNumber: '', entries: [], nextId: 1, currentLength: '', currentDiameter: '', woodTypeType: 'Звичайна' };
   saveState();
 
   loadingEl.style.display = 'none';
@@ -1665,7 +1647,6 @@ async function finishSession() {
   document.getElementById('car-input').value = '';
   document.getElementById('org-select').value = '';
   document.getElementById('wood-select').value = '';
-  document.getElementById('ttn-input').value = '';
   document.getElementById('type-select').value = 'Звичайна';
   document.getElementById('screen-reg').style.display = 'flex';
   _finishing = false;
