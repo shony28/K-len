@@ -113,12 +113,20 @@
     font-size: 20px;
     letter-spacing: 1px;
     cursor: pointer;
-    color-scheme: dark;
   }
+  /* Іконка календаря за замовчуванням темна — робимо її білою і додаємо
+     зелений акцентний "чіп", щоб вона було добре видно на темному фоні */
   #date-input::-webkit-calendar-picker-indicator {
-    filter: invert(1);
+    filter: invert(1) brightness(1.6);
     cursor: pointer;
-    padding: 4px;
+    padding: 6px;
+    margin-left: 6px;
+    background: var(--green-dim);
+    border-radius: 6px;
+    opacity: 1;
+  }
+  #date-input::-webkit-calendar-picker-indicator:hover {
+    background: var(--green);
   }
 
   .reg-hint {
