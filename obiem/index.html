@@ -108,6 +108,19 @@
   .reg-input:focus { border-color: var(--green); }
   .reg-input::placeholder { color: var(--border); font-size: 18px; letter-spacing: 1px; }
 
+  /* Нативний вибір дати — стандартний календар браузера, підлаштований під темну тему */
+  #date-input {
+    font-size: 20px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    color-scheme: dark;
+  }
+  #date-input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+    padding: 4px;
+  }
+
   .reg-hint {
     font-size: 11px;
     color: var(--text-muted);
@@ -178,6 +191,13 @@
     font-weight: 800;
     color: var(--text);
     letter-spacing: 2px;
+  }
+
+  .car-date {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
   }
 
   .btn-finish {
@@ -890,6 +910,16 @@
     />
   </div>
 
+  <div class="reg-label">Дата запису</div>
+  <div class="reg-input-wrap">
+    <input
+      type="date"
+      id="date-input"
+      class="reg-input"
+      autocomplete="off"
+    />
+  </div>
+
   <div class="reg-label">Лісгосп / організація</div>
   <div class="reg-input-wrap">
     <select id="org-select" class="reg-input" style="font-size:16px; letter-spacing:1px; cursor:pointer;">
@@ -934,7 +964,10 @@
   <div class="header">
     <div class="header-car">
       <div class="car-badge">🚛 №</div>
-      <div class="car-number" id="display-car-number"></div>
+      <div>
+        <div class="car-number" id="display-car-number"></div>
+        <div class="car-date" id="display-record-date"></div>
+      </div>
     </div>
     <button class="btn-finish" onclick="askFinish()">ЗАВЕРШИТИ<br>МАШИНУ</button>
   </div>
@@ -1057,8 +1090,34 @@ let state = {
   nextId: 1,
   currentLength: '',   
   currentDiameter: '',
-  woodTypeType: 'Звичайна'
+  woodTypeType: 'Звичайна',
+  recordDate: '',      // дата запису 'YYYY-MM-DD' (можна обрати заднім числом)
+  sessionTime: ''       // час старту сесії 'HH.mm' — щоб відрізняти кілька заїздів однієї машини за день
 };
+
+// ─── Повертає сьогоднішню дату у форматі 'YYYY-MM-DD' (для <input type="date">) ──
+function todayIsoDate() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// ─── Повертає поточний час у форматі 'HH.mm' (для унікальності назви листа) ──
+function currentTimeStr() {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${h}.${mi}`;
+}
+
+// ─── 'YYYY-MM-DD' → 'dd.MM.yyyy' для відображення на екрані ────────────────
+function formatDisplayDate(isoDate) {
+  if (!isoDate) return '';
+  const [y, m, d] = isoDate.split('-');
+  return `${d}.${m}.${y}`;
+}
 
 let activeField = 'diameter'; // 'length' | 'diameter'
 
@@ -1088,7 +1147,17 @@ function getGasUrl() {
 window.addEventListener('DOMContentLoaded', () => {
   loadState();
 
+  // За замовчуванням у полі дати — сьогодні. Водій може змінити на потрібну
+  // (наприклад, записати машину заднім числом).
+  document.getElementById('date-input').value = todayIsoDate();
+
   if (state.carNumber) {
+    // Захист при переході зі старої версії: якщо сесія вже була розпочата
+    // раніше і не мала recordDate/sessionTime — фіксуємо їх зараз один раз,
+    // щоб усі подальші sync/finish цієї сесії потрапляли в один лист.
+    if (!state.recordDate) state.recordDate = todayIsoDate();
+    if (!state.sessionTime) state.sessionTime = currentTimeStr();
+    saveState();
     showMainScreen();
   } else {
     document.getElementById('screen-reg').style.display = 'flex';
@@ -1100,16 +1169,20 @@ window.addEventListener('DOMContentLoaded', () => {
 // ══════════════════════════════════════════
 function startSession() {
   const carInput = document.getElementById('car-input');
+  const dateInput = document.getElementById('date-input');
   const orgSelect = document.getElementById('org-select');
   const woodSelect = document.getElementById('wood-select');
   const typeSelect = document.getElementById('type-select');
   const car = carInput.value.trim().toUpperCase();
 
   if (!car) { carInput.style.borderColor = 'var(--red)'; return; }
+  if (!dateInput.value) { dateInput.style.borderColor = 'var(--red)'; return; }
   if (!orgSelect.value) { orgSelect.style.borderColor = 'var(--red)'; return; }
   if (!woodSelect.value) { woodSelect.style.borderColor = 'var(--red)'; return; }
 
   state.carNumber = car;
+  state.recordDate = dateInput.value;       // 'YYYY-MM-DD', можливо заднім числом
+  state.sessionTime = currentTimeStr();     // фіксуємо час старту сесії один раз
   state.organization = orgSelect.value;
   state.woodType = woodSelect.value;
   state.woodTypeType = typeSelect.value || 'Звичайна';
@@ -1129,6 +1202,7 @@ function showMainScreen() {
   const main = document.getElementById('screen-main');
   main.style.display = 'flex';
   document.getElementById('display-car-number').textContent = state.carNumber;
+  document.getElementById('display-record-date').textContent = formatDisplayDate(state.recordDate);
 
   // Відновити збережені значення полів
   const lEl = document.getElementById('field-length');
@@ -1551,6 +1625,8 @@ async function syncData() {
       body: JSON.stringify({
         action: 'sync',
         carNumber: state.carNumber,
+        recordDate: state.recordDate,
+        sessionTime: state.sessionTime,
         entries: unsynced.map(e => ({
           id: e.id,
           length: e.length,
@@ -1627,6 +1703,8 @@ async function finishSession() {
         body: JSON.stringify({
           action: 'finish',
           carNumber: state.carNumber,
+          recordDate: state.recordDate,
+          sessionTime: state.sessionTime,
           organization: state.organization || '',
           woodType: state.woodType || '',
           woodTypeType: state.woodTypeType || 'Звичайна',
@@ -1638,12 +1716,13 @@ async function finishSession() {
     } catch(e) {}
   }
 
-  state = { carNumber: '', entries: [], nextId: 1, currentLength: '', currentDiameter: '', woodTypeType: 'Звичайна' };
+  state = { carNumber: '', entries: [], nextId: 1, currentLength: '', currentDiameter: '', woodTypeType: 'Звичайна', recordDate: '', sessionTime: '' };
   saveState();
 
   loadingEl.style.display = 'none';
   document.getElementById('screen-main').style.display = 'none';
   document.getElementById('car-input').value = '';
+  document.getElementById('date-input').value = todayIsoDate();
   document.getElementById('org-select').value = '';
   document.getElementById('wood-select').value = '';
   document.getElementById('type-select').value = 'Звичайна';
