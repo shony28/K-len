@@ -1,616 +1,436 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Виробничий майстер ферми</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            farm: {
-              blue: '#1d6fa5',
-              green: '#1f9d55',
-              amber: '#d97706'
-            }
-          }
-        }
-      }
-    };
-  </script>
-  <style>
-    html, body {
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior: contain;
-    }
-    * { -webkit-user-select: none; user-select: none; }
-    input, textarea { -webkit-user-select: text; user-select: text; }
-
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button {
-      opacity: 1;
-      height: 2.5rem;
-    }
-
-    .tap-target {
-      min-height: 64px;
-    }
-
-    .fade-in {
-      animation: fadeIn 0.18s ease-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .spinner {
-      width: 52px;
-      height: 52px;
-      border: 5px solid rgba(255,255,255,0.25);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Молочна Ферма</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+  .loader-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .spinner { width:56px; height:56px; border:5px solid #ffffff33; border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .step-badge { min-width:2rem; height:2rem; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { opacity:1; }
+</style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800">
+<body class="min-h-screen">
 
-  <!-- =========================== ШАПКА =========================== -->
-  <header class="bg-farm-blue text-white sticky top-0 z-20 shadow-md">
-    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-      <button id="btnBack" class="hidden tap-target px-3 -ml-2 rounded-lg active:bg-white/20 text-2xl leading-none">
-        &#8592;
-      </button>
-      <div class="flex-1 min-w-0">
-        <h1 id="headerTitle" class="text-lg sm:text-xl font-bold truncate">Виробничий майстер ферми</h1>
-        <p id="headerSubtitle" class="text-xs sm:text-sm text-white/80 truncate"></p>
-      </div>
-    </div>
-    <div id="progressBar" class="h-1.5 bg-white/20 hidden">
-      <div id="progressFill" class="h-full bg-white transition-all duration-300" style="width:0%"></div>
-    </div>
-  </header>
+<!-- ════ LOADER ════ -->
+<div id="loader" class="loader-overlay hidden">
+  <div class="spinner mb-4"></div>
+  <p class="text-white text-lg font-semibold tracking-wide">Завантаження...</p>
+</div>
 
-  <!-- =========================== ОСНОВНИЙ ВМІСТ =========================== -->
-  <main class="max-w-3xl mx-auto px-4 py-5 pb-28">
+<!-- ════ HEADER ════ -->
+<header class="bg-green-700 text-white px-4 py-3 flex items-center gap-3 shadow-md sticky top-0 z-50">
+  <button id="btnHome" class="text-2xl leading-none" title="Головна">🏠</button>
+  <div>
+    <p class="text-xs opacity-75 uppercase tracking-wider">Молочна Ферма</p>
+    <p id="headerTitle" class="text-base font-bold leading-tight">Головне меню</p>
+  </div>
+</header>
 
-    <!-- ---- Стартовий екран ---- -->
-    <section id="screenHome" class="fade-in">
-      <div id="activeProcesses" class="mb-6 hidden">
-        <h2 class="text-sm font-bold uppercase tracking-wide text-farm-amber mb-2">Процеси в роботі</h2>
-        <div id="activeProcessesList" class="grid gap-3"></div>
-      </div>
+<!-- ════ SCREENS ════ -->
+<main class="max-w-2xl mx-auto px-3 py-5 pb-24">
 
-      <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500 mb-2">Технологічні карти</h2>
-      <div id="tkList" class="grid gap-3"></div>
-
-      <div id="homeEmptyState" class="hidden text-center text-slate-500 py-16">
-        <p class="text-lg font-semibold">Технологічні карти не знайдено</p>
-        <p class="text-sm mt-1">Додайте лист із назвою, що починається на "ТК ".</p>
-      </div>
+  <!-- START SCREEN -->
+  <div id="screenStart">
+    <section id="inProgressSection" class="hidden mb-6">
+      <h2 class="text-sm font-bold uppercase text-orange-600 tracking-widest mb-2">⏳ Процеси в роботі</h2>
+      <div id="inProgressList" class="flex flex-col gap-3"></div>
     </section>
-
-    <!-- ---- Екран кроку ---- -->
-    <section id="screenStep" class="hidden fade-in space-y-3"></section>
-
-  </main>
-
-  <!-- =========================== НИЖНЯ ПАНЕЛЬ З КНОПКОЮ =========================== -->
-  <footer id="stepFooter" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] z-20">
-    <div class="max-w-3xl mx-auto p-3">
-      <button id="btnStepAction"
-        class="tap-target w-full rounded-2xl text-white text-lg font-bold shadow active:scale-[0.98] transition-transform">
-      </button>
-    </div>
-  </footer>
-
-  <!-- =========================== ЗАВАНТАЖЕННЯ / SPINNER =========================== -->
-  <div id="loaderOverlay" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex flex-col items-center justify-center gap-4">
-    <div class="spinner"></div>
-    <p id="loaderText" class="text-white font-semibold text-base">Збереження даних...</p>
+    <section>
+      <h2 class="text-sm font-bold uppercase text-green-700 tracking-widest mb-2">📋 Всі процеси</h2>
+      <div id="allProcessesList" class="flex flex-col gap-3"></div>
+    </section>
   </div>
 
-  <!-- =========================== ТОСТ-ПОВІДОМЛЕННЯ =========================== -->
-  <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 bottom-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm max-w-[90%] text-center"></div>
+  <!-- STEP SCREEN -->
+  <div id="screenStep" class="hidden">
+    <div id="stepProgressBar" class="flex gap-1 mb-5 flex-wrap"></div>
+    <div id="stepContent" class="flex flex-col gap-4"></div>
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-3 max-w-2xl mx-auto">
+      <button id="btnBack" class="flex-1 py-4 rounded-xl bg-gray-200 text-gray-700 font-bold text-lg active:scale-95 transition-transform">← Назад</button>
+      <button id="btnNext" class="flex-2 flex-grow-[2] py-4 rounded-xl bg-green-600 text-white font-bold text-lg active:scale-95 transition-transform shadow-md">Далі →</button>
+    </div>
+  </div>
 
-  <script>
-    /* =====================================================================
-     *  НАЛАШТУВАННЯ API
-     *  Посилання на розгорнутий Google Apps Script веб-застосунок (.../exec).
-     *  Саме через це посилання сторінка (розміщена, напр., на GitHub Pages)
-     *  спілкується з Google Таблицею.
-     * ===================================================================== */
-    var API_URL = 'https://script.google.com/macros/s/AKfycbyy1IGqhfi3JDoFQ1Xqg7QiODC1Kb0QISkiZDosKtwcojtNvkvgnYn_oSI7yMRXlcVu/exec';
+  <!-- DONE SCREEN -->
+  <div id="screenDone" class="hidden text-center py-12">
+    <div class="text-7xl mb-4">✅</div>
+    <h2 class="text-2xl font-bold text-green-700 mb-2">Процес завершено!</h2>
+    <p id="doneMessage" class="text-gray-500 mb-6"></p>
+    <button id="btnDoneHome" class="bg-green-600 text-white px-8 py-4 rounded-xl font-bold text-lg">На головну</button>
+  </div>
 
-    /* =====================================================================
-     *  СТАН ДОДАТКА
-     * ===================================================================== */
-    var state = {
-      screen: 'home',            // 'home' | 'step'
-      tkName: null,
-      currentStep: null,
-      rows: [],                  // усі рядки поточного листа ТК
-      inputValues: {}            // rowIndex -> введене користувачем число
-    };
+</main>
 
-    /* =====================================================================
-     *  ДОПОМІЖНІ UI-ФУНКЦІЇ
-     * ===================================================================== */
-    function showLoader(text) {
-      document.getElementById('loaderText').textContent = text || 'Завантаження...';
-      document.getElementById('loaderOverlay').classList.remove('hidden');
-    }
-    function hideLoader() {
-      document.getElementById('loaderOverlay').classList.add('hidden');
-    }
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+let state = {
+  currentTk: null,       // sheet name
+  tkRows: [],            // full structure from LocalStorage
+  currentStep: 1,
+  stepGroups: {},        // { stepNum: [rows] }
+  userInputs: {},        // { key: value }
+  eDisplayMap: {},       // { rowIndex: displayValue }
+  stepList: [],          // sorted unique step numbers
+};
 
-    function showToast(message, kind) {
-      var toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.className = 'fixed left-1/2 -translate-x-1/2 bottom-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm max-w-[90%] text-center';
-      toast.classList.add(kind === 'error' ? 'bg-red-600' : 'bg-farm-green');
-      toast.classList.remove('hidden');
-      setTimeout(function () { toast.classList.add('hidden'); }, 3200);
-    }
+// ═══════════════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
 
-    /**
-     * Викликає серверну функцію Apps Script за назвою через HTTP-запит
-     * (fetch) до розгорнутого веб-застосунку. POST + Content-Type: text/plain
-     * навмисно використовуються, щоб браузер не надсилав CORS
-     * preflight-запит (OPTIONS), який Apps Script не обробляє.
-     */
-    function callApi(functionName, args) {
-      return fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: functionName, params: args || [] })
-      })
-        .then(function (res) {
-          if (!res.ok) {
-            throw new Error('Сервер повернув статус ' + res.status);
-          }
-          return res.json();
-        })
-        .then(function (data) {
-          if (!data.ok) {
-            throw new Error(data.error || 'Невідома помилка сервера');
-          }
-          return data.result;
-        });
-    }
+function showLoader(msg) {
+  $('loader').querySelector('p').textContent = msg || 'Зачекайте...';
+  $('loader').classList.remove('hidden');
+}
+function hideLoader() { $('loader').classList.add('hidden'); }
 
-    function runServer(functionName, args, onSuccess, loaderMessage) {
-      showLoader(loaderMessage);
-      callApi(functionName, args)
-        .then(function (result) {
-          hideLoader();
-          onSuccess(result);
-        })
-        .catch(function (err) {
-          hideLoader();
-          showToast('Помилка: ' + (err && err.message ? err.message : err), 'error');
-        });
-    }
+function lsKey(tkName) { return 'tk_' + tkName.replace(/\s+/g, '_'); }
 
-    /* =====================================================================
-     *  ОБЧИСЛЕННЯ ФОРМУЛ НА КЛІЄНТІ
-     *  (дзеркалить логіку evaluateAllFormulas_ / evaluateFormulaString_
-     *   із Код.gs, щоб миттєво показувати розрахунки без запиту на сервер)
-     * ===================================================================== */
-    function evaluateAllFormulasClient(rows) {
-      var byKey = {};
-      rows.forEach(function (r) {
-        if (r.key) byKey[r.key] = r;
-      });
+function saveToLS() {
+  if (!state.currentTk) return;
+  const data = {
+    tkRows: state.tkRows,
+    currentStep: state.currentStep,
+    userInputs: state.userInputs,
+    eDisplayMap: state.eDisplayMap,
+  };
+  localStorage.setItem(lsKey(state.currentTk), JSON.stringify(data));
+}
 
-      var resolved = {};
-      var resolving = {};
+function loadFromLS(tkName) {
+  const raw = localStorage.getItem(lsKey(tkName));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
 
-      // ВАЖЛИВО: формули обчислюються для УСІХ ключів на листі одразу
-      // (навіть тих, що належать ще не пройденим кроками — там значення
-      // поки що порожні/0). Якщо через це десь виникає ділення на нуль
-      // чи інша помилка — вона має "гасити" лише той конкретний ключ
-      // (показуючи "—"), а не всі поля на екрані.
-      function resolve(key) {
-        if (Object.prototype.hasOwnProperty.call(resolved, key)) return resolved[key];
-        if (resolving[key]) {
-          resolved[key] = NaN; // циклічна залежність — вважаємо значення невідомим
-          return NaN;
-        }
-        var row = byKey[key];
-        if (!row) {
-          resolved[key] = NaN; // невідомий ключ — вважаємо значення невідомим
-          return NaN;
-        }
-        resolving[key] = true;
+function clearLS(tkName) { localStorage.removeItem(lsKey(tkName)); }
 
-        var value;
-        try {
-          if (row.type === 'INPUT_NUMBER' || row.type === 'INPUT_NUMBER_not_cleaned') {
-            value = parseFloat(row.rawValue);
-            if (isNaN(value)) value = 0;
-          } else if (row.type === 'INFO') {
-            value = evaluateFormulaStringClient(String(row.rawValue || ''), resolve);
-          } else {
-            value = 0;
-          }
-        } catch (e) {
-          value = NaN;
-        }
+// ── URL опублікованого Google Apps Script веб-додатку ────────────────────────
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyy1IGqhfi3JDoFQ1Xqg7QiODC1Kb0QISkiZDosKtwcojtNvkvgnYn_oSI7yMRXlcVu/exec';
 
-        resolving[key] = false;
-        resolved[key] = value;
-        return value;
-      }
+// GAS call wrapper (сторінка тепер хоститься на GitHub Pages, тому замість
+// google.script.run використовуємо звичайний fetch до веб-додатку GAS)
+async function gasCall(fn, args) {
+  const res = await fetch(WEBAPP_URL, {
+    method: 'POST',
+    // text/plain уникає CORS preflight-запиту (OPTIONS),
+    // який Apps Script веб-додатки не обробляють
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn, args: Array.isArray(args) ? args : [args] })
+  });
 
-      Object.keys(byKey).forEach(function (k) { resolve(k); });
-      return resolved;
-    }
+  if (!res.ok) {
+    throw new Error('Помилка мережі: ' + res.status);
+  }
 
-    /**
-     * Нормалізує формулу перед обчисленням:
-     *  - замінює коми на крапки як десятковий роздільник між цифрами;
-     *  - перетворює «число%» на «(число/100)».
-     * Дзеркалить preprocessFormula_ із Код.gs.
-     */
-    function preprocessFormula(formula) {
-      // 1. Кома як десятковий роздільник: «1,6» → «1.6»
-      var result = formula.replace(/(\d),(\d)/g, '$1.$2');
-      // 2. Відсоток після числа: «25%» → «(25/100)»
-      result = result.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
-      return result;
-    }
+  return res.json();
+}
 
-    function evaluateFormulaStringClient(formula, resolveFn) {
-      if (!formula || !formula.trim()) return 0;
+// ═══════════════════════════════════════════════════════════════════
+//  START SCREEN
+// ═══════════════════════════════════════════════════════════════════
+async function loadStartScreen() {
+  showLoader('Завантаження списку процесів...');
+  $('headerTitle').textContent = 'Головне меню';
+  hide('screenStep'); hide('screenDone'); show('screenStart');
 
-      formula = preprocessFormula(formula);
+  try {
+    const data = await gasCall('getStartData');
+    renderStartScreen(data);
+  } catch(e) {
+    alert('Помилка завантаження: ' + e.message);
+  } finally { hideLoader(); }
+}
 
-      var identifiers = formula.match(/[A-Za-zА-Яа-яЇїІіЄєҐґ_][A-Za-zА-Яа-яЇїІіЄєҐґ0-9_]*/g) || [];
-      var uniqueIds = Array.from(new Set(identifiers)).sort(function (a, b) { return b.length - a.length; });
+function renderStartScreen({ allProcesses, inProgress }) {
+  // In-progress
+  const ipSection = $('inProgressSection');
+  const ipList = $('inProgressList');
+  ipList.innerHTML = '';
+  if (inProgress.length > 0) {
+    show('inProgressSection');
+    inProgress.forEach(p => {
+      ipList.appendChild(makeProcessCard(p.name, true, p.currentStep));
+    });
+  } else {
+    hide('inProgressSection');
+  }
 
-      var expr = formula;
-      var hasNonFinite = false;
+  // All
+  const allList = $('allProcessesList');
+  allList.innerHTML = '';
+  allProcesses.forEach(p => {
+    allList.appendChild(makeProcessCard(p.name, false));
+  });
+}
 
-      uniqueIds.forEach(function (id) {
-        var value = resolveFn(id);
-        if (typeof value !== 'number' || !isFinite(value)) {
-          hasNonFinite = true; // напр. ще не введене значення на майбутньому кроці
-          value = 0;           // плейсхолдер — результат все одно буде NaN
-        }
-        var re = new RegExp('\\b' + id + '\\b', 'g');
-        expr = expr.replace(re, '(' + value + ')');
-      });
+function makeProcessCard(name, inProgress, currentStep) {
+  const div = document.createElement('div');
+  div.className = 'bg-white rounded-2xl shadow p-4 flex items-center justify-between gap-3';
+  div.innerHTML = `
+    <div>
+      <p class="font-bold text-gray-800 text-base">${name.replace('ТК ', '')}</p>
+      ${inProgress ? `<p class="text-xs text-orange-500 mt-0.5">Крок ${currentStep} — не завершено</p>` : ''}
+    </div>
+    <button class="px-5 py-3 rounded-xl font-bold text-white text-sm shadow active:scale-95 transition-transform
+      ${inProgress ? 'bg-orange-500' : 'bg-green-600'}">
+      ${inProgress ? 'Продовжити' : 'Розпочати'}
+    </button>`;
+  div.querySelector('button').onclick = () => startProcess(name, inProgress);
+  return div;
+}
 
-      if (hasNonFinite) return NaN;
+// ═══════════════════════════════════════════════════════════════════
+//  PROCESS START
+// ═══════════════════════════════════════════════════════════════════
+async function startProcess(tkName, resume) {
+  state.currentTk = tkName;
+  $('headerTitle').textContent = tkName.replace('ТК ', '');
 
-      if (!/^[0-9+\-*/().\s]+$/.test(expr)) {
-        return NaN; // не кидаємо виняток — просто це поле поки що не обчислюється
-      }
+  const cached = loadFromLS(tkName);
 
-      var result = Function('"use strict"; return (' + expr + ');')();
-      return (typeof result === 'number' && isFinite(result)) ? result : NaN;
-    }
+  if (resume && cached && cached.tkRows && cached.tkRows.length > 0) {
+    // Відновлення зі збереженого стану
+    state.tkRows = cached.tkRows;
+    state.currentStep = cached.currentStep;
+    state.userInputs = cached.userInputs || {};
+    state.eDisplayMap = cached.eDisplayMap || {};
+    buildStepGroups();
+    renderStep(state.currentStep);
+    hide('screenStart'); show('screenStep');
+    return;
+  }
 
-    /** Повертає копію rows, де rawValue замінено на значення, введені користувачем на екрані. */
-    function rowsWithLiveInputs() {
-      return state.rows.map(function (r) {
-        if (Object.prototype.hasOwnProperty.call(state.inputValues, r.rowIndex)) {
-          return Object.assign({}, r, { rawValue: state.inputValues[r.rowIndex] });
-        }
-        return r;
-      });
-    }
+  // Нове або без кешу — завантажити з GAS
+  showLoader('Завантаження технологічної карти...');
+  try {
+    const result = await gasCall('loadTkStructure', [tkName]);
+    if (result.error) { alert(result.error); return; }
 
-    function round2(v) {
-      return Math.round(v * 100) / 100;
-    }
+    state.tkRows = result.rows;
+    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
+    state.userInputs = {};
 
-    /* =====================================================================
-     *  ЗАВАНТАЖЕННЯ ДАНИХ
-     * ===================================================================== */
-    function loadHome() {
-      state.screen = 'home';
-      updateChrome();
-      runServer('getInitialData', [], renderHome, 'Завантаження карт...');
-    }
+    // Заповнюємо eDisplayMap з завантаженої структури
+    state.eDisplayMap = {};
+    result.rows.forEach(row => {
+      state.eDisplayMap[row.rowIndex] = row.eDisplay;
+    });
 
-    function openTk(tkName) {
-      runServer('getTkData', [tkName], function (data) {
-        state.tkName = data.tkName;
-        state.currentStep = data.currentStep;
-        state.rows = data.rows;
-        state.inputValues = {};
-        state.screen = 'step';
-        updateChrome();
-        renderStep();
-      }, 'Відкриваємо технологічну карту...');
-    }
-
-    /* =====================================================================
-     *  РЕНДЕР: СТАРТОВИЙ ЕКРАН
-     * ===================================================================== */
-    function renderHome(tkList) {
-      var homeSection = document.getElementById('screenHome');
-      var stepSection = document.getElementById('screenStep');
-      homeSection.classList.remove('hidden');
-      stepSection.classList.add('hidden');
-      document.getElementById('stepFooter').classList.add('hidden');
-
-      var activeBlock = document.getElementById('activeProcesses');
-      var activeList = document.getElementById('activeProcessesList');
-      var tkListEl = document.getElementById('tkList');
-      var emptyState = document.getElementById('homeEmptyState');
-
-      activeList.innerHTML = '';
-      tkListEl.innerHTML = '';
-
-      var actives = tkList.filter(function (t) { return t.isActive; });
-      var all = tkList;
-
-      if (actives.length > 0) {
-        activeBlock.classList.remove('hidden');
-        actives.forEach(function (t) {
-          var card = document.createElement('button');
-          card.className = 'tap-target w-full text-left bg-amber-50 border-2 border-farm-amber rounded-2xl px-4 py-3 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform';
-          card.innerHTML =
-            '<div class="min-w-0">' +
-              '<p class="font-bold text-slate-800 truncate">' + escapeHtml(t.name.replace(/^ТК\s*/, '')) + '</p>' +
-              '<p class="text-sm text-farm-amber font-semibold">Крок ' + t.currentStep + '</p>' +
-            '</div>' +
-            '<span class="shrink-0 bg-farm-amber text-white text-sm font-bold px-4 py-2 rounded-xl">Продовжити</span>';
-          card.onclick = function () { openTk(t.name); };
-          activeList.appendChild(card);
-        });
-      } else {
-        activeBlock.classList.add('hidden');
-      }
-
-      if (all.length === 0) {
-        emptyState.classList.remove('hidden');
-      } else {
-        emptyState.classList.add('hidden');
-        all.forEach(function (t) {
-          var card = document.createElement('button');
-          card.className = 'tap-target w-full text-left bg-white border border-slate-200 rounded-2xl px-4 py-4 flex items-center justify-between gap-3 shadow-sm active:scale-[0.98] transition-transform';
-          card.innerHTML =
-            '<span class="font-semibold text-slate-800 text-base">' + escapeHtml(t.name.replace(/^ТК\s*/, '')) + '</span>' +
-            '<span class="text-farm-blue text-2xl">&#8250;</span>';
-          card.onclick = function () { openTk(t.name); };
-          tkListEl.appendChild(card);
-        });
-      }
-    }
-
-    /* =====================================================================
-     *  РЕНДЕР: ЕКРАН КРОКУ
-     * ===================================================================== */
-    function renderStep() {
-      var homeSection = document.getElementById('screenHome');
-      var stepSection = document.getElementById('screenStep');
-      homeSection.classList.add('hidden');
-      stepSection.classList.remove('hidden');
-      stepSection.innerHTML = '';
-      document.getElementById('stepFooter').classList.remove('hidden');
-
-      var liveRows = rowsWithLiveInputs();
-      var valueMap;
-      try {
-        valueMap = evaluateAllFormulasClient(liveRows);
-      } catch (e) {
-        valueMap = {};
-      }
-
-      var stepRows = state.rows
-        .filter(function (r) { return r.step === state.currentStep; })
-        .sort(function (a, b) { return a.rowIndex - b.rowIndex; });
-
-      var actionRow = null;
-
-      stepRows.forEach(function (row) {
-        if (row.type === 'BUTTON' || row.type === 'BUTTON_END') {
-          actionRow = row;
-          return; // кнопка рендериться окремо, у нижній панелі
-        }
-        stepSection.appendChild(renderElement(row, valueMap));
-      });
-
-      renderFooterButton(actionRow);
-      updateProgress();
-    }
-
-    function renderElement(row, valueMap) {
-      var wrap = document.createElement('div');
-
-      if (row.type === 'INFO_TITLE') {
-        wrap.className = 'pt-2';
-        wrap.innerHTML = '<h2 class="text-xl font-bold text-slate-700">' + escapeHtml(row.label) + '</h2>';
-        return wrap;
-      }
-
-      if (row.type === 'INFO') {
-        var value = valueMap[row.key];
-        var displayValue = (typeof value === 'number' && !isNaN(value)) ? round2(value) : '—';
-        wrap.className = 'bg-green-50 border border-green-300 rounded-xl px-4 py-3 flex items-center justify-between gap-3';
-        wrap.innerHTML =
-          '<span class="text-slate-700 font-medium">' + escapeHtml(row.label) + '</span>' +
-          '<span class="text-farm-green font-extrabold text-lg whitespace-nowrap" data-info-key="' + escapeHtml(row.key) + '">' +
-            displayValue + (row.unit ? ' ' + escapeHtml(row.unit) : '') +
-          '</span>';
-        return wrap;
-      }
-
-      if (row.type === 'INPUT_NUMBER' || row.type === 'INPUT_NUMBER_not_cleaned') {
-        var current = Object.prototype.hasOwnProperty.call(state.inputValues, row.rowIndex)
-          ? state.inputValues[row.rowIndex]
-          : row.rawValue;
-        var inputValueAttr = (current === '' || current === null || current === undefined) ? '' : current;
-
-        wrap.className = 'bg-blue-50 border border-blue-300 rounded-xl px-4 py-3';
-        wrap.innerHTML =
-          '<label class="block text-slate-700 font-medium mb-2">' + escapeHtml(row.label) + (row.unit ? ' (' + escapeHtml(row.unit) + ')' : '') + '</label>' +
-          '<input type="number" inputmode="decimal" step="any" ' +
-            'class="tap-target w-full text-2xl font-bold text-farm-blue bg-white border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-farm-blue" ' +
-            'data-row="' + row.rowIndex + '" value="' + escapeHtml(String(inputValueAttr)) + '">';
-
-        // ВАЖЛИВО: тут НЕ перерендерюємо весь крок і НЕ чіпаємо сам DOM-вузол
-        // поля вводу — інакше браузер губить позицію курсора (а для
-        // input[type=number] ще й кидає виняток на setSelectionRange).
-        // Замість цього лише перераховуємо значення й точково оновлюємо
-        // залежні поля INFO на екрані.
-        var inputEl = wrap.querySelector('input');
-        inputEl.addEventListener('input', function () {
-          var v = inputEl.value === '' ? '' : parseFloat(inputEl.value);
-          state.inputValues[row.rowIndex] = isNaN(v) ? '' : v;
-          refreshInfoDisplays();
-        });
-        return wrap;
-      }
-
-      // Невідомий тип — показуємо як звичайний текст, щоб нічого не губилось.
-      wrap.className = 'text-slate-500 text-sm';
-      wrap.textContent = row.label;
-      return wrap;
-    }
-
-    /**
-     * Перераховує значення формул із урахуванням поточних (ще не збережених
-     * на сервері) значень полів вводу і точково оновлює текст лише
-     * елементів INFO на екрані — без перестворення полів вводу.
-     */
-    function refreshInfoDisplays() {
-      var liveRows = rowsWithLiveInputs();
-      var valueMap;
-      try {
-        valueMap = evaluateAllFormulasClient(liveRows);
-      } catch (e) {
-        valueMap = {};
-      }
-
-      state.rows
-        .filter(function (r) { return r.step === state.currentStep && r.type === 'INFO'; })
-        .forEach(function (row) {
-          var el = document.querySelector('[data-info-key="' + cssEscape(row.key) + '"]');
-          if (!el) return;
-          var value = valueMap[row.key];
-          var displayValue = (typeof value === 'number' && !isNaN(value)) ? round2(value) : '—';
-          el.textContent = displayValue + (row.unit ? ' ' + row.unit : '');
-        });
-    }
-
-    function cssEscape(value) {
-      if (window.CSS && CSS.escape) return CSS.escape(value);
-      return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
-    }
-
-    function renderFooterButton(actionRow) {
-      var btn = document.getElementById('btnStepAction');
-      if (!actionRow) {
-        btn.textContent = 'Далі';
-        btn.className = 'tap-target w-full rounded-2xl text-white text-lg font-bold shadow bg-slate-400';
-        btn.disabled = true;
-        return;
-      }
-
-      btn.disabled = false;
-      btn.textContent = actionRow.label || (actionRow.type === 'BUTTON_END' ? 'Завершити' : 'Далі');
-
-      if (actionRow.type === 'BUTTON_END') {
-        btn.className = 'tap-target w-full rounded-2xl text-white text-lg font-bold shadow bg-farm-amber active:scale-[0.98] transition-transform';
-      } else {
-        btn.className = 'tap-target w-full rounded-2xl text-white text-lg font-bold shadow bg-farm-blue active:scale-[0.98] transition-transform';
-      }
-
-      btn.onclick = function () { handleStepSubmit(actionRow); };
-    }
-
-    /* =====================================================================
-     *  ВІДПРАВКА КРОКУ НА СЕРВЕР
-     * ===================================================================== */
-    function handleStepSubmit(actionRow) {
-      var isEnd = actionRow.type === 'BUTTON_END';
-
-      var inputsToSend = state.rows
-        .filter(function (r) {
-          return r.step === state.currentStep &&
-            (r.type === 'INPUT_NUMBER' || r.type === 'INPUT_NUMBER_not_cleaned');
-        })
-        .map(function (r) {
-          var value = Object.prototype.hasOwnProperty.call(state.inputValues, r.rowIndex)
-            ? state.inputValues[r.rowIndex]
-            : r.rawValue;
-          var num = parseFloat(value);
-          return { rowIndex: r.rowIndex, value: isNaN(num) ? 0 : num };
-        });
-
-      var tkNameForRequest = state.tkName;
-      var stepForRequest = state.currentStep;
-
-      runServer('submitStep', [tkNameForRequest, stepForRequest, inputsToSend, isEnd], function (result) {
-        if (result.finished) {
-          showToast('Процес "' + tkNameForRequest.replace(/^ТК\s*/, '') + '" завершено', 'success');
-          loadHome();
-        } else {
-          openTk(tkNameForRequest); // перезавантажуємо свіжі дані листа на наступний крок
-        }
-      }, isEnd ? 'Завершуємо варку...' : 'Зберігаємо крок...');
-    }
-
-    /* =====================================================================
-     *  ШАПКА / ПРОГРЕС / НАВІГАЦІЯ
-     * ===================================================================== */
-    function updateChrome() {
-      var backBtn = document.getElementById('btnBack');
-      var title = document.getElementById('headerTitle');
-      var subtitle = document.getElementById('headerSubtitle');
-      var progressBar = document.getElementById('progressBar');
-
-      if (state.screen === 'home') {
-        backBtn.classList.add('hidden');
-        title.textContent = 'Виробничий майстер ферми';
-        subtitle.textContent = '';
-        progressBar.classList.add('hidden');
-      } else {
-        backBtn.classList.remove('hidden');
-        title.textContent = state.tkName.replace(/^ТК\s*/, '');
-        subtitle.textContent = 'Крок ' + state.currentStep;
-        progressBar.classList.remove('hidden');
-      }
-    }
-
-    function updateProgress() {
-      var steps = Array.from(new Set(state.rows.map(function (r) { return r.step; }))).sort(function (a, b) { return a - b; });
-      var idx = steps.indexOf(state.currentStep);
-      var pct = steps.length > 0 ? Math.round(((idx + 1) / steps.length) * 100) : 0;
-      document.getElementById('progressFill').style.width = pct + '%';
-      document.getElementById('headerSubtitle').textContent = 'Крок ' + state.currentStep + ' з ' + steps.length;
-    }
-
-    document.getElementById('btnBack').addEventListener('click', function () {
-      if (confirm('Повернутись на головний екран? Процес залишиться на поточному кроці, дані введені на цьому кроці не буде збережено.')) {
-        loadHome();
+    // Для INPUT_NUMBER_not_cleaned — встановлюємо дефолти в userInputs
+    result.rows.forEach(row => {
+      if (row.type === 'INPUT_NUMBER_not_cleaned' && row.key && row.eDisplay !== '') {
+        state.userInputs[row.key] = row.eDisplay;
       }
     });
 
-    /* =====================================================================
-     *  ДОПОМІЖНЕ
-     * ===================================================================== */
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    buildStepGroups();
+    saveToLS();
+    renderStep(state.currentStep);
+    hide('screenStart'); show('screenStep');
+  } catch(e) {
+    alert('Помилка: ' + e.message);
+  } finally { hideLoader(); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STEP GROUPS
+// ═══════════════════════════════════════════════════════════════════
+function buildStepGroups() {
+  state.stepGroups = {};
+  state.tkRows.forEach(row => {
+    if (!row.step) return;
+    if (!state.stepGroups[row.step]) state.stepGroups[row.step] = [];
+    state.stepGroups[row.step].push(row);
+  });
+  state.stepList = Object.keys(state.stepGroups).map(Number).sort((a,b) => a-b);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER STEP
+// ═══════════════════════════════════════════════════════════════════
+function renderStep(stepNum) {
+  state.currentStep = stepNum;
+  const rows = state.stepGroups[stepNum] || [];
+
+  // Progress bar
+  const bar = $('stepProgressBar');
+  bar.innerHTML = '';
+  state.stepList.forEach(s => {
+    const dot = document.createElement('div');
+    const isCurrent = s == stepNum;
+    const isPast = s < stepNum;
+    dot.className = `step-badge rounded-full flex items-center justify-center text-xs font-bold border-2
+      ${isCurrent ? 'bg-green-600 border-green-600 text-white' : isPast ? 'bg-green-200 border-green-400 text-green-700' : 'bg-gray-100 border-gray-300 text-gray-400'}`;
+    dot.textContent = s;
+    bar.appendChild(dot);
+  });
+
+  // Content
+  const content = $('stepContent');
+  content.innerHTML = '';
+
+  rows.forEach(row => {
+    const el = renderRow(row);
+    if (el) content.appendChild(el);
+  });
+
+  // Buttons
+  const isFirst = stepNum === state.stepList[0];
+  $('btnBack').classList.toggle('hidden', isFirst);
+  $('btnNext').textContent = getNextButtonLabel(rows);
+}
+
+function getNextButtonLabel(rows) {
+  const btn = rows.find(r => r.type === 'BUTTON' || r.type === 'BUTTON_END');
+  return btn ? btn.label : 'Далі →';
+}
+
+function renderRow(row) {
+  switch (row.type) {
+    case 'INFO_TITLE': {
+      const div = document.createElement('div');
+      div.className = 'bg-blue-50 border-l-4 border-blue-500 px-4 py-3 rounded-xl';
+      div.innerHTML = `<p class="font-bold text-blue-800 text-lg">${row.label}</p>`;
+      return div;
+    }
+    case 'INFO': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow-sm px-4 py-3 flex justify-between items-center';
+      const val = state.eDisplayMap[row.rowIndex] ?? '';
+      const hasVal = val !== '' && val !== '0';
+      div.innerHTML = `
+        <p class="text-gray-600 text-sm flex-1 pr-3">${row.label}</p>
+        <span class="font-bold text-gray-900 text-base whitespace-nowrap ${hasVal ? 'text-green-700' : 'text-gray-300'}">
+          ${hasVal ? val + (row.unit ? ' ' + row.unit : '') : '—'}
+        </span>`;
+      return div;
+    }
+    case 'INPUT_NUMBER':
+    case 'INPUT_NUMBER_not_cleaned': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow px-4 py-4';
+      const savedVal = state.userInputs[row.key] ?? (row.type === 'INPUT_NUMBER_not_cleaned' ? (state.eDisplayMap[row.rowIndex] ?? '') : '');
+      div.innerHTML = `
+        <label class="block text-gray-700 font-semibold mb-2 text-base">${row.label}${row.unit ? ' <span class="text-sm text-gray-400 font-normal">(${row.unit})</span>' : ''}</label>
+        <input
+          type="number"
+          inputmode="decimal"
+          class="w-full border-2 border-blue-300 focus:border-blue-600 rounded-xl px-4 py-4 text-2xl font-bold text-blue-800 bg-blue-50 outline-none"
+          data-key="${row.key}"
+          data-rowindex="${row.rowIndex}"
+          data-type="${row.type}"
+          value="${savedVal}"
+          placeholder="0"
+        />`;
+      div.querySelector('input').addEventListener('input', e => {
+        state.userInputs[row.key] = e.target.value;
+      });
+      return div;
+    }
+    case 'BUTTON':
+    case 'BUTTON_END':
+      return null; // handled by footer buttons
+    default:
+      return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+$('btnBack').onclick = () => {
+  const idx = state.stepList.indexOf(state.currentStep);
+  if (idx > 0) {
+    renderStep(state.stepList[idx - 1]);
+    saveToLS();
+    window.scrollTo(0, 0);
+  }
+};
+
+$('btnNext').onclick = async () => {
+  const rows = state.stepGroups[state.currentStep] || [];
+  const isEnd = rows.some(r => r.type === 'BUTTON_END');
+  const idx = state.stepList.indexOf(state.currentStep);
+  const nextStep = state.stepList[idx + 1];
+
+  // Валідація
+  const inputs = [];
+  let valid = true;
+  document.querySelectorAll('#stepContent input[type=number]').forEach(inp => {
+    const val = inp.value.trim();
+    if (val === '') { valid = false; inp.focus(); inp.classList.add('border-red-500'); return; }
+    inp.classList.remove('border-red-500');
+    inputs.push({ rowIndex: Number(inp.dataset.rowindex), value: Number(val), key: inp.dataset.key, inputType: inp.dataset.type });
+  });
+  if (!valid) { alert('Будь ласка, заповніть всі поля!'); return; }
+
+  // Збираємо payload для GAS (тільки INPUT_NUMBER і INPUT_NUMBER_not_cleaned)
+  const gasInputs = inputs.map(i => ({ rowIndex: i.rowIndex, value: i.value }));
+
+  if (isEnd) {
+    // Крок з BUTTON_END — спочатку записуємо дані, потім фінал
+    showLoader('Завершення процесу...');
+    try {
+      if (gasInputs.length > 0) {
+        await gasCall('submitStepData', [state.currentTk, gasInputs, 'Завершено']);
+      }
+      const result = await gasCall('finishProcess', [state.currentTk]);
+      if (result.error) { alert(result.error); return; }
+      clearLS(state.currentTk);
+      showDoneScreen();
+    } catch(e) { alert('Помилка: ' + e.message); }
+    finally { hideLoader(); }
+    return;
+  }
+
+  // Звичайний крок з BUTTON
+  showLoader('Збереження даних...');
+  try {
+    const result = await gasCall('submitStepData', [state.currentTk, gasInputs, nextStep]);
+    if (result.error) { alert(result.error); return; }
+
+    // Оновлюємо eDisplayMap
+    if (result.eDisplayValues) {
+      result.eDisplayValues.forEach(item => {
+        state.eDisplayMap[item.rowIndex] = item.eDisplay;
+      });
     }
 
-    /* =====================================================================
-     *  СТАРТ
-     * ===================================================================== */
-    loadHome();
-  </script>
+    saveToLS();
+    renderStep(nextStep);
+    window.scrollTo(0, 0);
+  } catch(e) { alert('Помилка: ' + e.message); }
+  finally { hideLoader(); }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  DONE SCREEN
+// ═══════════════════════════════════════════════════════════════════
+function showDoneScreen() {
+  hide('screenStep');
+  hide('screenStart');
+  show('screenDone');
+  $('doneMessage').textContent = `Технологічну карту "${state.currentTk.replace('ТК ', '')}" успішно завершено. Склад і журнал оновлено.`;
+}
+
+$('btnDoneHome').onclick = loadStartScreen;
+$('btnHome').onclick = loadStartScreen;
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+window.onload = loadStartScreen;
+</script>
 </body>
 </html>
