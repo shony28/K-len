@@ -251,8 +251,24 @@
       return resolved;
     }
 
+    /**
+     * Нормалізує формулу перед обчисленням:
+     *  - замінює коми на крапки як десятковий роздільник між цифрами;
+     *  - перетворює «число%» на «(число/100)».
+     * Дзеркалить preprocessFormula_ із Код.gs.
+     */
+    function preprocessFormula(formula) {
+      // 1. Кома як десятковий роздільник: «1,6» → «1.6»
+      var result = formula.replace(/(\d),(\d)/g, '$1.$2');
+      // 2. Відсоток після числа: «25%» → «(25/100)»
+      result = result.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
+      return result;
+    }
+
     function evaluateFormulaStringClient(formula, resolveFn) {
       if (!formula || !formula.trim()) return 0;
+
+      formula = preprocessFormula(formula);
 
       var identifiers = formula.match(/[A-Za-zА-Яа-яЇїІіЄєҐґ_][A-Za-zА-Яа-яЇїІіЄєҐґ0-9_]*/g) || [];
       var uniqueIds = Array.from(new Set(identifiers)).sort(function (a, b) { return b.length - a.length; });
