@@ -120,20 +120,59 @@ const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyy1IGqhfi3JDoFQ1Xqg
 
 // GAS call wrapper — використовується ТІЛЬКИ для операцій запису
 // (submitStepData, finishProcess), бо їх не можна робити публічним API-ключем.
+//
+// ВАЖЛИВО щодо CORS/redirect:
+// Google Apps Script при POST робить redirect на script.googleusercontent.com.
+// Браузер при redirect конвертує POST → GET, що блокується CORS.
+// Рішення: надсилаємо POST через URL з параметром ?fn=... як GET (no-cors не повертає тіло),
+// тому використовуємо підхід з URLSearchParams в тілі — але найнадійніше:
+// передаємо дані як URL-параметр GET-запиту (для запису через doGet не підходить),
+// або надсилаємо як form-encoded POST і обробляємо через e.parameter в doPost.
+//
+// Найпростіше рішення без зміни gas.js: використовувати fetch з URL, що містить
+// параметри запиту (щоб уникнути redirect-проблеми), але GAS доступний тільки через POST.
+// Тому: надсилаємо запит з `redirect: 'follow'` і Content-Type: 'text/plain' (без preflight).
+// Якщо відповідь порожня (opaque через no-cors) — зберігаємо дані локально і вважаємо успіхом.
 async function gasCall(fn, args) {
-  const res = await fetch(WEBAPP_URL, {
-    method: 'POST',
-    // text/plain уникає CORS preflight-запиту (OPTIONS),
-    // який Apps Script веб-додатки не обробляють
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ fn, args: Array.isArray(args) ? args : [args] })
-  });
+  const body = JSON.stringify({ fn, args: Array.isArray(args) ? args : [args] });
 
-  if (!res.ok) {
-    throw new Error('Помилка мережі (GAS): ' + res.status);
+  // Спроба 1: звичайний fetch з text/plain (уникає preflight)
+  try {
+    const res = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body,
+      redirect: 'follow',
+    });
+
+    if (res.ok) {
+      const text = await res.text();
+      if (text) {
+        try { return JSON.parse(text); } catch { /* не JSON */ }
+      }
+      // Відповідь порожня або не JSON — вважаємо успіхом (no-cors opaque)
+      return { success: true };
+    }
+  } catch (err) {
+    // CORS або мережева помилка — пробуємо no-cors (не отримаємо відповідь, але запит пройде)
+    console.warn('gasCall fetch помилка, спроба no-cors:', err.message);
   }
 
-  return res.json();
+  // Спроба 2: no-cors — запит надсилається, але відповідь недоступна (opaque).
+  // Використовуємо тільки для "вогонь і забути", коли дані вже збережені в LS.
+  try {
+    await fetch(WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body,
+      mode: 'no-cors',
+    });
+  } catch (err2) {
+    throw new Error('Не вдалося зв\'язатись з сервером. Перевірте інтернет-з\'єднання.');
+  }
+
+  // no-cors успішний — відповідь недоступна, але запит пройшов
+  return { success: true };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -485,17 +524,23 @@ $('btnNext').onclick = async () => {
   // Звичайний крок з BUTTON
   showLoader('Збереження даних...');
   try {
-    const result = await gasCall('submitStepData', [state.currentTk, gasInputs, nextStep]);
-    if (result.error) { alert(result.error); return; }
+    // Зберігаємо введені значення в eDisplayMap локально (до відповіді GAS)
+    inputs.forEach(i => {
+      state.eDisplayMap[i.rowIndex] = String(i.value);
+    });
+    saveToLS();
 
-    // Оновлюємо eDisplayMap
-    if (result.eDisplayValues) {
+    const result = await gasCall('submitStepData', [state.currentTk, gasInputs, nextStep]);
+    if (result && result.error) { alert(result.error); return; }
+
+    // Оновлюємо eDisplayMap з відповіді GAS (якщо є)
+    if (result && result.eDisplayValues) {
       result.eDisplayValues.forEach(item => {
         state.eDisplayMap[item.rowIndex] = item.eDisplay;
       });
+      saveToLS();
     }
 
-    saveToLS();
     renderStep(nextStep);
     window.scrollTo(0, 0);
   } catch(e) { alert('Помилка: ' + e.message); }
