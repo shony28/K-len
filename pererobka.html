@@ -313,23 +313,25 @@ function makeProcessCard(name, inProgress, currentStep) {
       ${inProgress ? 'bg-orange-500' : 'bg-green-600'}">
       ${inProgress ? 'Продовжити' : 'Розпочати'}
     </button>`;
-  div.querySelector('button').onclick = () => startProcess(name, inProgress);
+  div.querySelector('button').onclick = () => startProcess(name, inProgress, currentStep);
   return div;
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  PROCESS START
 // ═══════════════════════════════════════════════════════════════════
-async function startProcess(tkName, resume) {
+async function startProcess(tkName, resume, sheetStep) {
   state.currentTk = tkName;
   $('headerTitle').textContent = tkName.replace('ТК ', '');
 
   const cached = loadFromLS(tkName);
 
   if (resume && cached && cached.tkRows && cached.tkRows.length > 0) {
-    // Відновлення зі збереженого стану
+    // Відновлення зі збереженого стану.
+    // Крок беремо з таблиці (sheetStep) — він актуальніший за кеш,
+    // бо кеш міг відстати якщо дані записались через інший пристрій.
     state.tkRows = cached.tkRows;
-    state.currentStep = cached.currentStep;
+    state.currentStep = (sheetStep && sheetStep > 0) ? sheetStep : (cached.currentStep || 1);
     state.userInputs = cached.userInputs || {};
     state.eDisplayMap = cached.eDisplayMap || {};
     buildStepGroups();
@@ -338,14 +340,16 @@ async function startProcess(tkName, resume) {
     return;
   }
 
-  // Нове або без кешу — завантажити з GAS
+  // Нове або без кешу — завантажити з таблиці
   showLoader('Завантаження технологічної карти...');
   try {
     const result = await loadTkStructure(tkName);
     if (result.error) { alert(result.error); return; }
 
     state.tkRows = result.rows;
-    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
+    // Крок з таблиці (A1) має пріоритет над sheetStep переданим зі старту
+    const stepFromSheet = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
+    state.currentStep = stepFromSheet;
     state.userInputs = {};
 
     // Заповнюємо eDisplayMap з завантаженої структури
