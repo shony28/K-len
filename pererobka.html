@@ -210,21 +210,36 @@
       var resolved = {};
       var resolving = {};
 
+      // ВАЖЛИВО: формули обчислюються для УСІХ ключів на листі одразу
+      // (навіть тих, що належать ще не пройденим кроками — там значення
+      // поки що порожні/0). Якщо через це десь виникає ділення на нуль
+      // чи інша помилка — вона має "гасити" лише той конкретний ключ
+      // (показуючи "—"), а не всі поля на екрані.
       function resolve(key) {
         if (Object.prototype.hasOwnProperty.call(resolved, key)) return resolved[key];
-        if (resolving[key]) throw new Error('Циклічна залежність формул: ' + key);
+        if (resolving[key]) {
+          resolved[key] = NaN; // циклічна залежність — вважаємо значення невідомим
+          return NaN;
+        }
         var row = byKey[key];
-        if (!row) throw new Error('Невідомий ключ у формулі: ' + key);
+        if (!row) {
+          resolved[key] = NaN; // невідомий ключ — вважаємо значення невідомим
+          return NaN;
+        }
         resolving[key] = true;
 
         var value;
-        if (row.type === 'INPUT_NUMBER' || row.type === 'INPUT_NUMBER_not_cleaned') {
-          value = parseFloat(row.rawValue);
-          if (isNaN(value)) value = 0;
-        } else if (row.type === 'INFO') {
-          value = evaluateFormulaStringClient(String(row.rawValue || ''), resolve);
-        } else {
-          value = 0;
+        try {
+          if (row.type === 'INPUT_NUMBER' || row.type === 'INPUT_NUMBER_not_cleaned') {
+            value = parseFloat(row.rawValue);
+            if (isNaN(value)) value = 0;
+          } else if (row.type === 'INFO') {
+            value = evaluateFormulaStringClient(String(row.rawValue || ''), resolve);
+          } else {
+            value = 0;
+          }
+        } catch (e) {
+          value = NaN;
         }
 
         resolving[key] = false;
@@ -243,16 +258,26 @@
       var uniqueIds = Array.from(new Set(identifiers)).sort(function (a, b) { return b.length - a.length; });
 
       var expr = formula;
+      var hasNonFinite = false;
+
       uniqueIds.forEach(function (id) {
         var value = resolveFn(id);
+        if (typeof value !== 'number' || !isFinite(value)) {
+          hasNonFinite = true; // напр. ще не введене значення на майбутньому кроці
+          value = 0;           // плейсхолдер — результат все одно буде NaN
+        }
         var re = new RegExp('\\b' + id + '\\b', 'g');
         expr = expr.replace(re, '(' + value + ')');
       });
 
+      if (hasNonFinite) return NaN;
+
       if (!/^[0-9+\-*/().\s]+$/.test(expr)) {
-        throw new Error('Некоректна формула: ' + expr);
+        return NaN; // не кидаємо виняток — просто це поле поки що не обчислюється
       }
-      return Function('"use strict"; return (' + expr + ');')();
+
+      var result = Function('"use strict"; return (' + expr + ');')();
+      return (typeof result === 'number' && isFinite(result)) ? result : NaN;
     }
 
     /** Повертає копію rows, де rawValue замінено на значення, введені користувачем на екрані. */
