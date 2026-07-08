@@ -120,59 +120,20 @@ const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyy1IGqhfi3JDoFQ1Xqg
 
 // GAS call wrapper — використовується ТІЛЬКИ для операцій запису
 // (submitStepData, finishProcess), бо їх не можна робити публічним API-ключем.
-//
-// ВАЖЛИВО щодо CORS/redirect:
-// Google Apps Script при POST робить redirect на script.googleusercontent.com.
-// Браузер при redirect конвертує POST → GET, що блокується CORS.
-// Рішення: надсилаємо POST через URL з параметром ?fn=... як GET (no-cors не повертає тіло),
-// тому використовуємо підхід з URLSearchParams в тілі — але найнадійніше:
-// передаємо дані як URL-параметр GET-запиту (для запису через doGet не підходить),
-// або надсилаємо як form-encoded POST і обробляємо через e.parameter в doPost.
-//
-// Найпростіше рішення без зміни gas.js: використовувати fetch з URL, що містить
-// параметри запиту (щоб уникнути redirect-проблеми), але GAS доступний тільки через POST.
-// Тому: надсилаємо запит з `redirect: 'follow'` і Content-Type: 'text/plain' (без preflight).
-// Якщо відповідь порожня (opaque через no-cors) — зберігаємо дані локально і вважаємо успіхом.
 async function gasCall(fn, args) {
-  const body = JSON.stringify({ fn, args: Array.isArray(args) ? args : [args] });
+  const res = await fetch(WEBAPP_URL, {
+    method: 'POST',
+    // text/plain уникає CORS preflight-запиту (OPTIONS),
+    // який Apps Script веб-додатки не обробляють
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn, args: Array.isArray(args) ? args : [args] })
+  });
 
-  // Спроба 1: звичайний fetch з text/plain (уникає preflight)
-  try {
-    const res = await fetch(WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body,
-      redirect: 'follow',
-    });
-
-    if (res.ok) {
-      const text = await res.text();
-      if (text) {
-        try { return JSON.parse(text); } catch { /* не JSON */ }
-      }
-      // Відповідь порожня або не JSON — вважаємо успіхом (no-cors opaque)
-      return { success: true };
-    }
-  } catch (err) {
-    // CORS або мережева помилка — пробуємо no-cors (не отримаємо відповідь, але запит пройде)
-    console.warn('gasCall fetch помилка, спроба no-cors:', err.message);
+  if (!res.ok) {
+    throw new Error('Помилка мережі (GAS): ' + res.status);
   }
 
-  // Спроба 2: no-cors — запит надсилається, але відповідь недоступна (opaque).
-  // Використовуємо тільки для "вогонь і забути", коли дані вже збережені в LS.
-  try {
-    await fetch(WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body,
-      mode: 'no-cors',
-    });
-  } catch (err2) {
-    throw new Error('Не вдалося зв\'язатись з сервером. Перевірте інтернет-з\'єднання.');
-  }
-
-  // no-cors успішний — відповідь недоступна, але запит пройшов
-  return { success: true };
+  return res.json();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -251,12 +212,11 @@ async function loadTkStructure(sheetName) {
     step:     row[0],
     type:     row[1],
     label:    row[2],
-    key:      row[3],
-    eValue:   row[4],
-    eDisplay: formattedRows[i]?.[4] ?? '',
-    action:   row[5],
-    product:  row[6],
-    unit:     row[7],
+    eValue:   row[3],
+    eDisplay: formattedRows[i]?.[3] ?? '',
+    action:   row[4],
+    product:  row[5],
+    unit:     row[6],
     rowIndex: i + 2
   }));
 
@@ -313,25 +273,23 @@ function makeProcessCard(name, inProgress, currentStep) {
       ${inProgress ? 'bg-orange-500' : 'bg-green-600'}">
       ${inProgress ? 'Продовжити' : 'Розпочати'}
     </button>`;
-  div.querySelector('button').onclick = () => startProcess(name, inProgress, currentStep);
+  div.querySelector('button').onclick = () => startProcess(name, inProgress);
   return div;
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  PROCESS START
 // ═══════════════════════════════════════════════════════════════════
-async function startProcess(tkName, resume, sheetStep) {
+async function startProcess(tkName, resume) {
   state.currentTk = tkName;
   $('headerTitle').textContent = tkName.replace('ТК ', '');
 
   const cached = loadFromLS(tkName);
 
   if (resume && cached && cached.tkRows && cached.tkRows.length > 0) {
-    // Відновлення зі збереженого стану.
-    // Крок беремо з таблиці (sheetStep) — він актуальніший за кеш,
-    // бо кеш міг відстати якщо дані записались через інший пристрій.
+    // Відновлення зі збереженого стану
     state.tkRows = cached.tkRows;
-    state.currentStep = (sheetStep && sheetStep > 0) ? sheetStep : (cached.currentStep || 1);
+    state.currentStep = cached.currentStep;
     state.userInputs = cached.userInputs || {};
     state.eDisplayMap = cached.eDisplayMap || {};
     buildStepGroups();
@@ -340,16 +298,14 @@ async function startProcess(tkName, resume, sheetStep) {
     return;
   }
 
-  // Нове або без кешу — завантажити з таблиці
+  // Нове або без кешу — завантажити з GAS
   showLoader('Завантаження технологічної карти...');
   try {
     const result = await loadTkStructure(tkName);
     if (result.error) { alert(result.error); return; }
 
     state.tkRows = result.rows;
-    // Крок з таблиці (A1) має пріоритет над sheetStep переданим зі старту
-    const stepFromSheet = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
-    state.currentStep = stepFromSheet;
+    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
     state.userInputs = {};
 
     // Заповнюємо eDisplayMap з завантаженої структури
@@ -360,8 +316,8 @@ async function startProcess(tkName, resume, sheetStep) {
 
     // Для INPUT_NUMBER_not_cleaned — встановлюємо дефолти в userInputs
     result.rows.forEach(row => {
-      if (row.type === 'INPUT_NUMBER_not_cleaned' && row.key && row.eDisplay !== '') {
-        state.userInputs[row.key] = row.eDisplay;
+      if (row.type === 'INPUT_NUMBER_not_cleaned' && row.eDisplay !== '') {
+        state.userInputs[row.rowIndex] = row.eDisplay;
       }
     });
 
@@ -451,21 +407,20 @@ function renderRow(row) {
     case 'INPUT_NUMBER_not_cleaned': {
       const div = document.createElement('div');
       div.className = 'bg-white rounded-2xl shadow px-4 py-4';
-      const savedVal = state.userInputs[row.key] ?? (row.type === 'INPUT_NUMBER_not_cleaned' ? (state.eDisplayMap[row.rowIndex] ?? '') : '');
+      const savedVal = state.userInputs[row.rowIndex] ?? (row.type === 'INPUT_NUMBER_not_cleaned' ? (state.eDisplayMap[row.rowIndex] ?? '') : '');
       div.innerHTML = `
         <label class="block text-gray-700 font-semibold mb-2 text-base">${row.label}${row.unit ? ' <span class="text-sm text-gray-400 font-normal">(${row.unit})</span>' : ''}</label>
         <input
           type="number"
           inputmode="decimal"
           class="w-full border-2 border-blue-300 focus:border-blue-600 rounded-xl px-4 py-4 text-2xl font-bold text-blue-800 bg-blue-50 outline-none"
-          data-key="${row.key}"
           data-rowindex="${row.rowIndex}"
           data-type="${row.type}"
           value="${savedVal}"
           placeholder="0"
         />`;
       div.querySelector('input').addEventListener('input', e => {
-        state.userInputs[row.key] = e.target.value;
+        state.userInputs[row.rowIndex] = e.target.value;
       });
       return div;
     }
@@ -502,7 +457,7 @@ $('btnNext').onclick = async () => {
     const val = inp.value.trim();
     if (val === '') { valid = false; inp.focus(); inp.classList.add('border-red-500'); return; }
     inp.classList.remove('border-red-500');
-    inputs.push({ rowIndex: Number(inp.dataset.rowindex), value: Number(val), key: inp.dataset.key, inputType: inp.dataset.type });
+    inputs.push({ rowIndex: Number(inp.dataset.rowindex), value: Number(val), inputType: inp.dataset.type });
   });
   if (!valid) { alert('Будь ласка, заповніть всі поля!'); return; }
 
@@ -528,23 +483,17 @@ $('btnNext').onclick = async () => {
   // Звичайний крок з BUTTON
   showLoader('Збереження даних...');
   try {
-    // Зберігаємо введені значення в eDisplayMap локально (до відповіді GAS)
-    inputs.forEach(i => {
-      state.eDisplayMap[i.rowIndex] = String(i.value);
-    });
-    saveToLS();
-
     const result = await gasCall('submitStepData', [state.currentTk, gasInputs, nextStep]);
-    if (result && result.error) { alert(result.error); return; }
+    if (result.error) { alert(result.error); return; }
 
-    // Оновлюємо eDisplayMap з відповіді GAS (якщо є)
-    if (result && result.eDisplayValues) {
+    // Оновлюємо eDisplayMap
+    if (result.eDisplayValues) {
       result.eDisplayValues.forEach(item => {
         state.eDisplayMap[item.rowIndex] = item.eDisplay;
       });
-      saveToLS();
     }
 
+    saveToLS();
     renderStep(nextStep);
     window.scrollTo(0, 0);
   } catch(e) { alert('Помилка: ' + e.message); }
