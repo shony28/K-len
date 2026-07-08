@@ -115,11 +115,11 @@ function loadFromLS(tkName) {
 
 function clearLS(tkName) { localStorage.removeItem(lsKey(tkName)); }
 
-// ── URL опублікованого Google Apps Script веб-додатку ────────────────────────
+// ── URL опублікованого Google Apps Script веб-додатку (тільки ЗАПИС) ─────────
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyy1IGqhfi3JDoFQ1Xqg7QiODC1Kb0QISkiZDosKtwcojtNvkvgnYn_oSI7yMRXlcVu/exec';
 
-// GAS call wrapper (сторінка тепер хоститься на GitHub Pages, тому замість
-// google.script.run використовуємо звичайний fetch до веб-додатку GAS)
+// GAS call wrapper — використовується ТІЛЬКИ для операцій запису
+// (submitStepData, finishProcess), бо їх не можна робити публічним API-ключем.
 async function gasCall(fn, args) {
   const res = await fetch(WEBAPP_URL, {
     method: 'POST',
@@ -130,10 +130,98 @@ async function gasCall(fn, args) {
   });
 
   if (!res.ok) {
-    throw new Error('Помилка мережі: ' + res.status);
+    throw new Error('Помилка мережі (GAS): ' + res.status);
   }
 
   return res.json();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ЧИТАННЯ НАПРЯМУ ЧЕРЕЗ GOOGLE SHEETS API v4 (без навантаження на GAS)
+// ═══════════════════════════════════════════════════════════════════
+// Таблиця має бути доступна за посиланням на перегляд ("Anyone with the
+// link — Viewer"). API-ключ треба обмежити (Application restrictions →
+// HTTP referrers → домен GitHub Pages; API restrictions → Google Sheets API),
+// щоб ним не могли скористатись сторонні.
+const SPREADSHEET_ID = '1kkgWAkOmCIB1PzrZv5X4EtjnH0G8RI0NB1aNqMTxz3E';
+const SHEETS_API_KEY = '738653025538-325fmpgrd37ji1leusus42gacqaja040.apps.googleusercontent.com';
+
+async function sheetsApiFetch(path, params) {
+  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}${path}`);
+  url.searchParams.set('key', SHEETS_API_KEY);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (Array.isArray(v)) v.forEach(item => url.searchParams.append(k, item));
+    else url.searchParams.set(k, v);
+  });
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error('Sheets API: ' + (data.error?.message || res.status));
+  }
+  return data;
+}
+
+// ── Стартовий екран: список ТК-листів + їхній A1 (поточний крок) ─────────────
+async function getStartData() {
+  const meta = await sheetsApiFetch('', { fields: 'sheets.properties.title' });
+  const tkNames = (meta.sheets || [])
+    .map(s => s.properties.title)
+    .filter(t => t.startsWith('ТК '));
+
+  const allProcesses = [];
+  const inProgress = [];
+
+  if (tkNames.length === 0) return { allProcesses, inProgress };
+
+  const ranges = tkNames.map(n => `'${n}'!A1`);
+  const valuesData = await sheetsApiFetch('/values:batchGet', { ranges });
+
+  (valuesData.valueRanges || []).forEach((vr, i) => {
+    const name = tkNames[i];
+    const val = vr.values?.[0]?.[0];
+    if (val !== undefined && val !== '' && val !== 'Завершено' && Number(val) > 0) {
+      inProgress.push({ name, currentStep: Number(val) });
+    } else {
+      allProcesses.push({ name });
+    }
+  });
+
+  return { allProcesses, inProgress };
+}
+
+// ── Повна структура ТК: A2:H (значення) + окремо форматовані значення E ──────
+async function loadTkStructure(sheetName) {
+  const range = `'${sheetName}'!A1:H`;
+
+  const [rawData, formattedData] = await Promise.all([
+    sheetsApiFetch(`/values/${encodeURIComponent(range)}`, { valueRenderOption: 'UNFORMATTED_VALUE' }),
+    sheetsApiFetch(`/values/${encodeURIComponent(range)}`, { valueRenderOption: 'FORMATTED_VALUE' })
+  ]);
+
+  const allRows = rawData.values || [];
+  if (allRows.length < 2) return { rows: [], currentStep: 'Завершено' };
+
+  const a1val = allRows[0][0];
+  const currentStep = (a1val === 'Завершено' || a1val === undefined || a1val === '') ? 'Завершено' : Number(a1val);
+
+  const dataRows = allRows.slice(1);
+  const formattedRows = (formattedData.values || []).slice(1);
+
+  const rows = dataRows.map((row, i) => ({
+    step:     row[0],
+    type:     row[1],
+    label:    row[2],
+    key:      row[3],
+    eValue:   row[4],
+    eDisplay: formattedRows[i]?.[4] ?? '',
+    action:   row[5],
+    product:  row[6],
+    unit:     row[7],
+    rowIndex: i + 2
+  }));
+
+  return { rows, currentStep };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -145,7 +233,7 @@ async function loadStartScreen() {
   hide('screenStep'); hide('screenDone'); show('screenStart');
 
   try {
-    const data = await gasCall('getStartData');
+    const data = await getStartData();
     renderStartScreen(data);
   } catch(e) {
     alert('Помилка завантаження: ' + e.message);
@@ -214,7 +302,7 @@ async function startProcess(tkName, resume) {
   // Нове або без кешу — завантажити з GAS
   showLoader('Завантаження технологічної карти...');
   try {
-    const result = await gasCall('loadTkStructure', [tkName]);
+    const result = await loadTkStructure(tkName);
     if (result.error) { alert(result.error); return; }
 
     state.tkRows = result.rows;
