@@ -397,7 +397,9 @@
         wrap.className = 'bg-green-50 border border-green-300 rounded-xl px-4 py-3 flex items-center justify-between gap-3';
         wrap.innerHTML =
           '<span class="text-slate-700 font-medium">' + escapeHtml(row.label) + '</span>' +
-          '<span class="text-farm-green font-extrabold text-lg whitespace-nowrap">' + displayValue + (row.unit ? ' ' + escapeHtml(row.unit) : '') + '</span>';
+          '<span class="text-farm-green font-extrabold text-lg whitespace-nowrap" data-info-key="' + escapeHtml(row.key) + '">' +
+            displayValue + (row.unit ? ' ' + escapeHtml(row.unit) : '') +
+          '</span>';
         return wrap;
       }
 
@@ -414,18 +416,16 @@
             'class="tap-target w-full text-2xl font-bold text-farm-blue bg-white border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-farm-blue" ' +
             'data-row="' + row.rowIndex + '" value="' + escapeHtml(String(inputValueAttr)) + '">';
 
+        // ВАЖЛИВО: тут НЕ перерендерюємо весь крок і НЕ чіпаємо сам DOM-вузол
+        // поля вводу — інакше браузер губить позицію курсора (а для
+        // input[type=number] ще й кидає виняток на setSelectionRange).
+        // Замість цього лише перераховуємо значення й точково оновлюємо
+        // залежні поля INFO на екрані.
         var inputEl = wrap.querySelector('input');
         inputEl.addEventListener('input', function () {
           var v = inputEl.value === '' ? '' : parseFloat(inputEl.value);
-          state.inputValues[row.rowIndex] = v;
-          renderStep(); // перерахунок залежних INFO-полів у реальному часі
-          // повертаємо фокус і курсор у поле, яке редагувалось
-          var refreshed = document.querySelector('input[data-row="' + row.rowIndex + '"]');
-          if (refreshed) {
-            refreshed.focus();
-            var pos = refreshed.value.length;
-            refreshed.setSelectionRange(pos, pos);
-          }
+          state.inputValues[row.rowIndex] = isNaN(v) ? '' : v;
+          refreshInfoDisplays();
         });
         return wrap;
       }
@@ -434,6 +434,36 @@
       wrap.className = 'text-slate-500 text-sm';
       wrap.textContent = row.label;
       return wrap;
+    }
+
+    /**
+     * Перераховує значення формул із урахуванням поточних (ще не збережених
+     * на сервері) значень полів вводу і точково оновлює текст лише
+     * елементів INFO на екрані — без перестворення полів вводу.
+     */
+    function refreshInfoDisplays() {
+      var liveRows = rowsWithLiveInputs();
+      var valueMap;
+      try {
+        valueMap = evaluateAllFormulasClient(liveRows);
+      } catch (e) {
+        valueMap = {};
+      }
+
+      state.rows
+        .filter(function (r) { return r.step === state.currentStep && r.type === 'INFO'; })
+        .forEach(function (row) {
+          var el = document.querySelector('[data-info-key="' + cssEscape(row.key) + '"]');
+          if (!el) return;
+          var value = valueMap[row.key];
+          var displayValue = (typeof value === 'number' && !isNaN(value)) ? round2(value) : '—';
+          el.textContent = displayValue + (row.unit ? ' ' + row.unit : '');
+        });
+    }
+
+    function cssEscape(value) {
+      if (window.CSS && CSS.escape) return CSS.escape(value);
+      return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
     }
 
     function renderFooterButton(actionRow) {
