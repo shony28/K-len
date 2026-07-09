@@ -412,7 +412,7 @@ function renderRow(row) {
       div.className = 'bg-white rounded-2xl shadow px-4 py-4';
       const savedVal = state.userInputs[row.rowIndex] ?? (row.type === 'INPUT_NUMBER_not_cleaned' ? (state.eDisplayMap[row.rowIndex] ?? '') : '');
       div.innerHTML = `
-        <label class="block text-gray-700 font-semibold mb-2 text-base">${row.label}${row.unit ? ' <span class="text-sm text-gray-400 font-normal">(${row.unit})</span>' : ''}</label>
+        <label class="block text-gray-700 font-semibold mb-2 text-base">${row.label}${row.unit ? ` <span class="text-sm text-gray-400 font-normal">(${row.unit})</span>` : ''}</label>
         <input
           type="number"
           inputmode="decimal"
