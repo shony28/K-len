@@ -286,33 +286,30 @@ async function startProcess(tkName, resume) {
 
   const cached = loadFromLS(tkName);
 
-  if (resume && cached && cached.tkRows && cached.tkRows.length > 0) {
-    // Відновлення зі збереженого стану
-    state.tkRows = cached.tkRows;
-    state.currentStep = Number(cached.currentStep) || 1;
-    state.userInputs = cached.userInputs || {};
-    state.eDisplayMap = cached.eDisplayMap || {};
-    buildStepGroups();
-    renderStep(state.currentStep);
-    hide('screenStart'); show('screenStep');
-    return;
-  }
-
-  // Нове або без кешу — завантажити з GAS
+  // Нове або відновлення — завжди завантажуємо з таблиці,
+  // бо A1 (currentStep) є єдиним достовірним джерелом поточного кроку
   showLoader('Завантаження технологічної карти...');
   try {
     const result = await loadTkStructure(tkName);
     if (result.error) { alert(result.error); return; }
 
     state.tkRows = result.rows;
-    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : Number(result.currentStep);
-    state.userInputs = {};
+    // currentStep ЗАВЖДИ береться з таблиці (A1), не з кешу
+    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
 
-    // Заповнюємо eDisplayMap з завантаженої структури
-    state.eDisplayMap = {};
-    result.rows.forEach(row => {
-      state.eDisplayMap[row.rowIndex] = row.eDisplay;
-    });
+    if (resume && cached && cached.tkRows && cached.tkRows.length > 0) {
+      // При відновленні беремо userInputs та eDisplayMap з кешу,
+      // але крок вже встановлено вище з таблиці
+      state.userInputs = cached.userInputs || {};
+      state.eDisplayMap = cached.eDisplayMap || {};
+    } else {
+      state.userInputs = {};
+      // Заповнюємо eDisplayMap з завантаженої структури
+      state.eDisplayMap = {};
+      result.rows.forEach(row => {
+        state.eDisplayMap[row.rowIndex] = row.eDisplay;
+      });
+    }
 
     // Для INPUT_NUMBER_not_cleaned — встановлюємо дефолти в userInputs
     result.rows.forEach(row => {
@@ -347,7 +344,7 @@ function buildStepGroups() {
 //  RENDER STEP
 // ═══════════════════════════════════════════════════════════════════
 function renderStep(stepNum) {
-  state.currentStep = Number(stepNum);
+  state.currentStep = stepNum;
   const rows = state.stepGroups[stepNum] || [];
 
   // Progress bar
