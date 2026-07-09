@@ -289,7 +289,7 @@ async function startProcess(tkName, resume) {
   if (resume && cached && cached.tkRows && cached.tkRows.length > 0) {
     // Відновлення зі збереженого стану
     state.tkRows = cached.tkRows;
-    state.currentStep = cached.currentStep;
+    state.currentStep = Number(cached.currentStep) || 1;
     state.userInputs = cached.userInputs || {};
     state.eDisplayMap = cached.eDisplayMap || {};
     buildStepGroups();
@@ -305,7 +305,7 @@ async function startProcess(tkName, resume) {
     if (result.error) { alert(result.error); return; }
 
     state.tkRows = result.rows;
-    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
+    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : Number(result.currentStep);
     state.userInputs = {};
 
     // Заповнюємо eDisplayMap з завантаженої структури
@@ -347,7 +347,7 @@ function buildStepGroups() {
 //  RENDER STEP
 // ═══════════════════════════════════════════════════════════════════
 function renderStep(stepNum) {
-  state.currentStep = stepNum;
+  state.currentStep = Number(stepNum);
   const rows = state.stepGroups[stepNum] || [];
 
   // Progress bar
