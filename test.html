@@ -128,11 +128,22 @@
     }
     .day-cell.editable:hover { border-color: var(--c-indigo); background: #e0e7ff; }
     .day-cell.has-hours { border-color: #6366f1; background: #eef2ff; }
-    .day-cell.today { border-color: #4f46e5; }
+    .day-cell.today {
+      border-color: #4f46e5;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      box-shadow: 0 2px 10px rgba(79,70,229,.18);
+    }
     .day-cell.future { opacity: .35; }
 
     .day-num { font-size: .75rem; font-weight: 700; color: #64748b; }
-    .day-cell.today .day-num { color: #4f46e5; }
+    .day-cell.today .day-num {
+      color: #fff;
+      background: #4f46e5;
+      border-radius: 30%;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem;
+    }
     .day-hours { font-size: 1rem; font-weight: 800; color: #4f46e5; margin-top: 2px; }
     .day-edit-hint { font-size: .6rem; color: #a5b4fc; margin-top: 2px; }
 
@@ -160,6 +171,34 @@
     .weekday-header {
       font-size: .65rem; font-weight: 700; color: #94a3b8; text-align: center; padding: 2px 0;
     }
+
+    /* Таблиця команди */
+    .team-row {
+      display: grid;
+      gap: 4px;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .team-row:last-child { border-bottom: none; }
+
+    .team-name {
+      font-weight: 700; font-size: .82rem; color: #1e293b;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .team-cell {
+      text-align: center; font-size: .82rem; font-weight: 700;
+      border-radius: 8px; padding: 5px 2px;
+    }
+    .team-cell.filled  { background: #eef2ff; color: #4f46e5; }
+    .team-cell.empty   { background: #f8fafc; color: #cbd5e1; }
+    .team-cell.today-col { outline: 2px solid #c7d2fe; }
+
+    .team-day-header {
+      text-align: center; font-size: .68rem; font-weight: 700;
+      color: #94a3b8; padding: 2px;
+    }
+    .team-day-header.today-col { color: #4f46e5; }
 
     /* Spinner */
     .spinner {
@@ -302,14 +341,32 @@
       <div id="days-grid" class="days-grid" style="display:none;"></div>
     </div>
 
-    <!-- Підказка -->
-    <div style="background:#eef2ff; border-radius:14px; padding:14px 16px; border:1px solid #c7d2fe;">
-      <p style="margin:0; color:#4338ca; font-size:.83rem; line-height:1.6; font-weight:600;">
-        💡 <strong>Як записати години:</strong> натисніть на клітинку
-        <span style="background:#e0e7ff; padding:2px 6px; border-radius:6px;">сьогодні</span> або
-        <span style="background:#e0e7ff; padding:2px 6px; border-radius:6px;">вчора</span>
-        та введіть кількість відпрацьованих годин.
-      </p>
+
+    <!-- Блок команди -->
+    <div class="card" style="padding:20px; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="font-weight:800; color:#1e293b; font-size:1rem; margin:0;">👥 Команда</h3>
+        <button onclick="loadTeam()" title="Оновити"
+                style="background:none; border:none; cursor:pointer; color:#6366f1; font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:4px;">
+          🔄 Оновити
+        </button>
+      </div>
+
+      <div id="team-loading" style="padding:16px 0; text-align:center;">
+        <div class="spinner"></div>
+        <p style="color:#94a3b8; margin-top:10px; font-size:.85rem;">Завантаження...</p>
+      </div>
+
+      <div id="team-table" style="display:none;">
+        <!-- Заголовки дат -->
+        <div id="team-header" style="display:grid; gap:4px; margin-bottom:6px;"></div>
+        <!-- Рядки працівників -->
+        <div id="team-rows"></div>
+        <!-- Якщо порожньо -->
+        <div id="team-empty" style="display:none; text-align:center; color:#94a3b8; font-size:.85rem; padding:12px 0;">
+          Поки що немає записів за останні 3 дні
+        </div>
+      </div>
     </div>
 
   </div>
@@ -325,7 +382,7 @@
 
     <div style="margin-bottom:20px;">
       <label style="display:block; font-weight:700; color:#475569; font-size:.85rem; margin-bottom:8px; text-align:center;">
-        Кількість годин (0 – 24)
+        Кількість годин
       </label>
       <input type="number" id="hours-input" class="inp"
              placeholder="Наприклад: 8"
@@ -449,6 +506,7 @@ function showMain(user) {
   }
   showScreen('screen-main');
   loadData();
+  loadTeam();
 }
 
 // ─── ДАТА / УТИЛІТИ ──────────────────────────
@@ -507,8 +565,17 @@ function loadData() {
 
 // ─── РЕНДЕР СТАТИСТИКИ ───────────────────────
 function renderStats() {
-  document.getElementById('stat-total-hours').textContent = APP.totalHours || 0;
-  document.getElementById('stat-total-days').textContent  = APP.totalDays  || 0;
+  // Якщо дані щойно оновились локально — рахуємо самі
+  let totalHours = 0, totalDays = 0;
+  Object.values(APP.hoursData).forEach(v => {
+    const n = parseFloat(v);
+    if (!isNaN(n) && n > 0) { totalHours += n; totalDays++; }
+  });
+  totalHours = Math.round(totalHours * 10) / 10;
+  APP.totalHours = totalHours;
+  APP.totalDays  = totalDays;
+  document.getElementById('stat-total-hours').textContent = totalHours || 0;
+  document.getElementById('stat-total-days').textContent  = totalDays  || 0;
 }
 
 // ─── РЕНДЕР КАЛЕНДАРЯ ────────────────────────
@@ -537,8 +604,9 @@ function renderCalendar() {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dayKey = dateToKey(new Date(year, month, day));
-    const hours  = APP.hoursData[dayKey];
-    const hasHours = hours !== undefined && hours !== '' && hours !== null;
+    const rawVal = APP.hoursData[dayKey];
+    const hours  = (rawVal !== undefined && rawVal !== null && rawVal !== '') ? parseFloat(rawVal) : null;
+    const hasHours = hours !== null && !isNaN(hours) && hours > 0;
 
     const isToday     = dayKey === todayKey;
     const isYesterday = dayKey === yesterdayKey;
@@ -553,10 +621,17 @@ function renderCalendar() {
 
     const onclick = editable ? `onclick="openModal('${dayKey}', ${day})"` : '';
 
+    // Відображення годин: ціле число без .0, інакше з десятковою
+    const hoursDisplay = hasHours
+      ? (Number.isInteger(hours) ? hours : hours.toFixed(1))
+      : null;
+
     html += `
       <div class="${classes}" ${onclick}>
-        <span class="day-num">${day}${isToday ? ' 📍' : ''}</span>
-        ${hasHours ? `<span class="day-hours">${hours}г</span>` : (editable ? '<span class="day-edit-hint">✏️ ввести</span>' : '')}
+        <span class="day-num">${day}</span>
+        ${hasHours
+          ? `<span class="day-hours">${hoursDisplay}г</span>`
+          : (editable ? '<span class="day-edit-hint">✏️ ввести</span>' : '')}
       </div>`;
   }
 
@@ -608,32 +683,97 @@ function saveHours() {
   const btn = document.getElementById('modal-save-btn');
   btn.disabled = true; btn.innerHTML = '⏳ Збереження...';
 
-  const payload = {
-    action: 'saveHours',
-    data: {
-      email:   APP.user.email,
-      dateKey: APP.modalDate,
-      hours:   hours
-    }
-  };
+  const saveUrl = `${API_URL}?action=saveHours`
+    + `&email=${encodeURIComponent(APP.user.email)}`
+    + `&dateKey=${encodeURIComponent(APP.modalDate)}`
+    + `&hours=${encodeURIComponent(hours)}`;
 
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' }
-  })
-  .then(() => {
+  fetch(saveUrl, { method: 'GET', redirect: 'follow' })
+  .then(r => r.json())
+  .then(res => {
     btn.disabled = false; btn.innerHTML = '💾 Зберегти';
+    if (!res.success) throw new Error(res.error || 'Помилка сервера');
     document.getElementById('modal-hours').classList.remove('open');
+    // Оновлюємо локально одразу — без очікування сервера
+    APP.hoursData[APP.modalDate] = hours;
+    renderCalendar();
+    renderStats();
     showToast(`✅ ${APP.modalDate} — ${hours} год. збережено`);
-    // Оновлюємо локально та перезавантажуємо дані
-    setTimeout(loadData, 800);
+    // Перезавантажуємо з сервера для актуальних підсумків
+    setTimeout(() => { loadData(); loadTeam(); }, 1500);
   })
   .catch(err => {
     btn.disabled = false; btn.innerHTML = '💾 Зберегти';
-    showToast('❌ Помилка збереження', true);
+    showToast('❌ ' + (err.message || 'Помилка збереження'), true);
   });
+}
+
+// ─── КОМАНДА (останні 3 дні) ─────────────────
+function loadTeam() {
+  document.getElementById('team-loading').style.display = '';
+  document.getElementById('team-table').style.display   = 'none';
+
+  fetch(`${API_URL}?action=getTeamHours`, { method: 'GET', redirect: 'follow' })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.success) throw new Error(res.error || 'Помилка');
+      renderTeam(res.data);
+    })
+    .catch(err => {
+      document.getElementById('team-loading').innerHTML =
+        `<p style="color:#ef4444;text-align:center;font-size:.85rem;">❌ ${err.message}</p>`;
+    });
+}
+
+function renderTeam(data) {
+  const { employees, days } = data;
+  const todayKey = dateToKey(today());
+
+  // Короткі назви днів: "01\nПн"
+  const dayNames = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const cols = 1 + days.length; // ім'я + 3 дні
+  const gridTpl = `140px repeat(${days.length}, 1fr)`;
+
+  // Заголовок
+  let headerHTML = `<div class="team-day-header" style="text-align:left; color:#64748b;">Працівник</div>`;
+  days.forEach(k => {
+    const d   = k.split('.');
+    const dow = new Date(parseInt(d[2]), parseInt(d[1]) - 1, parseInt(d[0])).getDay();
+    const isT = k === todayKey;
+    headerHTML += `
+      <div class="team-day-header${isT ? ' today-col' : ''}">
+        <div>${d[0]}</div>
+        <div>${dayNames[dow]}</div>
+        ${isT ? '<div style="color:#4f46e5;font-size:.6rem;">сьогодні</div>' : ''}
+      </div>`;
+  });
+  const headerEl = document.getElementById('team-header');
+  headerEl.style.gridTemplateColumns = gridTpl;
+  headerEl.innerHTML = headerHTML;
+
+  const rowsEl = document.getElementById('team-rows');
+  const emptyEl = document.getElementById('team-empty');
+
+  if (!employees || employees.length === 0) {
+    rowsEl.innerHTML = '';
+    emptyEl.style.display = '';
+  } else {
+    emptyEl.style.display = 'none';
+    rowsEl.innerHTML = employees.map(emp => {
+      let cells = `<div class="team-name" title="${emp.name}">${emp.name}</div>`;
+      days.forEach(k => {
+        const h   = emp.hours[k];
+        const isT = k === todayKey;
+        const has = h !== undefined && h !== null;
+        const display = has ? (Number.isInteger(h) ? h : parseFloat(h).toFixed(1)) + 'г' : '—';
+        cells += `<div class="team-cell ${has ? 'filled' : 'empty'}${isT ? ' today-col' : ''}">${display}</div>`;
+      });
+      return `<div class="team-row" style="grid-template-columns:${gridTpl};">${cells}</div>`;
+    }).join('');
+  }
+
+  document.getElementById('team-loading').style.display = 'none';
+  document.getElementById('team-table').style.display   = '';
 }
 
 // ─── TOAST ───────────────────────────────────
