@@ -1,5 +1,5 @@
 {
-  "short_name": "Години",
+  "short_name": "КленГодини",
   "name": "Облік робочих годин",
   "description": "Система обліку відпрацьованих робочих годин співробітників",
   "icons": [
@@ -14,7 +14,7 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "./vidpr_god2.html",
+  "start_url": "./index.html",
   "background_color": "#f1f5f9",
   "theme_color": "#1a1060",
   "display": "standalone",
