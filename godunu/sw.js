@@ -1,7 +1,7 @@
 const CACHE_NAME = 'work-hours-v1';
 const ASSETS = [
   './',
-  './vidpr_god2.html',
+  './index.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
