@@ -207,6 +207,21 @@
       animation: spin .8s linear infinite; margin: 0 auto;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Стиль для комірки "Вихідний/Відпустка" в календарі */
+    .day-cell.weekend-vacation {
+      border-color: #fca5a5;
+      background: #fef2f2; /* м'який червоний фоновий колір */
+    }
+    .day-cell.weekend-vacation .day-hours {
+      color: #dc2626; /* червоний колір тексту */
+    }
+
+    /* Стиль для команди */
+    .team-cell.weekend-vacation {
+      background: #fee2e2;
+      color: #991b1b;
+    }
   </style>
 
   <!-- PWA Метатеги -->
@@ -390,6 +405,15 @@
         </div>
       </div>
     </div>
+
+    <!-- Кнопка переходу в телеграм бот -->
+    <a href="https://telegram.me/klen_tasker_bot" target="_blank" rel="noopener noreferrer" class="btn btn-lg btn-full" style="background: linear-gradient(135deg, #229ED9, #24A1DE); color: #fff; box-shadow: 0 4px 18px rgba(34,158,217,.3); text-decoration: none; margin-bottom: 20px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+        <path d="m22 2-7 20-4-9-9-4Z"/>
+        <path d="M22 2 11 13"/>
+      </svg>
+      Відкрити Telegram бот
+    </a>
 
   </div>
 </div>
@@ -622,13 +646,16 @@ function _setTeamLoading(on) {
   }
 }
 
-// ─── РЕНДЕР СТАТИСТИКИ ───────────────────────
+// ─── РЕНДЕР СТАТИСТИКИ (ОНОВЛЕНО) ──────────────────────────
 function renderStats() {
-  // Якщо дані щойно оновились локально — рахуємо самі
   let totalHours = 0, totalDays = 0;
   Object.values(APP.hoursData).forEach(v => {
+    // Враховуємо тільки числові значення годин
     const n = parseFloat(v);
-    if (!isNaN(n) && n > 0) { totalHours += n; totalDays++; }
+    if (!isNaN(n) && n > 0 && v !== 'вх') { 
+      totalHours += n; 
+      totalDays++; 
+    }
   });
   totalHours = Math.round(totalHours * 10) / 10;
   APP.totalHours = totalHours;
@@ -637,26 +664,22 @@ function renderStats() {
   document.getElementById('stat-total-days').textContent  = totalDays  || 0;
 }
 
-// ─── РЕНДЕР КАЛЕНДАРЯ ────────────────────────
+// ─── РЕНДЕР КАЛЕНДАРЯ (ОНОВЛЕНО) ────────────────────────
 function renderCalendar() {
   const grid = document.getElementById('days-grid');
   const d    = today();
   const year = d.getFullYear();
-  const month = d.getMonth(); // 0-indexed
+  const month = d.getMonth(); 
 
   const todayKey     = dateToKey(d);
   const yesterdayKey = dateToKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
 
-  // Кількість днів у місяці
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  // День тижня першого числа (0=Sun..6=Sat → перетворимо на Пн=0..Нд=6)
-  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-  const offset   = (firstDow + 6) % 7; // Shift so Mon=0
+  const firstDow = new Date(year, month, 1).getDay(); 
+  const offset   = (firstDow + 6) % 7; 
 
   let html = '';
 
-  // Порожні клітинки до першого числа
   for (let i = 0; i < offset; i++) {
     html += `<div></div>`;
   }
@@ -664,7 +687,9 @@ function renderCalendar() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dayKey = dateToKey(new Date(year, month, day));
     const rawVal = APP.hoursData[dayKey];
-    const hours  = (rawVal !== undefined && rawVal !== null && rawVal !== '') ? parseFloat(rawVal) : null;
+    
+    const isWeekendVacation = rawVal !== undefined && rawVal !== null && rawVal.toString().trim().toLowerCase() === 'вх';
+    const hours  = (!isWeekendVacation && rawVal !== undefined && rawVal !== null && rawVal !== '') ? parseFloat(rawVal) : null;
     const hasHours = hours !== null && !isNaN(hours) && hours > 0;
 
     const isToday     = dayKey === todayKey;
@@ -675,22 +700,26 @@ function renderCalendar() {
     let classes = 'day-cell';
     if (editable)  classes += ' editable';
     if (hasHours)  classes += ' has-hours';
+    if (isWeekendVacation) classes += ' weekend-vacation';
     if (isToday)   classes += ' today';
     if (isFuture)  classes += ' future';
 
     const onclick = editable ? `onclick="openModal('${dayKey}', ${day})"` : '';
 
-    // Відображення годин: ціле число без .0, інакше з десятковою
-    const hoursDisplay = hasHours
-      ? (Number.isInteger(hours) ? hours : hours.toFixed(1))
-      : null;
+    let hoursDisplay = '';
+    if (isWeekendVacation) {
+      hoursDisplay = `<span class="day-hours" style="font-size: 0.9rem;">ВХ</span>`;
+    } else if (hasHours) {
+      const formatted = Number.isInteger(hours) ? hours : hours.toFixed(1);
+      hoursDisplay = `<span class="day-hours">${formatted}г</span>`;
+    } else if (editable) {
+      hoursDisplay = '<span class="day-edit-hint">✏️ ввести</span>';
+    }
 
     html += `
       <div class="${classes}" ${onclick}>
         <span class="day-num">${day}</span>
-        ${hasHours
-          ? `<span class="day-hours">${hoursDisplay}г</span>`
-          : (editable ? '<span class="day-edit-hint">✏️ ввести</span>' : '')}
+        ${hoursDisplay}
       </div>`;
   }
 
@@ -722,17 +751,26 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Enter'  && document.getElementById('modal-hours').classList.contains('open')) saveHours();
 });
 
+// ─── ВАЛІДАЦІЯ ВВОДУ В МОДАЛЦІ (ОНОВЛЕНО — тепер дозволяємо "вх") ───
 function validateHoursInput(el) {
+  let val = el.value.trim().toLowerCase();
+  if (val === 'в' || val === 'вх' || val === 'вх.') {
+    // Дозволяємо вводити символи для позначення вихідного
+    return;
+  }
   let v = parseFloat(el.value);
   if (isNaN(v) || v < 0) el.value = '';
   else if (v > 24) el.value = 24;
 }
 
-// ─── ЗБЕРЕЖЕННЯ ГОДИН ────────────────────────
+// ─── ЗБЕРЕЖЕННЯ ГОДИН З МОДАЛКИ (ОНОВЛЕНО) ────────────────────────
 function saveHours() {
   const inp   = document.getElementById('hours-input');
-  const hours = parseFloat(inp.value);
-  if (inp.value === '' || isNaN(hours) || hours < 0 || hours > 24) {
+  let val     = inp.value.trim().toLowerCase();
+  let isVacation = (val === 'вх' || val === 'вх.');
+  let hours   = parseFloat(val);
+
+  if (!isVacation && (inp.value === '' || isNaN(hours) || hours < 0 || hours > 24)) {
     inp.style.borderColor = '#ef4444';
     inp.focus();
     setTimeout(() => inp.style.borderColor = '', 1200);
@@ -742,10 +780,13 @@ function saveHours() {
   const btn = document.getElementById('modal-save-btn');
   btn.disabled = true; btn.innerHTML = '⏳ Збереження...';
 
+  // Відправляємо "вх" або число годин на сервер
+  const finalValue = isVacation ? 'вх' : hours;
+
   const saveUrl = `${API_URL}?action=saveHours`
     + `&email=${encodeURIComponent(APP.user.email)}`
     + `&dateKey=${encodeURIComponent(APP.modalDate)}`
-    + `&hours=${encodeURIComponent(hours)}`;
+    + `&hours=${encodeURIComponent(finalValue)}`;
 
   fetch(saveUrl, { method: 'GET', redirect: 'follow' })
   .then(r => r.json())
@@ -753,12 +794,13 @@ function saveHours() {
     btn.disabled = false; btn.innerHTML = '💾 Зберегти';
     if (!res.success) throw new Error(res.error || 'Помилка сервера');
     document.getElementById('modal-hours').classList.remove('open');
-    // Оновлюємо локально одразу — без очікування сервера
-    APP.hoursData[APP.modalDate] = hours;
+    
+    // Оновлюємо локально для швидкого відгуку інтерфейсу
+    APP.hoursData[APP.modalDate] = finalValue;
     renderCalendar();
     renderStats();
-    showToast(`✅ ${APP.modalDate} — ${hours} год. збережено`);
-    // Перезавантажуємо з сервера для актуальних підсумків (один запит)
+    showToast(`✅ ${APP.modalDate} — ${isVacation ? 'Вихідний' : hours + ' год.'} збережено`);
+    
     setTimeout(() => loadInitialData(), 1500);
   })
   .catch(err => {
@@ -783,16 +825,14 @@ function loadTeam() {
     });
 }
 
+// ─── РЕНДЕР ТАБЛИЦІ КОМАНДИ (ОНОВЛЕНО) ─────────────────
 function renderTeam(data) {
   const { employees, days } = data;
   const todayKey = dateToKey(today());
 
-  // Короткі назви днів: "01\nПн"
   const dayNames = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
-  const cols = 1 + days.length; // ім'я + 3 дні
   const gridTpl = `140px repeat(${days.length}, 1fr)`;
 
-  // Заголовок
   let headerHTML = `<div class="team-day-header" style="text-align:left; color:#64748b;">Працівник</div>`;
   days.forEach(k => {
     const d   = k.split('.');
@@ -820,11 +860,25 @@ function renderTeam(data) {
     rowsEl.innerHTML = employees.map(emp => {
       let cells = `<div class="team-name" title="${emp.name}">${emp.name}</div>`;
       days.forEach(k => {
-        const h   = emp.hours[k];
+        const val = emp.hours[k];
         const isT = k === todayKey;
-        const has = h !== undefined && h !== null;
-        const display = has ? (Number.isInteger(h) ? h : parseFloat(h).toFixed(1)) + 'г' : '—';
-        cells += `<div class="team-cell ${has ? 'filled' : 'empty'}${isT ? ' today-col' : ''}">${display}</div>`;
+        const has = val !== undefined && val !== null && val !== '';
+        
+        let display = '—';
+        let customClass = 'empty';
+        
+        if (has) {
+          if (val.toString().trim().toLowerCase() === 'вх') {
+            display = 'ВХ';
+            customClass = 'weekend-vacation';
+          } else {
+            const h = parseFloat(val);
+            display = (Number.isInteger(h) ? h : h.toFixed(1)) + 'г';
+            customClass = 'filled';
+          }
+        }
+        
+        cells += `<div class="team-cell ${customClass}${isT ? ' today-col' : ''}">${display}</div>`;
       });
       return `<div class="team-row" style="grid-template-columns:${gridTpl};">${cells}</div>`;
     }).join('');
