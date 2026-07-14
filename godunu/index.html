@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Облік робочих годин</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --c-indigo:  #4f46e5;
+      --c-indigo2: #6366f1;
+      --c-violet:  #7c3aed;
+      --c-slate:   #475569;
+      --c-bg:      #f1f5f9;
+      --c-card:    #ffffff;
+      --c-border:  #e2e8f0;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--c-bg);
+      min-height: 100dvh;
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    .card {
+      background: var(--c-card);
+      border-radius: 20px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.07);
+    }
+
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      border: none; cursor: pointer; font-family: inherit; font-weight: 700;
+      border-radius: 16px; transition: transform .12s, opacity .12s, box-shadow .12s;
+      -webkit-user-select: none; user-select: none;
+    }
+    .btn:active { transform: scale(.96); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .btn-indigo {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(99,102,241,.35);
+    }
+    .btn-indigo:hover:not(:disabled) { box-shadow: 0 6px 24px rgba(99,102,241,.5); }
+
+    .btn-violet {
+      background: linear-gradient(135deg, #6d28d9, #7c3aed);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(124,58,237,.3);
+    }
+
+    .btn-gray {
+      background: #f1f5f9;
+      color: #334155;
+      border: 2px solid #e2e8f0;
+    }
+    .btn-gray:hover:not(:disabled) { background: #e2e8f0; }
+
+    .btn-lg  { height: 56px; font-size: 1rem; padding: 0 28px; }
+    .btn-sm  { height: 40px; font-size: .875rem; padding: 0 16px; }
+    .btn-full { width: 100%; }
+
+    .inp {
+      width: 100%; height: 52px; border-radius: 14px;
+      border: 2px solid var(--c-border); padding: 0 16px;
+      font-family: inherit; font-size: 1.1rem; font-weight: 700;
+      background: #f8fafc; color: #1e293b;
+      outline: none; text-align: center;
+    }
+    .inp:focus { border-color: var(--c-indigo); box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+    .inp::placeholder { color: #cbd5e1; font-weight: 500; }
+
+    .avatar-placeholder {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.1rem; color: #fff;
+      flex-shrink: 0;
+    }
+
+    .toast {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: #4f46e5; color: #fff; border-radius: 50px;
+      padding: 14px 32px; font-weight: 700; font-size: 1rem;
+      box-shadow: 0 8px 32px rgba(79,70,229,.45);
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+      opacity: 0; z-index: 1000; white-space: nowrap; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.error { background: #dc2626; box-shadow: 0 8px 32px rgba(220,38,38,.4); }
+
+    #screen-auth, #screen-pending {
+      min-height: 100dvh;
+      align-items: center; justify-content: center;
+      padding: 24px;
+      background: linear-gradient(160deg, #0f0c29 0%, #1a1060 50%, #24243e 100%);
+    }
+
+    /* Календарна сітка днів */
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+
+    .day-cell {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 6px 2px; border-radius: 10px;
+      border: 2px solid var(--c-border);
+      background: #f8fafc; cursor: default;
+      min-height: 62px; position: relative;
+    }
+    .day-cell.editable {
+      border-color: #c7d2fe;
+      background: #eef2ff;
+      cursor: pointer;
+    }
+    .day-cell.editable:hover { border-color: var(--c-indigo); background: #e0e7ff; }
+    .day-cell.has-hours { border-color: #6366f1; background: #eef2ff; }
+    .day-cell.today {
+      border-color: #4f46e5;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      box-shadow: 0 2px 10px rgba(79,70,229,.18);
+    }
+    .day-cell.future { opacity: .35; }
+
+    .day-num { font-size: .75rem; font-weight: 700; color: #64748b; }
+    .day-cell.today .day-num {
+      color: #fff;
+      background: #4f46e5;
+      border-radius: 30%;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem;
+    }
+    .day-hours { font-size: 1rem; font-weight: 800; color: #4f46e5; margin-top: 2px; }
+    .day-edit-hint { font-size: .6rem; color: #a5b4fc; margin-top: 2px; }
+
+    /* Модальне вікно вводу годин */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(15,12,41,.7); align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 24px;
+      padding: 28px 24px; width: 100%; max-width: 340px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.2);
+    }
+
+    .stat-card {
+      border-radius: 16px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .stat-icon { font-size: 2rem; flex-shrink: 0; }
+    .stat-label { font-size: .8rem; color: #64748b; font-weight: 600; }
+    .stat-value { font-size: 1.8rem; font-weight: 800; color: #1e293b; line-height: 1; }
+
+    .weekday-header {
+      font-size: .65rem; font-weight: 700; color: #94a3b8; text-align: center; padding: 2px 0;
+    }
+
+    /* Таблиця команди */
+    .team-row {
+      display: grid;
+      gap: 4px;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .team-row:last-child { border-bottom: none; }
+
+    .team-name {
+      font-weight: 700; font-size: .82rem; color: #1e293b;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .team-cell {
+      text-align: center; font-size: .82rem; font-weight: 700;
+      border-radius: 8px; padding: 5px 2px;
+    }
+    .team-cell.filled  { background: #eef2ff; color: #4f46e5; }
+    .team-cell.empty   { background: #f8fafc; color: #cbd5e1; }
+    .team-cell.today-col { outline: 2px solid #c7d2fe; }
+
+    .team-day-header {
+      text-align: center; font-size: .68rem; font-weight: 700;
+      color: #94a3b8; padding: 2px;
+    }
+    .team-day-header.today-col { color: #4f46e5; }
+
+    /* Spinner */
+    .spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 4px solid #e0e7ff; border-top-color: #4f46e5;
+      animation: spin .8s linear infinite; margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <!-- PWA Метатеги -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Робочі Години">
+  <link rel="apple-touch-icon" href="./icons/icon-512.png">
+  <meta name="theme-color" content="#1a1060">
+  <link rel="manifest" href="./manifest.json">
+
+  <!-- Скрипт реєстрації Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => {
+            console.log('Service Worker успішно зареєстровано для області дії:', reg.scope);
+          })
+          .catch((err) => {
+            console.error('Помилка реєстрації Service Worker:', err);
+          });
+      });
+    }
+  </script>
+
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     ЕКРАН АВТОРИЗАЦІЇ
+════════════════════════════════════════════ -->
+<div id="screen-auth" class="screen">
+  <div style="max-width:380px;width:100%;">
+    <div style="text-align:center; margin-bottom:12px; font-size:2.6rem;">🕐</div>
+    <h1 style="text-align:center; color:#fff; font-size:1.8rem; font-weight:800; margin:0 0 6px;">Робочі Години</h1>
+    <p style="color:#a5b4fc; text-align:center; margin:0 0 40px; font-size:.9rem;">Облік відпрацьованих годин</p>
+
+    <div class="card" style="padding:28px 24px;">
+      <p style="color:#64748b; text-align:center; font-size:.9rem; margin:0 0 20px;">
+        Увійдіть через Google-акаунт для доступу до системи
+      </p>
+      <div id="g_id_onload"
+        data-client_id="1041458356226-cl2pekuc96jegjs0lu0jdj3kvo9kfgep.apps.googleusercontent.com"
+        data-callback="handleGoogleLogin"
+        data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
+           data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"
+           style="display:flex; justify-content:center;"></div>
+    </div>
+
+    <p style="color:#475569; text-align:center; font-size:.78rem; margin-top:20px;">
+      🔒 Доступ тільки для співробітників компанії
+    </p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ЕКРАН ОЧІКУВАННЯ ДОСТУПУ
+════════════════════════════════════════════ -->
+<div id="screen-pending" class="screen">
+  <div style="max-width:380px; width:100%; color:#fff;">
+    <div style="font-size:4rem; text-align:center; margin-bottom:16px;">⏳</div>
+    <h2 style="text-align:center; font-size:1.4rem; font-weight:800; margin:0 0 12px;">Акаунт авторизовано!</h2>
+    <p style="text-align:center; color:#94a3b8; font-size:.9rem; margin:0 0 28px; line-height:1.6;">
+      Ваш email ще не в списку дозволених. Зверніться до адміністратора.
+    </p>
+    <div class="card" style="padding:18px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); margin-bottom:20px;">
+      <p style="color:#94a3b8; font-size:.8rem; margin:0 0 4px;">Ваш email:</p>
+      <p id="pending-email" style="color:#fff; font-weight:700; word-break:break-all; margin:0;"></p>
+    </div>
+    <button id="btn-refresh-status" class="btn btn-indigo btn-lg btn-full" style="margin-bottom:12px;" onclick="checkStatusAgain()">
+      🔄 Оновити статус
+    </button>
+    <button class="btn btn-gray btn-lg btn-full" onclick="handleLogout()">Вийти з акаунту</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ГОЛОВНИЙ ЕКРАН
+════════════════════════════════════════════ -->
+<div id="screen-main" class="screen">
+
+  <!-- Шапка -->
+  <div style="background:#fff; border-bottom:1px solid var(--c-border); padding:12px 16px;
+              position:sticky; top:0; z-index:10; box-shadow:0 2px 12px rgba(0,0,0,.06);">
+    <div style="display:flex; align-items:center; gap:12px; max-width:560px; margin:0 auto; width:100%;">
+      <span style="font-size:1.6rem;">🕐</span>
+      <div style="flex:1; min-width:0;">
+        <div id="user-name" style="font-weight:800; color:#1e293b; font-size:.95rem;
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">—</div>
+        <div id="today-date-header" style="color:#4f46e5; font-size:.78rem; font-weight:700;"></div>
+      </div>
+      <div id="user-avatar" class="avatar-placeholder">?</div>
+      <button onclick="handleLogout()" title="Вийти"
+              style="background:none; border:none; cursor:pointer; color:#94a3b8; padding:4px; border-radius:8px; flex-shrink:0;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Вміст -->
+  <div style="max-width:560px; margin:0 auto; width:100%; padding:20px 16px 40px;">
+
+    <!-- Статистика -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+      <div class="stat-card" style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);">
+        <div class="stat-icon">⏱️</div>
+        <div>
+          <div class="stat-label">Всього годин</div>
+          <div class="stat-value" id="stat-total-hours">—</div>
+        </div>
+      </div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
+        <div class="stat-icon">📅</div>
+        <div>
+          <div class="stat-label">Відпрацьовано днів</div>
+          <div class="stat-value" id="stat-total-days" style="color:#16a34a;">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Поточний місяць -->
+    <div class="card" style="padding:20px; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="font-weight:800; color:#1e293b; font-size:1rem; margin:0;" id="month-title">— —</h3>
+        <button onclick="loadData()" title="Оновити"
+                style="background:none; border:none; cursor:pointer; color:#6366f1; font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:4px;">
+          🔄 Оновити
+        </button>
+      </div>
+
+      <!-- Дні тижня -->
+      <div class="days-grid" style="margin-bottom:6px;">
+        <div class="weekday-header">Пн</div>
+        <div class="weekday-header">Вт</div>
+        <div class="weekday-header">Ср</div>
+        <div class="weekday-header">Чт</div>
+        <div class="weekday-header">Пт</div>
+        <div class="weekday-header">Сб</div>
+        <div class="weekday-header">Нд</div>
+      </div>
+
+      <!-- Завантаження -->
+      <div id="calendar-loading" style="padding:24px 0; text-align:center;">
+        <div class="spinner"></div>
+        <p style="color:#94a3b8; margin-top:12px; font-size:.85rem;">Завантаження даних...</p>
+      </div>
+
+      <!-- Сітка днів -->
+      <div id="days-grid" class="days-grid" style="display:none;"></div>
+    </div>
+
+
+    <!-- Блок команди -->
+    <div class="card" style="padding:20px; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="font-weight:800; color:#1e293b; font-size:1rem; margin:0;">👥 Команда</h3>
+        <button onclick="loadTeam()" title="Оновити"
+                style="background:none; border:none; cursor:pointer; color:#6366f1; font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:4px;">
+          🔄 Оновити
+        </button>
+      </div>
+
+      <div id="team-loading" style="padding:16px 0; text-align:center;">
+        <div class="spinner"></div>
+        <p style="color:#94a3b8; margin-top:10px; font-size:.85rem;">Завантаження...</p>
+      </div>
+
+      <div id="team-table" style="display:none;">
+        <!-- Заголовки дат -->
+        <div id="team-header" style="display:grid; gap:4px; margin-bottom:6px;"></div>
+        <!-- Рядки працівників -->
+        <div id="team-rows"></div>
+        <!-- Якщо порожньо -->
+        <div id="team-empty" style="display:none; text-align:center; color:#94a3b8; font-size:.85rem; padding:12px 0;">
+          Поки що немає записів за останні 3 дні
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     МОДАЛЬНЕ ВІКНО ВВОДУ ГОДИН
+════════════════════════════════════════════ -->
+<div id="modal-hours" class="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3 id="modal-title" style="font-weight:800; color:#1e293b; font-size:1.1rem; margin:0 0 6px; text-align:center;"></h3>
+    <p id="modal-subtitle" style="color:#64748b; font-size:.85rem; text-align:center; margin:0 0 20px;"></p>
+
+    <div style="margin-bottom:20px;">
+      <label style="display:block; font-weight:700; color:#475569; font-size:.85rem; margin-bottom:8px; text-align:center;">
+        Кількість годин
+      </label>
+      <input type="number" id="hours-input" class="inp"
+             placeholder="Наприклад: 8"
+             min="0" max="24" step="0.5"
+             oninput="validateHoursInput(this)">
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <button class="btn btn-gray btn-lg" onclick="closeModal()">Скасувати</button>
+      <button class="btn btn-indigo btn-lg" id="modal-save-btn" onclick="saveHours()">
+        💾 Зберегти
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+// ─── КОНФІГУРАЦІЯ ────────────────────────────
+const API_URL = "https://script.google.com/macros/s/AKfycbykJfUM0Ivy9vOenRfSH2gXZB5MTKZFKzc_iFly-M386zYIKA6uLQCaL0t6YP6mzzy4/exec"; // Замініть на URL вашого Google Apps Script
+const LS_KEY  = 'workHoursApp_user_v1';
+
+// ─── СТАН ДОДАТКУ ────────────────────────────
+const APP = {
+  user: null,
+  hoursData: {},    // { "01.07.2026": 8, "02.07.2026": 7.5, ... }
+  totalHours: 0,
+  totalDays: 0,
+  modalDate: null   // дата, яку редагуємо зараз
+};
+
+// ─── ІНІЦІАЛІЗАЦІЯ ───────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = tryLoadFromStorage();
+  if (saved) {
+    APP.user = saved;
+    if (saved.isAllowed) { showMain(saved); }
+    else { showPending(saved.email); }
+  } else {
+    showScreen('screen-auth');
+  }
+  renderTodayDate();
+});
+
+function tryLoadFromStorage() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; }
+}
+
+// ─── АВТОРИЗАЦІЯ GOOGLE ───────────────────────
+function handleGoogleLogin(response) {
+  const url = `${API_URL}?action=loginByToken&token=${encodeURIComponent(response.credential)}`;
+  const authCard = document.querySelector('#screen-auth .card');
+  const origHTML = authCard.innerHTML;
+  authCard.innerHTML = `<div style="text-align:center;padding:16px;"><div class="spinner" style="margin-bottom:12px;"></div><p style="color:#64748b;font-weight:700;">Перевірка доступу... ⏳</p></div>`;
+
+  fetch(url, { method: 'GET', redirect: 'follow' })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) { onLoginSuccess(res.data); }
+      else { throw new Error(res.error || 'Помилка сервера'); }
+    })
+    .catch(err => {
+      authCard.innerHTML = origHTML;
+      alert('Помилка авторизації: ' + err.message);
+    });
+}
+
+function checkStatusAgain() {
+  const btn = document.getElementById('btn-refresh-status');
+  btn.disabled = true; btn.innerHTML = '⏳ Перевірка...';
+
+  fetch(`${API_URL}?action=checkStatus&email=${encodeURIComponent(APP.user.email)}`, { method: 'GET', redirect: 'follow' })
+    .then(r => r.json())
+    .then(res => {
+      btn.disabled = false; btn.innerHTML = '🔄 Оновити статус';
+      if (res.success && res.data.isAllowed) {
+        showToast('🎉 Доступ надано!');
+        onLoginSuccess(res.data);
+      } else {
+        showToast('❌ Доступ ще не надано', true);
+      }
+    })
+    .catch(() => { btn.disabled = false; showToast('Помилка мережі', true); });
+}
+
+function onLoginSuccess(userInfo) {
+  APP.user = userInfo;
+  localStorage.setItem(LS_KEY, JSON.stringify(userInfo));
+  if (userInfo.isAllowed) { showMain(userInfo); }
+  else { showPending(userInfo.email); }
+}
+
+function handleLogout() {
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+}
+
+// ─── НАВІГАЦІЯ ────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showPending(email) {
+  document.getElementById('pending-email').textContent = email || '—';
+  showScreen('screen-pending');
+}
+
+function showMain(user) {
+  // Шапка
+  document.getElementById('user-name').textContent = user.name || user.email || '—';
+  const avatarEl = document.getElementById('user-avatar');
+  if (user.picture) {
+    avatarEl.innerHTML = `<img src="${user.picture}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+  } else {
+    avatarEl.textContent = (user.name || user.email || '?')[0].toUpperCase();
+  }
+  showScreen('screen-main');
+  loadInitialData();
+}
+
+// ─── ДАТА / УТИЛІТИ ──────────────────────────
+function today() {
+  return new Date();
+}
+
+function dateToKey(d) {
+  const day = String(d.getDate()).padStart(2, '0');
+  const mon = String(d.getMonth() + 1).padStart(2, '0');
+  const yr  = d.getFullYear();
+  return `${day}.${mon}.${yr}`;
+}
+
+function renderTodayDate() {
+  const d = today();
+  const months = ['січня','лютого','березня','квітня','травня','червня',
+                  'липня','серпня','вересня','жовтня','листопада','грудня'];
+  const days = ['неділя','понеділок','вівторок','середа','четвер','п\'ятниця','субота'];
+  const el = document.getElementById('today-date-header');
+  if (el) el.textContent = `Сьогодні: ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${days[d.getDay()]}`;
+
+  const titleEl = document.getElementById('month-title');
+  if (titleEl) {
+    const monthName = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
+                       'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+    titleEl.textContent = `${monthName[d.getMonth()]} ${d.getFullYear()}`;
+  }
+}
+
+// ─── ПЕРШЕ ЗАВАНТАЖЕННЯ — один запит для календаря і команди ─────────
+function loadInitialData() {
+  _setCalendarLoading(true);
+  _setTeamLoading(true);
+
+  fetch(`${API_URL}?action=getInitialData&email=${encodeURIComponent(APP.user.email)}`, { method: 'GET', redirect: 'follow' })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.success) throw new Error(res.error || 'Помилка сервера');
+      _applyMyHours(res.data.myHours);
+      renderTeam(res.data.teamData);
+    })
+    .catch(err => {
+      document.getElementById('calendar-loading').innerHTML =
+        `<p style="color:#ef4444;text-align:center;">❌ Помилка завантаження:<br>${err.message}</p>`;
+      document.getElementById('team-loading').innerHTML =
+        `<p style="color:#ef4444;text-align:center;font-size:.85rem;">❌ ${err.message}</p>`;
+    });
+}
+
+// ─── ОНОВЛЕННЯ ТІЛЬКИ КАЛЕНДАРЯ (кнопка 🔄 у блоці місяця) ──────────
+function loadData() {
+  _setCalendarLoading(true);
+
+  fetch(`${API_URL}?action=getMyHours&email=${encodeURIComponent(APP.user.email)}`, { method: 'GET', redirect: 'follow' })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.success) throw new Error(res.error || 'Помилка сервера');
+      _applyMyHours(res.data);
+    })
+    .catch(err => {
+      document.getElementById('calendar-loading').innerHTML =
+        `<p style="color:#ef4444;text-align:center;">❌ Помилка завантаження:<br>${err.message}</p>`;
+    });
+}
+
+function _applyMyHours(data) {
+  APP.hoursData  = data.hours      || {};
+  APP.totalHours = data.totalHours || 0;
+  APP.totalDays  = data.totalDays  || 0;
+  renderCalendar();
+  renderStats();
+}
+
+function _setCalendarLoading(on) {
+  document.getElementById('calendar-loading').style.display = on ? '' : 'none';
+  document.getElementById('days-grid').style.display = on ? 'none' : '';
+  if (on) {
+    document.getElementById('stat-total-hours').textContent = '—';
+    document.getElementById('stat-total-days').textContent  = '—';
+    document.getElementById('calendar-loading').innerHTML =
+      `<div class="spinner"></div><p style="color:#94a3b8;margin-top:12px;font-size:.85rem;">Завантаження даних...</p>`;
+  }
+}
+
+function _setTeamLoading(on) {
+  document.getElementById('team-loading').style.display = on ? '' : 'none';
+  document.getElementById('team-table').style.display   = on ? 'none' : '';
+  if (on) {
+    document.getElementById('team-loading').innerHTML =
+      `<div class="spinner"></div><p style="color:#94a3b8;margin-top:10px;font-size:.85rem;">Завантаження...</p>`;
+  }
+}
+
+// ─── РЕНДЕР СТАТИСТИКИ ───────────────────────
+function renderStats() {
+  // Якщо дані щойно оновились локально — рахуємо самі
+  let totalHours = 0, totalDays = 0;
+  Object.values(APP.hoursData).forEach(v => {
+    const n = parseFloat(v);
+    if (!isNaN(n) && n > 0) { totalHours += n; totalDays++; }
+  });
+  totalHours = Math.round(totalHours * 10) / 10;
+  APP.totalHours = totalHours;
+  APP.totalDays  = totalDays;
+  document.getElementById('stat-total-hours').textContent = totalHours || 0;
+  document.getElementById('stat-total-days').textContent  = totalDays  || 0;
+}
+
+// ─── РЕНДЕР КАЛЕНДАРЯ ────────────────────────
+function renderCalendar() {
+  const grid = document.getElementById('days-grid');
+  const d    = today();
+  const year = d.getFullYear();
+  const month = d.getMonth(); // 0-indexed
+
+  const todayKey     = dateToKey(d);
+  const yesterdayKey = dateToKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
+
+  // Кількість днів у місяці
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // День тижня першого числа (0=Sun..6=Sat → перетворимо на Пн=0..Нд=6)
+  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+  const offset   = (firstDow + 6) % 7; // Shift so Mon=0
+
+  let html = '';
+
+  // Порожні клітинки до першого числа
+  for (let i = 0; i < offset; i++) {
+    html += `<div></div>`;
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayKey = dateToKey(new Date(year, month, day));
+    const rawVal = APP.hoursData[dayKey];
+    const hours  = (rawVal !== undefined && rawVal !== null && rawVal !== '') ? parseFloat(rawVal) : null;
+    const hasHours = hours !== null && !isNaN(hours) && hours > 0;
+
+    const isToday     = dayKey === todayKey;
+    const isYesterday = dayKey === yesterdayKey;
+    const editable    = isToday || isYesterday;
+    const isFuture    = day > d.getDate();
+
+    let classes = 'day-cell';
+    if (editable)  classes += ' editable';
+    if (hasHours)  classes += ' has-hours';
+    if (isToday)   classes += ' today';
+    if (isFuture)  classes += ' future';
+
+    const onclick = editable ? `onclick="openModal('${dayKey}', ${day})"` : '';
+
+    // Відображення годин: ціле число без .0, інакше з десятковою
+    const hoursDisplay = hasHours
+      ? (Number.isInteger(hours) ? hours : hours.toFixed(1))
+      : null;
+
+    html += `
+      <div class="${classes}" ${onclick}>
+        <span class="day-num">${day}</span>
+        ${hasHours
+          ? `<span class="day-hours">${hoursDisplay}г</span>`
+          : (editable ? '<span class="day-edit-hint">✏️ ввести</span>' : '')}
+      </div>`;
+  }
+
+  grid.innerHTML = html;
+  grid.style.display = 'grid';
+  document.getElementById('calendar-loading').style.display = 'none';
+}
+
+// ─── МОДАЛЬНЕ ВІКНО ──────────────────────────
+function openModal(dateKey, dayNum) {
+  APP.modalDate = dateKey;
+  document.getElementById('modal-title').textContent = `📅 ${dayNum} числа`;
+  document.getElementById('modal-subtitle').textContent = dateKey;
+  const currentVal = APP.hoursData[dateKey];
+  const inp = document.getElementById('hours-input');
+  inp.value = (currentVal !== undefined && currentVal !== '') ? currentVal : '';
+  document.getElementById('modal-hours').classList.add('open');
+  setTimeout(() => inp.focus(), 120);
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-hours')) return;
+  document.getElementById('modal-hours').classList.remove('open');
+  APP.modalDate = null;
+}
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('modal-hours').classList.remove('open');
+  if (e.key === 'Enter'  && document.getElementById('modal-hours').classList.contains('open')) saveHours();
+});
+
+function validateHoursInput(el) {
+  let v = parseFloat(el.value);
+  if (isNaN(v) || v < 0) el.value = '';
+  else if (v > 24) el.value = 24;
+}
+
+// ─── ЗБЕРЕЖЕННЯ ГОДИН ────────────────────────
+function saveHours() {
+  const inp   = document.getElementById('hours-input');
+  const hours = parseFloat(inp.value);
+  if (inp.value === '' || isNaN(hours) || hours < 0 || hours > 24) {
+    inp.style.borderColor = '#ef4444';
+    inp.focus();
+    setTimeout(() => inp.style.borderColor = '', 1200);
+    return;
+  }
+
+  const btn = document.getElementById('modal-save-btn');
+  btn.disabled = true; btn.innerHTML = '⏳ Збереження...';
+
+  const saveUrl = `${API_URL}?action=saveHours`
+    + `&email=${encodeURIComponent(APP.user.email)}`
+    + `&dateKey=${encodeURIComponent(APP.modalDate)}`
+    + `&hours=${encodeURIComponent(hours)}`;
+
+  fetch(saveUrl, { method: 'GET', redirect: 'follow' })
+  .then(r => r.json())
+  .then(res => {
+    btn.disabled = false; btn.innerHTML = '💾 Зберегти';
+    if (!res.success) throw new Error(res.error || 'Помилка сервера');
+    document.getElementById('modal-hours').classList.remove('open');
+    // Оновлюємо локально одразу — без очікування сервера
+    APP.hoursData[APP.modalDate] = hours;
+    renderCalendar();
+    renderStats();
+    showToast(`✅ ${APP.modalDate} — ${hours} год. збережено`);
+    // Перезавантажуємо з сервера для актуальних підсумків (один запит)
+    setTimeout(() => loadInitialData(), 1500);
+  })
+  .catch(err => {
+    btn.disabled = false; btn.innerHTML = '💾 Зберегти';
+    showToast('❌ ' + (err.message || 'Помилка збереження'), true);
+  });
+}
+
+// ─── КОМАНДА (останні 3 дні) ─────────────────
+function loadTeam() {
+  _setTeamLoading(true);
+
+  fetch(`${API_URL}?action=getTeamHours`, { method: 'GET', redirect: 'follow' })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.success) throw new Error(res.error || 'Помилка');
+      renderTeam(res.data);
+    })
+    .catch(err => {
+      document.getElementById('team-loading').innerHTML =
+        `<p style="color:#ef4444;text-align:center;font-size:.85rem;">❌ ${err.message}</p>`;
+    });
+}
+
+function renderTeam(data) {
+  const { employees, days } = data;
+  const todayKey = dateToKey(today());
+
+  // Короткі назви днів: "01\nПн"
+  const dayNames = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const cols = 1 + days.length; // ім'я + 3 дні
+  const gridTpl = `140px repeat(${days.length}, 1fr)`;
+
+  // Заголовок
+  let headerHTML = `<div class="team-day-header" style="text-align:left; color:#64748b;">Працівник</div>`;
+  days.forEach(k => {
+    const d   = k.split('.');
+    const dow = new Date(parseInt(d[2]), parseInt(d[1]) - 1, parseInt(d[0])).getDay();
+    const isT = k === todayKey;
+    headerHTML += `
+      <div class="team-day-header${isT ? ' today-col' : ''}">
+        <div>${d[0]}</div>
+        <div>${dayNames[dow]}</div>
+        ${isT ? '<div style="color:#4f46e5;font-size:.6rem;">сьогодні</div>' : ''}
+      </div>`;
+  });
+  const headerEl = document.getElementById('team-header');
+  headerEl.style.gridTemplateColumns = gridTpl;
+  headerEl.innerHTML = headerHTML;
+
+  const rowsEl = document.getElementById('team-rows');
+  const emptyEl = document.getElementById('team-empty');
+
+  if (!employees || employees.length === 0) {
+    rowsEl.innerHTML = '';
+    emptyEl.style.display = '';
+  } else {
+    emptyEl.style.display = 'none';
+    rowsEl.innerHTML = employees.map(emp => {
+      let cells = `<div class="team-name" title="${emp.name}">${emp.name}</div>`;
+      days.forEach(k => {
+        const h   = emp.hours[k];
+        const isT = k === todayKey;
+        const has = h !== undefined && h !== null;
+        const display = has ? (Number.isInteger(h) ? h : parseFloat(h).toFixed(1)) + 'г' : '—';
+        cells += `<div class="team-cell ${has ? 'filled' : 'empty'}${isT ? ' today-col' : ''}">${display}</div>`;
+      });
+      return `<div class="team-row" style="grid-template-columns:${gridTpl};">${cells}</div>`;
+    }).join('');
+  }
+
+  _setTeamLoading(false);
+  document.getElementById('team-table').style.display = '';
+}
+
+// ─── TOAST ───────────────────────────────────
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', isError);
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>

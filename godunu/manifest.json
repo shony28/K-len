@@ -1,0 +1,22 @@
+{
+  "short_name": "Години",
+  "name": "Облік робочих годин",
+  "description": "Система обліку відпрацьованих робочих годин співробітників",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./vidpr_god2.html",
+  "background_color": "#f1f5f9",
+  "theme_color": "#1a1060",
+  "display": "standalone",
+  "orientation": "portrait"
+}
