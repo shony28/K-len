@@ -455,6 +455,168 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbykJfUM0Ivy9vOenRfSH2gXZB5MTKZFKzc_iFly-M386zYIKA6uLQCaL0t6YP6mzzy4/exec"; // Замініть на URL вашого Google Apps Script
 const LS_KEY  = 'workHoursApp_user_v1';
 
+// ═══════════════════════════════════════════════════════════════════
+//  ЧИТАННЯ НАПРЯМУ ЧЕРЕЗ GOOGLE SHEETS API v4 (без навантаження на GAS)
+// ═══════════════════════════════════════════════════════════════════
+// ВАЖЛИВО:
+// 1) SPREADSHEET_ID нижче — ID ЦІЄЇ таблиці (з рядка годин), а не
+//    таблиці з попереднього проєкту! Візьміть його з URL таблиці:
+//    https://docs.google.com/spreadsheets/d/ОСЬ_ЦЕЙ_ID/edit
+// 2) Ключ можна лишити той самий (AIzaSy...), бо API-ключ належить не
+//    таблиці, а Google Cloud проєкту — він не залежить від того, в
+//    якому акаунті лежить таблиця.
+// 3) АЛЕ те, що таблиця в тому самому Google-акаунті, доступу НЕ дає.
+//    API-ключ читає таблицю анонімно (без входу в акаунт), тому саме
+//    ЦЮ таблицю окремо потрібно відкрити на перегляд за посиланням:
+//    «Доступ» → «Усі, хто має посилання» → роль «Читач». Без цього
+//    кроку запити повертатимуть 403 PERMISSION_DENIED незалежно від
+//    того, чий це акаунт.
+const SPREADSHEET_ID = '1fNE-ibf5-Ow-rpqY2Fm-A8Jxyw2lC5tVKExNAjW32eQ'; // TODO: замінити
+const SHEETS_API_KEY  = 'AIzaSyCuwPcMEX74Xi8FAgqmzCggEwY88p7UT7g';
+
+async function sheetsApiFetch(path, params) {
+  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}${path}`);
+  url.searchParams.set('key', SHEETS_API_KEY);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (Array.isArray(v)) v.forEach(item => url.searchParams.append(k, item));
+    else url.searchParams.set(k, v);
+  });
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error('Sheets API: ' + (data.error?.message || res.status));
+  }
+  return data;
+}
+
+// ── Допоміжні функції для читання дат-заголовків ─────────────────────
+// Заголовки D1:AI1 відформатовані як дата (dd" "ddd), тому при
+// UNFORMATTED_VALUE Sheets API поверне серійне число Google Sheets
+// (днів від 30.12.1899), а не текст — конвертуємо його в dd.mm.yyyy,
+// щоб зіставити з форматом dateKey, яким користується весь застосунок.
+function serialToDate(serial) {
+  const epochUTC = Date.UTC(1899, 11, 30);
+  const ms = epochUTC + serial * 86400000;
+  const d = new Date(ms);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+function headerCellToKey(h) {
+  if (typeof h === 'number') return dateToKey(serialToDate(h));
+  return (h || '').toString().trim();
+}
+
+function getMonthSheetName(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year  = date.getFullYear();
+  return `${month}.${year}`;
+}
+
+// ── Пряме читання моїх годин поточного місяця ─────────────────────────
+// Дзеркалить серверну getMyHours(email), але без пошуку email→прізвище
+// у «Довіднику» — прізвище вже відоме з APP.user.name (прийшло при
+// вході через loginByToken), тому досить один раз прочитати місячний
+// лист і знайти потрібний рядок за прізвищем у стовпці C.
+async function getMyHoursDirect() {
+  const sheetName = getMonthSheetName(new Date());
+  const range = `'${sheetName}'!A1:AI1000`;
+
+  const data = await sheetsApiFetch(`/values/${encodeURIComponent(range)}`, {
+    valueRenderOption: 'UNFORMATTED_VALUE'
+  });
+
+  const rows = data.values || [];
+  if (rows.length < 2) return { hours: {}, totalHours: 0, totalDays: 0 };
+
+  const headers = rows[0];
+  const myName  = (APP.user.name || '').toString().trim().toLowerCase();
+
+  let myRow = null;
+  for (let r = 1; r < rows.length; r++) {
+    const name = (rows[r][2] || '').toString().trim(); // колонка C
+    if (name.toLowerCase() === myName) { myRow = rows[r]; break; }
+  }
+  // Рядка ще нема (працівник ще жодного разу не зберігав години) —
+  // це нормальний порожній стан, а не помилка.
+  if (!myRow) return { hours: {}, totalHours: 0, totalDays: 0 };
+
+  const hours = {};
+  for (let c = 3; c < headers.length; c++) { // з D (індекс 3)
+    const hKey = headerCellToKey(headers[c]);
+    const v = myRow[c];
+    if (!hKey || v === undefined || v === null || v === '') continue;
+    hours[hKey] = v;
+  }
+
+  let totalHours = 0, totalDays = 0;
+  Object.values(hours).forEach(v => {
+    const n = parseFloat(v);
+    if (!isNaN(n) && n > 0) { totalHours += n; totalDays++; }
+  });
+
+  return { hours, totalHours: Math.round(totalHours * 10) / 10, totalDays };
+}
+
+// ── Пряме читання годин команди за останні 3 дні ──────────────────────
+// Дзеркалить серверну getTeamHours(): бере останні 3 дні, групує їх за
+// потрібними місячними листами (на випадок переходу через межу місяця)
+// і зчитує стовпець C (прізвища) + відповідні стовпці дат.
+async function getTeamHoursDirect() {
+  const now = new Date();
+  const keys = [];
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    keys.push(dateToKey(d));
+  }
+
+  const sheetsNeeded = {}; // { "07.2026": ["15.07.2026", ...] }
+  keys.forEach(k => {
+    const [dd, mm, yyyy] = k.split('.');
+    const d = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd));
+    const name = getMonthSheetName(d);
+    (sheetsNeeded[name] = sheetsNeeded[name] || []).push(k);
+  });
+
+  const result = {};
+
+  for (const sheetName of Object.keys(sheetsNeeded)) {
+    const range = `'${sheetName}'!A1:AI1000`;
+    let data;
+    try {
+      data = await sheetsApiFetch(`/values/${encodeURIComponent(range)}`, {
+        valueRenderOption: 'UNFORMATTED_VALUE'
+      });
+    } catch (e) {
+      continue; // лист ще не створений (напр. тригер ще не спрацював) — пропускаємо
+    }
+
+    const rows = data.values || [];
+    if (rows.length < 2) continue;
+
+    const headers  = rows[0];
+    const neededKeys = sheetsNeeded[sheetName];
+    const colMap = {}; // dateKey -> індекс стовпця в rows[r]
+    for (let c = 3; c < headers.length; c++) {
+      const hKey = headerCellToKey(headers[c]);
+      if (neededKeys.includes(hKey)) colMap[hKey] = c;
+    }
+
+    for (let r = 1; r < rows.length; r++) {
+      const name = (rows[r][2] || '').toString().trim();
+      if (!name) continue;
+      if (!result[name]) result[name] = {};
+      Object.entries(colMap).forEach(([k, ci]) => {
+        const v = rows[r][ci];
+        if (v !== undefined && v !== null && v !== '') result[name][k] = v;
+      });
+    }
+  }
+
+  const employees = Object.keys(result).sort().map(name => ({ name, hours: result[name] }));
+  return { employees, days: keys };
+}
+
 // ─── СТАН ДОДАТКУ ────────────────────────────
 const APP = {
   user: null,
@@ -583,10 +745,27 @@ function renderTodayDate() {
 }
 
 // ─── ПЕРШЕ ЗАВАНТАЖЕННЯ — один запит для календаря і команди ─────────
-function loadInitialData() {
+async function loadInitialData() {
   _setCalendarLoading(true);
   _setTeamLoading(true);
 
+  try {
+    const [myHours, teamData] = await Promise.all([
+      getMyHoursDirect(),
+      getTeamHoursDirect()
+    ]);
+    _applyMyHours(myHours);
+    renderTeam(teamData);
+  } catch (err) {
+    console.warn('Пряме читання Sheets API не вдалось, пробуємо через GAS:', err);
+    loadInitialDataViaGas();
+  }
+}
+
+// Резервний шлях — той самий getInitialData через GAS, як і раніше.
+// Спрацьовує, якщо впало пряме читання (напр. лист місяця ще не
+// створений, або тимчасова проблема з API-ключем).
+function loadInitialDataViaGas() {
   fetch(`${API_URL}?action=getInitialData&email=${encodeURIComponent(APP.user.email)}`, { method: 'GET', redirect: 'follow' })
     .then(r => r.json())
     .then(res => {
@@ -603,19 +782,25 @@ function loadInitialData() {
 }
 
 // ─── ОНОВЛЕННЯ ТІЛЬКИ КАЛЕНДАРЯ (кнопка 🔄 у блоці місяця) ──────────
-function loadData() {
+async function loadData() {
   _setCalendarLoading(true);
 
-  fetch(`${API_URL}?action=getMyHours&email=${encodeURIComponent(APP.user.email)}`, { method: 'GET', redirect: 'follow' })
-    .then(r => r.json())
-    .then(res => {
-      if (!res.success) throw new Error(res.error || 'Помилка сервера');
-      _applyMyHours(res.data);
-    })
-    .catch(err => {
-      document.getElementById('calendar-loading').innerHTML =
-        `<p style="color:#ef4444;text-align:center;">❌ Помилка завантаження:<br>${err.message}</p>`;
-    });
+  try {
+    const myHours = await getMyHoursDirect();
+    _applyMyHours(myHours);
+  } catch (err) {
+    console.warn('Пряме читання Sheets API не вдалось, пробуємо через GAS:', err);
+    fetch(`${API_URL}?action=getMyHours&email=${encodeURIComponent(APP.user.email)}`, { method: 'GET', redirect: 'follow' })
+      .then(r => r.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error || 'Помилка сервера');
+        _applyMyHours(res.data);
+      })
+      .catch(err2 => {
+        document.getElementById('calendar-loading').innerHTML =
+          `<p style="color:#ef4444;text-align:center;">❌ Помилка завантаження:<br>${err2.message}</p>`;
+      });
+  }
 }
 
 function _applyMyHours(data) {
@@ -810,19 +995,25 @@ function saveHours() {
 }
 
 // ─── КОМАНДА (останні 3 дні) ─────────────────
-function loadTeam() {
+async function loadTeam() {
   _setTeamLoading(true);
 
-  fetch(`${API_URL}?action=getTeamHours`, { method: 'GET', redirect: 'follow' })
-    .then(r => r.json())
-    .then(res => {
-      if (!res.success) throw new Error(res.error || 'Помилка');
-      renderTeam(res.data);
-    })
-    .catch(err => {
-      document.getElementById('team-loading').innerHTML =
-        `<p style="color:#ef4444;text-align:center;font-size:.85rem;">❌ ${err.message}</p>`;
-    });
+  try {
+    const teamData = await getTeamHoursDirect();
+    renderTeam(teamData);
+  } catch (err) {
+    console.warn('Пряме читання Sheets API не вдалось, пробуємо через GAS:', err);
+    fetch(`${API_URL}?action=getTeamHours`, { method: 'GET', redirect: 'follow' })
+      .then(r => r.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error || 'Помилка');
+        renderTeam(res.data);
+      })
+      .catch(err2 => {
+        document.getElementById('team-loading').innerHTML =
+          `<p style="color:#ef4444;text-align:center;font-size:.85rem;">❌ ${err2.message}</p>`;
+      });
+  }
 }
 
 // ─── РЕНДЕР ТАБЛИЦІ КОМАНДИ (ОНОВЛЕНО) ─────────────────
