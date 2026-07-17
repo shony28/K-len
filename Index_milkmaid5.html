@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Лагро — Облік надоїв</title>
+  <meta name="description" content="Мобільна система обліку надоїв молока для молочної ферми" />
+  <meta name="theme-color" content="#f8fafc" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              50:  '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0',
+              300: '#6ee7b7', 400: '#22c55e', 500: '#0d9f6e',
+              600: '#047857', 700: '#065f46', 800: '#064e3b', 900: '#022c22',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    * { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+    body { background: #f8fafc; overscroll-behavior: none; }
+
+    /* ——— Background gradient mesh (Light Edition) ——— */
+    .bg-mesh {
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 0%, rgba(4,120,87,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 100%, rgba(20,184,166,0.05) 0%, transparent 60%),
+        #f8fafc;
+    }
+
+    /* ——— Glassmorphism card (Light Edition) ——— */
+    .glass {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .glass-strong {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+    }
+
+    /* ——— Screen system ——— */
+    .screen { display: none; min-height: 100dvh; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* ——— Tab system ——— */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ——— Active tab button ——— */
+    .tab-btn { color: #475569; border-color: rgba(15, 23, 42, 0.08); transition: all .2s; }
+    .tab-btn.active {
+      background: rgba(4,120,87,.14);
+      border-color: rgba(4,120,87,.55);
+      color: #047857;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(4,120,87,.15);
+    }
+
+    /* ——— Inputs ——— */
+    .field {
+      width: 100%;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e3;
+      color: #0f172a;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      -webkit-appearance: none;
+    }
+    .field::placeholder { color: #94a3b8; }
+    .field:focus {
+      border-color: #047857;
+      box-shadow: 0 0 0 3px rgba(4,120,87,.2);
+    }
+    select.field {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+    select.field option { background: #ffffff; color: #0f172a; }
+
+    /* ——— Buttons ——— */
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #047857, #0d9488);
+      color: white;
+      font-weight: 800;
+      padding: 17px 24px;
+      border-radius: 16px;
+      font-size: 15px;
+      transition: all .2s;
+      box-shadow: 0 4px 22px rgba(4,120,87,.4);
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(4,120,87,.35); }
+    .btn-primary:active { transform: scale(.97); }
+    .btn-primary:disabled { background: linear-gradient(135deg, #e2e8f0, #e2e8f0); color: #94a3b8; box-shadow: none; cursor: not-allowed; }
+
+    .btn-secondary {
+      width: 100%;
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      color: #334155;
+      font-weight: 700;
+      padding: 14px 24px;
+      border-radius: 14px;
+      font-size: 14px;
+      transition: all .2s;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
+    .btn-secondary:active { transform: scale(.97); }
+
+    .btn-amber {
+      background: linear-gradient(135deg, #d97706, #ea580c);
+      box-shadow: 0 4px 20px rgba(217,119,6,.25);
+    }
+    .btn-amber:hover { filter: brightness(1.05); box-shadow: 0 6px 24px rgba(217,119,6,.35); }
+    .btn-amber:disabled { background: linear-gradient(135deg, #e2e8f0, #e2e8f0); color: #94a3b8; box-shadow: none; }
+
+    .btn-add {
+      width: 100%;
+      background: rgba(4,120,87,.08);
+      border: 2px dashed rgba(4,120,87,.55);
+      color: #047857;
+      font-weight: 700;
+      padding: 13px;
+      border-radius: 14px;
+      font-size: 14px;
+      transition: all .2s;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-add:hover { background: rgba(4,120,87,.15); border-color: #047857; }
+    .btn-add:active { transform: scale(.97); }
+
+    /* ——— Cart item ——— */
+    .cart-item {
+      animation: fadeSlideIn .2s ease-out;
+      display: flex; align-items: center; gap: 12px;
+      background: #f6f6f6;
+      border: 2.5px solid #8895a6;
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    /* ——— Loader overlay ——— */
+    #global-loader {
+      display: none;
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(248, 250, 252, 0.85);
+      backdrop-filter: blur(12px);
+      align-items: center; justify-content: center;
+    }
+    #global-loader.show { display: flex; }
+
+    /* ——— Toast ——— */
+    #toast-container {
+      position: fixed; bottom: 20px; left: 12px; right: 12px;
+      z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      font-size: 13.5px;
+      font-weight: 500;
+      backdrop-filter: blur(24px);
+      border: 1px solid;
+      animation: toastIn .3s cubic-bezier(.34,1.56,.64,1);
+      line-height: 1.4;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+    .toast.leaving { animation: toastOut .25s ease-in forwards; }
+    .toast-success { background: rgba(209, 250, 229, 0.95); border-color: rgba(16, 185, 129, 0.4); color: #064e3b; }
+    .toast-error   { background: rgba(254, 226, 226, 0.95); border-color: rgba(239, 68, 68, 0.4); color: #7f1d1d; }
+    .toast-warning { background: rgba(254, 243, 199, 0.95); border-color: rgba(245, 158, 11, 0.4); color: #78350f; }
+    .toast-info    { background: rgba(255, 255, 255, 0.95); border-color: rgba(226, 232, 240, 1); color: #1e293b; }
+
+    /* ——— Spinner ——— */
+    .spinner { animation: spin 1s linear infinite; }
+
+    /* ——— Badge ——— */
+    .badge {
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* ——— Animations ——— */
+    @keyframes spin      { to { transform: rotate(360deg); } }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px) scale(.95); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateY(16px) scale(.95); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(4,120,87,.3); }
+      50%       { box-shadow: 0 0 0 10px rgba(4,120,87,.0); }
+    }
+
+    /* ——— Avatar ——— */
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #047857, #0d9488);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: white;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ——— Scrollbar ——— */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(4,120,87,.2); border-radius: 2px; }
+
+    /* ——— Section label ——— */
+    .section-label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: #64748b; margin-bottom: 8px;
+    }
+
+    /* ——— Divider ——— */
+    .divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+
+    /* ——— Searchable product dropdown ——— */
+    .product-search-wrap { position: relative; }
+    .product-search-wrap .product-dropdown {
+      display: none;
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+      background: #fff;
+      border: 1.5px solid #047857;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(4,120,87,.15);
+      z-index: 999;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .product-search-wrap .product-dropdown.open { display: block; }
+    .product-dropdown-item {
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #0f172a;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background .1s;
+    }
+    .product-dropdown-item:last-child { border-bottom: none; }
+    .product-dropdown-item:hover, .product-dropdown-item.highlighted { background: rgba(4,120,87,.08); color: #047857; }
+    .product-dropdown-item.new-item { color: #047857; font-weight: 600; }
+    .product-dropdown-empty { padding: 10px 14px; font-size: 13px; color: #94a3b8; text-align: center; }
+    .flex.items-center.justify-between.bg-white.px-3.py-2.rounded-xl.border.border-slate-100.text-sm { font-size: 1.2rem; }
+
+    /* ——— Склад / переміщення на транзитний склад ——— */
+    .wh-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 16px;
+      padding: 14px 16px;
+    }
+    .wh-send-btn {
+      flex-shrink: 0; width: 40px; height: 40px; border-radius: 999px;
+      background: rgba(4,120,87,.1); border: 1.5px solid rgba(4,120,87,.35);
+      color: #047857; font-size: 18px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all .15s;
+    }
+    .wh-send-btn:hover { background: rgba(4,120,87,.18); }
+    .wh-send-btn:active { transform: scale(.92); }
+
+    #modal-transfer, #modal-transfer-success {
+      display: none; position: fixed; inset: 0; z-index: 9500;
+      background: rgba(15,23,42,.55); align-items: flex-end; justify-content: center;
+      padding: 0;
+    }
+    #modal-transfer.open, #modal-transfer-success.open { display: flex; }
+    #modal-transfer-success.open { align-items: center; padding: 16px; }
+    .transfer-sheet {
+      background: #fff; border-radius: 28px 28px 0 0; width: 100%; max-width: 480px;
+      max-height: 88vh; overflow-y: auto; padding: 22px 20px 26px;
+      box-shadow: 0 -10px 40px rgba(0,0,0,.2);
+    }
+    .transfer-success-card {
+      background: #fff; border-radius: 24px; width: 100%; max-width: 360px;
+      padding: 28px 24px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+  </style>
+</head>
+<body class="bg-mesh text-slate-800">
+
+<div id="toast-container"></div>
+
+<div id="global-loader" role="status" aria-live="polite">
+  <div class="glass-strong rounded-3xl p-8 flex flex-col items-center gap-4 mx-6 border-slate-200">
+    <svg class="spinner w-12 h-12 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+      <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+    </svg>
+    <p id="loader-text" class="text-sm text-slate-600 font-medium text-center">Завантаження…</p>
+  </div>
+</div>
+
+<div id="screen-auth" class="screen active items-center justify-center bg-mesh px-6 py-10">
+  <div class="w-full max-w-sm mx-auto">
+
+    <div class="text-center mb-10">
+      <div class="w-24 h-24 rounded-[28px] mx-auto mb-5 flex items-center justify-center text-5xl
+                  shadow-xl shadow-brand-500/20"
+           style="background: linear-gradient(135deg, #047857 0%, #0d9488 100%);
+                  animation: pulse-glow 3s ease-in-out infinite;">
+        🥛
+      </div>
+      <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">Лагро</h1>
+      <p class="text-sm text-slate-500 mt-1 font-medium">Система обліку виробництва</p>
+    </div>
+
+    <div class="glass-strong rounded-3xl p-7">
+      <p class="text-sm text-slate-600 leading-relaxed text-center mb-6">
+        Увійдіть через акаунт Google.<br/>
+        <span class="text-slate-400 text-xs">Доступ лише для авторизованих співробітників.</span>
+      </p>
+
+      <div id="g_id_onload"
+        data-client_id="1041458356226-cl2pekuc96jegjs0lu0jdj3kvo9kfgep.apps.googleusercontent.com"
+        data-callback="handleGoogleLogin"
+        data-auto_prompt="false">
+      </div>
+      <div class="flex justify-center">
+        <div class="g_id_signin"
+          data-type="standard"
+          data-size="large"
+          data-theme="outline"
+          data-text="sign_in_with"
+          data-shape="rectangular"
+          data-logo_alignment="left"
+          data-width="320">
+        </div>
+      </div>
+
+      <p class="text-center text-xs text-slate-400 mt-5">
+        Дані захищені Google OAuth 2.0 / JWT
+      </p>
+    </div>
+
+    <p class="text-center text-xs text-slate-400 mt-6">v1.0.0</p>
+  </div>
+</div>
+
+<div id="screen-pending" class="screen items-center justify-center bg-mesh px-6 py-10">
+  <div class="w-full max-w-sm mx-auto text-center">
+
+    <div class="w-20 h-20 rounded-[22px] mx-auto mb-6 flex items-center justify-center text-4xl shadow-xl shadow-amber-500/20"
+         style="background: linear-gradient(135deg, #d97706, #ea580c);">
+      ⏳
+    </div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">Очікування доступу</h2>
+    <p class="text-sm text-slate-500 leading-relaxed mb-6">
+      Ваш акаунт знайдено, але він не внесений до списку авторизованих співробітників.
+      Зверніться до адміністратора.
+    </p>
+
+    <div class="glass rounded-2xl p-4 text-left">
+      <p class="text-xs text-slate-400 font-medium mb-1">Ваш Google-акаунт:</p>
+      <p id="pending-email" class="text-brand-700 font-semibold break-all">—</p>
+    </div>
+
+    <button id="btn-check-status"
+      class="btn-primary mt-6 mb-3"
+      aria-label="Перевірити статус доступу">
+      🔄 Оновити статус доступу
+    </button>
+    <button onclick="logout()" class="btn-secondary">
+      Вийти з акаунту
+    </button>
+  </div>
+</div>
+<div id="screen-milkmaid" class="screen bg-mesh">
+
+  <!-- Header -->
+  <header class="glass-strong border-b border-slate-200 sticky top-0 z-50">
+    <div class="flex items-center justify-between px-4 pt-4 pb-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-2xl"
+             style="background:linear-gradient(135deg,#047857,#0d9488);">🐄</div>
+        <div>
+          <p id="mm-header-name" class="font-bold text-slate-900 text-sm leading-tight">Доярка</p>
+          <p id="mm-header-email" class="text-xs text-slate-400 leading-tight"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openWarehouseScreen()"
+          class="text-xs text-brand-700 font-bold px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center gap-1">
+          📦 Склад
+        </button>
+        <button onclick="logout()"
+          class="text-xs text-slate-500 font-semibold px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all">
+          Вийти
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="flex-1 overflow-y-auto pb-10">
+    <div class="max-w-md mx-auto px-4 pt-6 space-y-5">
+
+      <!-- Title card -->
+      <div class="glass-strong rounded-3xl p-5 text-center border-slate-200">
+        <div class="text-4xl mb-2">🥛</div>
+        <h2 class="text-xl font-extrabold text-slate-900">Облік надою</h2>
+        <p id="mm-date-label" class="text-xs text-slate-400 mt-1"></p>
+
+        <div class="mt-4 pt-4 border-t border-slate-100 text-left">
+          <label class="text-xs text-slate-500 font-medium block mb-1">Кількість корів сьогодні</label>
+          <div class="flex gap-2 items-center">
+            <input type="number" id="mm-cows-input"
+              placeholder="Напр. 12"
+              min="1" step="1"
+              inputmode="numeric"
+              class="field flex-1 text-2xl font-bold"
+              style="font-size:22px;font-weight:800;color:#047857;"
+              oninput="mmValidateCows()" />
+            <span class="text-2xl flex-shrink-0">🐄</span>
+          </div>
+          <div id="mm-cows-saved-row" class="hidden mt-2 flex items-center justify-between">
+            <p class="text-xs text-brand-700 font-semibold">✓ Збережено: <span id="mm-cows-saved-value"></span> корів сьогодні</p>
+            <button onclick="mmEditCows()" class="text-xs text-slate-500 font-semibold px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all">✏️ Змінити</button>
+          </div>
+          <button id="mm-cows-save-btn" onclick="mmSaveCows()" class="btn-primary mt-2" disabled>
+            💾 Зберегти кількість корів
+          </button>
+        </div>
+      </div>
+
+      <!-- Input card -->
+      <div id="mm-input-card" class="glass-strong rounded-3xl p-5 border-slate-200 space-y-4">
+        <p class="section-label">Додати надій</p>
+
+        <div>
+          <label class="text-xs text-slate-500 font-medium block mb-1">Кількість надоєного молока</label>
+          <div class="flex gap-2 items-center">
+            <input type="number" id="mm-qty-input"
+              placeholder="0.000"
+              min="0.001" step="0.001"
+              inputmode="decimal"
+              class="field flex-1 text-2xl font-bold"
+              style="font-size:22px;font-weight:800;color:#047857;"
+              oninput="mmValidateInput()" />
+            <div id="mm-unit-badge"
+              class="flex items-center justify-center rounded-2xl font-bold text-brand-700
+                     px-5 py-3 text-lg bg-emerald-50 border-2 border-emerald-200 flex-shrink-0">
+              —
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1.5">
+            Продукт: <span id="mm-product-label" class="font-semibold text-slate-600"></span>
+          </p>
+        </div>
+
+        <div>
+          <button type="button" onclick="toggleMmCowNumber()" id="mm-cow-toggle"
+            class="text-xs text-brand-700 font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+            🐄 Додати номер
+          </button>
+
+          <div id="mm-cow-block" class="hidden mt-2 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-2">
+            <label class="text-[11px] text-slate-400 block mb-1 pl-1">Номер корови</label>
+            <input type="text" id="mm-cow-number-input" placeholder="Напр. 123456789" class="field" inputmode="numeric" />
+          </div>
+        </div>
+
+        <button id="mm-submit-btn" onclick="mmSubmit()" class="btn-primary" disabled>
+          ➕ Записати надій
+        </button>
+      </div>
+
+      <!-- Today's entries -->
+      <div class="glass-strong rounded-3xl p-5 border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <p class="section-label" style="margin-bottom:0">📋 Мої записи сьогодні</p>
+          <button onclick="mmRefresh()" id="mm-refresh-btn"
+            class="text-xs text-brand-700 font-semibold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+            🔄 Оновити
+          </button>
+        </div>
+        <div id="mm-entries-list">
+          <p class="text-center text-slate-400 text-sm py-4">Завантаження…</p>
+        </div>
+        <div id="mm-total-row" class="hidden mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+          <span class="text-sm font-semibold text-slate-600">Разом за день:</span>
+          <span id="mm-total-value" class="text-lg font-extrabold text-brand-700"></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ЕКРАН: СКЛАД ДІЛЬНИЦІ
+══════════════════════════════════════════════════════════════ -->
+<div id="screen-warehouse" class="screen bg-mesh">
+  <header class="glass-strong border-b border-slate-200 sticky top-0 z-50">
+    <div class="flex items-center justify-between px-4 pt-4 pb-3">
+      <div class="flex items-center gap-3">
+        <button onclick="closeWarehouseScreen()"
+          class="w-9 h-9 rounded-xl flex items-center justify-center text-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all">
+          ←
+        </button>
+        <p class="font-bold text-slate-900 text-sm">📦 Склад дільниці</p>
+      </div>
+      <button onclick="loadWarehouseScreen()" id="wh-refresh-btn"
+        class="text-xs text-brand-700 font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
+        🔄 Оновити
+      </button>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-10">
+    <div class="max-w-md mx-auto px-4 pt-6 space-y-3">
+      <div id="wh-list" class="space-y-3"></div>
+      <p id="wh-empty" class="hidden text-center text-slate-400 text-sm py-10">Склад порожній</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ МОДАЛЬНЕ ВІКНО: ПЕРЕМІЩЕННЯ НА ТРАНЗИТНИЙ СКЛАД ══ -->
+<div id="modal-transfer">
+  <div class="transfer-sheet">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-extrabold text-slate-900">📤 Переміщення товару</h3>
+      <button onclick="closeTransferModal()" class="text-slate-400 text-2xl leading-none">&times;</button>
+    </div>
+
+    <div class="glass rounded-2xl px-4 py-3 mb-4">
+      <p class="text-xs text-slate-400 mb-1">Товар</p>
+      <p id="tr-product-name" class="font-bold text-slate-900 text-base"></p>
+      <p class="text-xs text-slate-400 mt-1">Доступно: <span id="tr-available" class="font-semibold text-slate-600"></span></p>
+    </div>
+
+    <div class="mb-4">
+      <label class="text-xs text-slate-500 font-medium block mb-1.5">Куди переміщається</label>
+      <select id="tr-destination" class="field">
+        <option value="" disabled selected>— Оберіть дільницю —</option>
+      </select>
+    </div>
+
+    <div class="mb-5">
+      <label class="text-xs text-slate-500 font-medium block mb-1.5">Кількість (<span id="tr-unit"></span>)</label>
+      <input type="number" id="tr-qty" inputmode="decimal" min="0.001" step="any"
+        class="field text-2xl font-bold" style="color:#047857;" placeholder="0" />
+    </div>
+
+    <div id="tr-error" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-4 text-sm"></div>
+
+    <button id="tr-submit-btn" onclick="submitTransfer()" class="btn-primary">
+      📤 Відправити на транзитний склад
+    </button>
+    <p class="text-xs text-slate-400 text-center mt-3">Товар отримає статус «очікує» до підтвердження дільницею-отримувачем</p>
+  </div>
+</div>
+
+<!-- ══ МОДАЛЬНЕ ВІКНО: УСПІХ ПЕРЕМІЩЕННЯ ══ -->
+<div id="modal-transfer-success">
+  <div class="transfer-success-card">
+    <div class="text-5xl mb-3">✅</div>
+    <h3 class="text-lg font-extrabold text-slate-900 mb-2">Відправлено!</h3>
+    <p id="tr-success-msg" class="text-slate-500 text-sm mb-6"></p>
+    <button onclick="closeTransferSuccess()" class="btn-primary">Зрозуміло</button>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────────────────────
+// НАЛАШТУВАННЯ API
+// ──────────────────────────────────────────────────────────────
+const API_URL = 'https://script.google.com/macros/s/AKfycbwGKkVWl5yhH4_MIdUAvYX6f-LhK3Oko6-jV42RbMOejDEYubONltr8Oa7HqBrtl8dH8g/exec'; // ← Замінити на URL задеплоєного GAS Web App
+
+// ──────────────────────────────────────────────────────────────
+// СТАН ДОДАТКУ
+// ──────────────────────────────────────────────────────────────
+const state = {
+  user: { email: '', name: '', picture: '' },
+  // Для доярки
+  milkUnit:            'л',
+  milkProductName:     'Молоко',
+  milkTodayEntries:    [],
+  milkCowsCount:       null,
+};
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — ЕКРАНИ
+// ──────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — LOADER
+// ──────────────────────────────────────────────────────────────
+function showLoader(text) {
+  document.getElementById('loader-text').textContent = text || 'Завантаження…';
+  document.getElementById('global-loader').classList.add('show');
+}
+function hideLoader() {
+  document.getElementById('global-loader').classList.remove('show');
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — TOAST
+// ──────────────────────────────────────────────────────────────
+function showToast(message, type, duration) {
+  type     = type     || 'info';
+  duration = duration || 4000;
+
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML =
+    '<span style="font-size:16px;flex-shrink:0;margin-top:1px">' + (icons[type] || icons.info) + '</span>' +
+    '<span style="flex:1">' + escapeHtml(message) + '</span>' +
+    '<button onclick="dismissToast(this.parentElement)" style="flex-shrink:0;opacity:.6;font-size:16px;line-height:1;margin-left:4px">✕</button>';
+
+  container.appendChild(el);
+
+  setTimeout(function() { dismissToast(el); }, duration);
+}
+
+function dismissToast(el) {
+  if (!el || !el.parentElement) return;
+  el.classList.add('leaving');
+  setTimeout(function() { if (el.parentElement) el.remove(); }, 260);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — ЧИСЛА
+// ──────────────────────────────────────────────────────────────
+function fmtNum(n) {
+  var v = parseFloat(n) || 0;
+  return v.toLocaleString('uk-UA', { maximumFractionDigits: 3 });
+}
+
+// ──────────────────────────────────────────────────────────────
+// УТИЛІТИ — LOCALSTORAGE
+// ──────────────────────────────────────────────────────────────
+function ls(k, v)   { try { localStorage.setItem(k, v); } catch(e) {} }
+function lsGet(k)   { try { return localStorage.getItem(k); } catch(e) { return null; } }
+
+// ──────────────────────────────────────────────────────────────
+// API — GET / POST
+// ──────────────────────────────────────────────────────────────
+async function apiGet(params) {
+  var url = new URL(API_URL);
+  Object.entries(params).forEach(function([k, v]) { url.searchParams.set(k, v); });
+  var res = await fetch(url.toString());
+  if (!res.ok) throw new Error('Мережева помилка: ' + res.status);
+  var json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Невідома помилка сервера');
+  return json.data;
+}
+
+async function apiPost(action, body) {
+  var url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  var res = await fetch(url.toString(), {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:    JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Мережева помилка: ' + res.status);
+  var json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Невідома помилка сервера');
+  return json.data;
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTH — Google One Tap callback
+// ──────────────────────────────────────────────────────────────
+function handleGoogleLogin(response) {
+  var token = response.credential;
+  showLoader('Перевірка доступу…');
+
+  apiGet({ action: 'loginByToken', token: token })
+    .then(function(data) {
+      hideLoader();
+      state.user = { email: data.email, name: data.name, picture: data.picture };
+      ls('user_email',   data.email);
+      ls('user_name',    data.name);
+      ls('user_picture', data.picture);
+
+      if (data.isAllowed) {
+        initMilkmaidScreen();
+      } else {
+        document.getElementById('pending-email').textContent = data.email;
+        showScreen('pending');
+      }
+    })
+    .catch(function(err) {
+      hideLoader();
+      showToast(err.message, 'error', 7000);
+    });
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTH — Check status (pending screen button)
+// ──────────────────────────────────────────────────────────────
+function checkAccessStatus() {
+  var email = lsGet('user_email');
+  if (!email) { showToast('Email не знайдено. Спробуйте увійти знову.', 'warning'); return; }
+
+  showLoader('Перевірка статусу…');
+  apiGet({ action: 'checkStatus', email: email })
+    .then(function(data) {
+      hideLoader();
+      if (data.isAllowed) {
+        state.user.email   = data.email;
+        state.user.name    = lsGet('user_name')    || data.email;
+        state.user.picture = lsGet('user_picture') || '';
+        initMilkmaidScreen();
+        showToast('🎉 Доступ надано! Вітаємо!', 'success');
+      } else {
+        showToast('Доступ ще не надано. Зверніться до адміністратора.', 'warning', 5000);
+      }
+    })
+    .catch(function(err) { hideLoader(); showToast(err.message, 'error'); });
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTH — Logout
+// ──────────────────────────────────────────────────────────────
+function logout() {
+  localStorage.clear();
+  state.user = { email: '', name: '', picture: '' };
+  state.milkTodayEntries = [];
+  showScreen('auth');
+  // Re-render Google button
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.initialize({
+      client_id: '1041458356226-cl2pekuc96jegjs0lu0jdj3kvo9kfgep.apps.googleusercontent.com',
+      callback: handleGoogleLogin,
+    });
+    google.accounts.id.renderButton(
+      document.querySelector('.g_id_signin'),
+      { type: 'standard', size: 'large', theme: 'outline', text: 'sign_in_with', shape: 'rectangular', width: 320 }
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// СТАРТ ДОДАТКУ — відновлення сесії
+// ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+
+  document.getElementById('btn-check-status').addEventListener('click', checkAccessStatus);
+
+  var savedEmail = lsGet('user_email');
+  if (savedEmail) {
+    state.user.email   = savedEmail;
+    state.user.name    = lsGet('user_name')    || savedEmail;
+    state.user.picture = lsGet('user_picture') || '';
+
+    showLoader('Відновлення сесії…');
+    apiGet({ action: 'checkStatus', email: savedEmail })
+      .then(function(data) {
+        hideLoader();
+        if (data.isAllowed) {
+          initMilkmaidScreen();
+        } else {
+          document.getElementById('pending-email').textContent = savedEmail;
+          showScreen('pending');
+        }
+      })
+      .catch(function() {
+        hideLoader();
+        localStorage.clear();
+        showScreen('auth');
+      });
+  }
+});
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// MILKMAID — логіка екрану доярки
+// ══════════════════════════════════════════════════════════════
+
+// ── Кількість корів: ключі та допоміжні функції локального сховища ──
+var MM_COWS_KEY_PREFIX = 'mm_cows_count_';
+
+function mmTodayKey() {
+  var now = new Date();
+  var tz  = -now.getTimezoneOffset();
+  var local = new Date(now.getTime() + tz * 60000);
+  var dateStr = local.toISOString().slice(0, 10); // yyyy-MM-dd за локальним часом
+  return MM_COWS_KEY_PREFIX + (state.user ? state.user.email : '') + '_' + dateStr;
+}
+
+function mmGetSavedCows() {
+  try {
+    var raw = localStorage.getItem(mmTodayKey());
+    var n = parseInt(raw, 10);
+    return (n > 0) ? n : null;
+  } catch (e) { return null; }
+}
+
+function mmSetSavedCows(n) {
+  try { localStorage.setItem(mmTodayKey(), String(n)); } catch (e) {}
+}
+
+function mmApplyCowsState() {
+  var saved = mmGetSavedCows();
+  var input      = document.getElementById('mm-cows-input');
+  var savedRow   = document.getElementById('mm-cows-saved-row');
+  var savedValue = document.getElementById('mm-cows-saved-value');
+  var saveBtn    = document.getElementById('mm-cows-save-btn');
+  var inputCard  = document.getElementById('mm-input-card');
+
+  state.milkCowsCount = saved;
+
+  if (saved) {
+    input.value = saved;
+    input.disabled = true;
+    savedRow.classList.remove('hidden');
+    savedValue.textContent = saved;
+    saveBtn.classList.add('hidden');
+    inputCard.style.opacity = '';
+    inputCard.style.pointerEvents = '';
+  } else {
+    input.value = '';
+    input.disabled = false;
+    savedRow.classList.add('hidden');
+    saveBtn.classList.remove('hidden');
+    saveBtn.disabled = true;
+    inputCard.style.opacity = '0.45';
+    inputCard.style.pointerEvents = 'none';
+  }
+}
+
+function mmValidateCows() {
+  var val = parseInt(document.getElementById('mm-cows-input').value, 10);
+  document.getElementById('mm-cows-save-btn').disabled = !(val > 0);
+}
+
+function mmSaveCows() {
+  var val = parseInt(document.getElementById('mm-cows-input').value, 10);
+  if (!(val > 0)) { showToast('Введіть кількість корів', 'warning'); return; }
+  mmSetSavedCows(val);
+  mmApplyCowsState();
+  showToast('✅ Збережено кількість корів: ' + val, 'success', 3000);
+}
+
+function mmEditCows() {
+  try { localStorage.removeItem(mmTodayKey()); } catch (e) {}
+  mmApplyCowsState();
+}
+
+function initMilkmaidScreen() {
+  var u = state.user;
+  document.getElementById('mm-header-name').textContent  = u.name  || u.email;
+  document.getElementById('mm-header-email').textContent = u.email;
+
+  // Поточна дата
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('mm-date-label').textContent = dateStr;
+
+  mmApplyCowsState();
+  showScreen('milkmaid');
+  mmRefresh();
+}
+
+function mmValidateInput() {
+  var val = parseFloat(document.getElementById('mm-qty-input').value);
+  document.getElementById('mm-submit-btn').disabled = !(val > 0 && state.milkCowsCount);
+}
+
+function toggleMmCowNumber() {
+  document.getElementById('mm-cow-block').classList.toggle('hidden');
+}
+
+async function mmRefresh() {
+  var btn = document.getElementById('mm-refresh-btn');
+  if (btn) btn.disabled = true;
+
+  try {
+    var data = await apiGet({ action: 'getMilkData', email: state.user.email, name: state.user.name });
+    state.milkUnit          = data.unit          || 'л';
+    state.milkProductName   = data.productName   || 'Молоко';
+    state.milkTodayEntries  = data.todayEntries  || [];
+
+    document.getElementById('mm-unit-badge').textContent    = state.milkUnit;
+    document.getElementById('mm-product-label').textContent = state.milkProductName;
+
+    mmRenderEntries();
+  } catch(err) {
+    showToast('Помилка оновлення: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function mmRenderEntries() {
+  var list = document.getElementById('mm-entries-list');
+  var totalRow = document.getElementById('mm-total-row');
+  var entries = state.milkTodayEntries;
+
+  if (!entries || entries.length === 0) {
+    list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6">Сьогодні записів ще немає</p>';
+    totalRow.classList.add('hidden');
+    return;
+  }
+
+  var total = 0;
+  var html = entries.map(function(e, i) {
+    total += e.qty || 0;
+    // Форматуємо час
+    var timeStr = '';
+    var dt = String(e.datetime || '');
+    var tm = dt.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (tm) timeStr = tm[1] + ':' + tm[2];
+
+    return (
+      '<div class="flex items-center justify-between py-2.5 ' + (i > 0 ? 'border-t border-slate-100' : '') + '">' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-lg">🥛</span>' +
+          '<div>' +
+            '<p class="text-sm font-semibold text-slate-800">' + fmtNum(e.qty) + ' ' + escapeHtml(e.unit || state.milkUnit) + (e.cowNumber ? ' · 🐄 ' + escapeHtml(e.cowNumber) : '') + '</p>' +
+            '<p class="text-xs text-slate-400">' + (timeStr ? 'о ' + timeStr : '') + ' · #' + escapeHtml(e.opId || '') + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<span class="text-xs text-brand-700 font-bold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100">✓ Записано</span>' +
+      '</div>'
+    );
+  }).join('');
+
+  list.innerHTML = html;
+  totalRow.classList.remove('hidden');
+  document.getElementById('mm-total-value').textContent = fmtNum(total) + ' ' + state.milkUnit;
+}
+
+async function mmSubmit() {
+  var input = document.getElementById('mm-qty-input');
+  var qty = parseFloat(input.value);
+  if (!(qty > 0)) { showToast('Введіть кількість молока', 'warning'); return; }
+
+  var cows = mmGetSavedCows();
+  if (!cows) { showToast('Спочатку вкажіть кількість корів сьогодні', 'warning'); return; }
+
+  var cowNumberInput = document.getElementById('mm-cow-number-input');
+  var cowNumber = cowNumberInput ? cowNumberInput.value.trim() : '';
+
+  var btn = document.getElementById('mm-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Збереження…';
+
+  try {
+    var result = await apiPost('addMilk', {
+      qty:       qty,
+      operator:  state.user.name || state.user.email,
+      operatorEmail: state.user.email,
+      cowsCount: cows,
+      cowNumber: cowNumber,
+    });
+    input.value = '';
+    if (cowNumberInput) cowNumberInput.value = '';
+    document.getElementById('mm-cow-block').classList.add('hidden');
+    mmValidateInput();
+    showToast('Записано ' + fmtNum(result.qty) + ' ' + result.unit + ' молока!', 'success', 4000);
+    // Оновити список
+    await mmRefresh();
+  } catch(err) {
+    showToast('Помилка: ' + err.message, 'error', 7000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '➕ Записати надій';
+  }
+}
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// СКЛАД ДІЛЬНИЦІ + ПЕРЕМІЩЕННЯ НА ТРАНЗИТНИЙ СКЛАД
+// ══════════════════════════════════════════════════════════════
+state.warehouseItems = [];
+state.warehouseDestinations = [];
+
+function openWarehouseScreen() {
+  showScreen('warehouse');
+  loadWarehouseScreen();
+}
+
+function closeWarehouseScreen() {
+  showScreen('milkmaid');
+}
+
+async function loadWarehouseScreen() {
+  var btn = document.getElementById('wh-refresh-btn');
+  if (btn) btn.disabled = true;
+  showLoader('Завантаження складу…');
+
+  try {
+    var data = await apiGet({ action: 'getWarehouseData' });
+    state.warehouseItems = data.items || [];
+    state.warehouseDestinations = data.destinations || [];
+    renderWarehouseList();
+  } catch (err) {
+    showToast('Помилка завантаження складу: ' + err.message, 'error');
+  } finally {
+    hideLoader();
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderWarehouseList() {
+  var list  = document.getElementById('wh-list');
+  var empty = document.getElementById('wh-empty');
+  var items = state.warehouseItems;
+
+  if (!items || items.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+
+  empty.classList.add('hidden');
+  list.innerHTML = items.map(function(item, i) {
+    var qtyColor = item.qty > 0 ? 'color:#047857;' : (item.qty < 0 ? 'color:#dc2626;' : 'color:#94a3b8;');
+    return (
+      '<div class="wh-item">' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="font-bold text-slate-900 text-sm truncate">' + escapeHtml(item.name) + '</p>' +
+          '<p class="text-sm font-semibold mt-0.5" style="' + qtyColor + '">' + fmtNum(item.qty) + ' ' + escapeHtml(item.unit) + '</p>' +
+        '</div>' +
+        '<button class="wh-send-btn" title="Перемістити на транзитний склад" onclick="openTransferModal(' + i + ')">➤</button>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+// ── Модальне вікно переміщення ────────────────────────────────
+var _trItem = null;
+
+function openTransferModal(index) {
+  var item = state.warehouseItems[index];
+  if (!item) return;
+  _trItem = item;
+
+  document.getElementById('tr-product-name').textContent = item.name;
+  document.getElementById('tr-available').textContent = fmtNum(item.qty) + ' ' + item.unit;
+  document.getElementById('tr-unit').textContent = item.unit;
+  document.getElementById('tr-qty').value = '';
+  document.getElementById('tr-error').classList.add('hidden');
+
+  var sel = document.getElementById('tr-destination');
+  sel.innerHTML = '<option value="" disabled selected>— Оберіть дільницю —</option>';
+  (state.warehouseDestinations || []).forEach(function(d) {
+    var opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d;
+    sel.appendChild(opt);
+  });
+
+  document.getElementById('modal-transfer').classList.add('open');
+}
+
+function closeTransferModal() {
+  document.getElementById('modal-transfer').classList.remove('open');
+  _trItem = null;
+}
+
+async function submitTransfer() {
+  if (!_trItem) return;
+
+  var destination = document.getElementById('tr-destination').value;
+  var qtyRaw = parseFloat(String(document.getElementById('tr-qty').value).replace(',', '.'));
+  var errEl = document.getElementById('tr-error');
+  errEl.classList.add('hidden');
+
+  if (!destination) {
+    errEl.textContent = 'Оберіть дільницю призначення';
+    errEl.classList.remove('hidden'); return;
+  }
+  if (isNaN(qtyRaw) || qtyRaw <= 0) {
+    errEl.textContent = 'Введіть коректну кількість';
+    errEl.classList.remove('hidden'); return;
+  }
+  if (qtyRaw > _trItem.qty) {
+    errEl.textContent = 'Недостатньо товару на складі. Доступно: ' + fmtNum(_trItem.qty) + ' ' + _trItem.unit;
+    errEl.classList.remove('hidden'); return;
+  }
+
+  var btn = document.getElementById('tr-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Відправляємо…';
+
+  try {
+    var result = await apiPost('sendToTransit', {
+      product:     _trItem.name,
+      qty:         qtyRaw,
+      unit:        _trItem.unit,
+      destination: destination,
+      senderName:  state.user.name || state.user.email || '',
+    });
+
+    // Миттєво оновлюємо залишок у локальному стані, щоб одразу бачити
+    // реальну кількість, не чекаючи повного перезавантаження складу
+    if (result && typeof result.newQty !== 'undefined') {
+      var localItem = state.warehouseItems.find(function(it) { return it.name === _trItem.name; });
+      if (localItem) localItem.qty = result.newQty;
+      renderWarehouseList();
+    }
+
+    closeTransferModal();
+    var msg = '"' + _trItem.name + '" (' + fmtNum(qtyRaw) + ' ' + _trItem.unit + ') відправлено до «' + destination + '». Статус: очікує підтвердження.';
+    if (result && result.warning) msg += '\n\n⚠️ ' + result.warning;
+    document.getElementById('tr-success-msg').textContent = msg;
+    document.getElementById('modal-transfer-success').classList.add('open');
+
+    // Дозавантажуємо склад із сервера, щоб гарантовано мати актуальні
+    // залишки (враховуючи можливі паралельні зміни від інших операторів)
+    await loadWarehouseScreen();
+  } catch (err) {
+    errEl.textContent = 'Помилка: ' + err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Відправити на транзитний склад';
+  }
+}
+
+function closeTransferSuccess() {
+  document.getElementById('modal-transfer-success').classList.remove('open');
+}
+</script>
+
+</body>
+</html>
