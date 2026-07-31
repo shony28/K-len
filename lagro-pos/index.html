@@ -259,6 +259,40 @@
     #scan-torch-btn { background: #6c757d; color: #fff; }
     #scan-torch-btn.active { background: #ffc107; color: #212529; }
 
+    /* ── СПОВІЩЕННЯ: ТРАНЗИТНИЙ СКЛАД ── */
+    #transit-bell-btn {
+      position: relative; background: none; border: none; cursor: pointer;
+      color: #475569; padding: 6px; border-radius: 10px;
+    }
+    #transit-bell-btn.has-pending { color: #ca8a04; }
+    #transit-bell-badge {
+      position: absolute; top: 0; right: 0; min-width: 16px; height: 16px;
+      background: #dc2626; color: #fff; font-size: .62rem; font-weight: 800;
+      border-radius: 999px; display: none; align-items: center; justify-content: center;
+      padding: 0 4px; line-height: 1; border: 2px solid #fff;
+    }
+    #transit-bell-badge.show { display: flex; }
+
+    #transit-modal, #transit-detail-modal {
+      display: none; position: fixed; inset: 0; z-index: 9997;
+      background: rgba(0,0,0,.6); align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    #transit-modal.open, #transit-detail-modal.open { display: flex; }
+    #transit-modal-inner, #transit-detail-inner {
+      background: #fff; border-radius: 20px; width: 100%; max-width: 460px;
+      max-height: 82vh; display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4); overflow: hidden;
+    }
+    #transit-list-scroll { overflow-y: auto; padding: 4px 20px 20px; }
+    .transit-item {
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px;
+      padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: transform .1s;
+    }
+    .transit-item:active { transform: scale(.98); }
+    .transit-item-name { font-weight: 800; color: #1e293b; font-size: .95rem; }
+    .transit-item-meta { color: #92400e; font-size: .78rem; margin-top: 3px; }
+
     /* ── КАЛЬКУЛЯТОР ВАГИ ── */
     #weight-calc-modal {
       display: none; position: fixed; inset: 0; z-index: 9999;
@@ -410,6 +444,13 @@
           <div id="user-name" style="font-weight:800;color:#1e293b;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">—</div>
           <div id="user-email" style="color:#94a3b8;font-size:.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">—</div>
         </div>
+        <button id="transit-bell-btn" onclick="openTransitModal()" title="Товар з транзитного складу">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span id="transit-bell-badge">0</span>
+        </button>
         <div id="user-avatar" class="avatar-placeholder">?</div>
         <button onclick="handleLogout()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:6px;border-radius:10px;" title="Вийти">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -684,8 +725,12 @@ const APP = {
   stock:  [],       // [ { id, name, unit, price, qty, rowIndex } ] — кеш складу
   buyers: [],       // [ 'Покупець 1', ... ] — кеш покупців
   cart:   [],       // [ { id, name, unit, price, qty } ] — поточний кошик
-  dataLoaded: false // чи вже завантажено склад з сервера
+  dataLoaded: false, // чи вже завантажено склад з сервера
+  transitPending: [] // [ { txId, from, to, product, qty, unit, sender, sentAt } ] — очікують прийняття
 };
+
+let _transitCurrentTxId = null; // txId, що зараз відкритий у деталях
+let _transitPollTimer = null;   // інтервал опитування транзитного складу
 
 // ────────────────────────────────────────────────────────────────────────────
 //  🚀  ІНІЦІАЛІЗАЦІЯ
@@ -705,6 +750,7 @@ window.addEventListener('DOMContentLoaded', () => {
       } catch(e) { console.error(e); }
       // ----------------------------------
       
+      restoreBuyerEarly();
       showMain(saved);
       
       // Рендеримо кошик, якщо в ньому щось залишилось
@@ -718,6 +764,23 @@ window.addEventListener('DOMContentLoaded', () => {
     showScreen('screen-auth');
   }
 });
+
+/** Миттєво підставляє збереженого покупця, ще до завантаження списку з сервера */
+function restoreBuyerEarly() {
+  let saved = '';
+  try { saved = localStorage.getItem(LS_BUYER_KEY) || ''; } catch (e) {}
+  if (!saved) return;
+  const sel = document.getElementById('buyer-select');
+  if (!sel) return;
+  if (![...sel.options].some(o => o.value === saved)) {
+    const opt = document.createElement('option');
+    opt.value = saved;
+    opt.textContent = saved;
+    opt.dataset.temp = '1';
+    sel.appendChild(opt);
+  }
+  sel.value = saved;
+}
 
 function saveCartToStorage() {
   try {
@@ -822,6 +885,8 @@ function handleLogout() {
   APP.buyers = [];
   APP.cart = [];
   APP.dataLoaded = false;
+  APP.transitPending = [];
+  stopTransitPolling();
   showScreen('screen-auth');
   location.reload();
 }
@@ -878,8 +943,15 @@ function loadInitialData(forceRefresh) {
 
         // Наповнюємо список покупців
         populateBuyerSelect();
+        // Розблоковуємо кнопку продажу та перемальовуємо кошик
+        renderCart();
         // Оновлюємо список складу, якщо відкрита та вкладка
         renderStockList();
+
+        // Сповіщення про товар з транзитного складу
+        APP.transitPending = res.data.transitPending || [];
+        renderTransitBadge();
+        if (!_transitPollTimer) startTransitPolling();
       } else {
         throw new Error(res.error || 'Помилка завантаження');
       }
@@ -895,6 +967,240 @@ function refreshData() {
   showToast('🔄 Оновлення даних…');
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+//  📥  ТРАНЗИТНИЙ СКЛАД — СПОВІЩЕННЯ ПРО ПРИЙНЯТТЯ ТОВАРУ
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Періодично опитує сервер, чи є нові товари, що очікують прийняття. */
+function startTransitPolling() {
+  stopTransitPolling();
+  _transitPollTimer = setInterval(pollTransitPending, 45000); // кожні 45 сек
+}
+
+function stopTransitPolling() {
+  if (_transitPollTimer) {
+    clearInterval(_transitPollTimer);
+    _transitPollTimer = null;
+  }
+}
+
+function pollTransitPending() {
+  if (!APP.user?.isAllowed) return;
+  fetch(`${API_URL}?action=getTransitPending`, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        APP.transitPending = res.data.pending || [];
+        renderTransitBadge();
+        // Якщо список зараз відкритий — оновлюємо і його
+        if (document.getElementById('transit-modal').classList.contains('open')) {
+          renderTransitList();
+        }
+      }
+    })
+    .catch(err => console.error('Помилка опитування транзитного складу:', err));
+}
+
+/** Ручне оновлення списку транзиту за кнопкою "🔄" у transit-modal. */
+function manualRefreshTransit() {
+  const btn = document.getElementById('transit-refresh-btn');
+  if (btn.disabled) return;
+
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></div>';
+
+  fetch(`${API_URL}?action=getTransitPending`, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        APP.transitPending = res.data.pending || [];
+        renderTransitBadge();
+        renderTransitList();
+        showToast('🔄 Список оновлено');
+      } else {
+        showToast('❌ ' + (res.error || 'Помилка оновлення'), 'error');
+      }
+    })
+    .catch(() => showToast('❌ Помилка мережі', 'error'))
+    .finally(() => {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.innerHTML = origHtml;
+    });
+}
+
+/** Оновлює іконку дзвіночка та лічильник у шапці. */
+function renderTransitBadge() {
+  const btn   = document.getElementById('transit-bell-btn');
+  const badge = document.getElementById('transit-bell-badge');
+  const count = APP.transitPending.length;
+
+  if (count > 0) {
+    btn.classList.add('has-pending');
+    badge.textContent = count > 9 ? '9+' : String(count);
+    badge.classList.add('show');
+  } else {
+    btn.classList.remove('has-pending');
+    badge.classList.remove('show');
+  }
+}
+
+function openTransitModal() {
+  renderTransitList();
+  document.getElementById('transit-modal').classList.add('open');
+}
+
+function closeTransitModal() {
+  document.getElementById('transit-modal').classList.remove('open');
+}
+
+/** Малює список записів, що очікують прийняття на "Магазин продажів". */
+function renderTransitList() {
+  const wrap  = document.getElementById('transit-list-items');
+  const empty = document.getElementById('transit-list-empty');
+
+  if (!APP.transitPending.length) {
+    wrap.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  wrap.innerHTML = APP.transitPending.map(item => {
+    const qtyStr = (parseFloat(item.qty) % 1 === 0) ? item.qty : parseFloat(item.qty).toFixed(3).replace(/0+$/, '');
+    return `
+      <div class="transit-item" onclick="openTransitDetail('${escapeAttr(item.txId)}')">
+        <div class="transit-item-name">📦 ${escapeHtml(item.product)}</div>
+        <div class="transit-item-meta">
+          ${qtyStr} ${escapeHtml(item.unit)} · з «${escapeHtml(item.from)}» · ${escapeHtml(item.sentAt)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openTransitDetail(txId) {
+  const item = APP.transitPending.find(i => String(i.txId) === String(txId));
+  if (!item) { showToast('❌ Запис не знайдено — оновіть список', 'error'); return; }
+
+  _transitCurrentTxId = txId;
+
+  const qtyStr = (parseFloat(item.qty) % 1 === 0) ? item.qty : parseFloat(item.qty).toFixed(3).replace(/0+$/, '');
+  document.getElementById('td-product').textContent = item.product;
+  document.getElementById('td-qty').textContent      = `${qtyStr} ${item.unit}`;
+  document.getElementById('td-from').textContent      = item.from;
+  document.getElementById('td-sent').textContent      = item.sentAt || '—';
+  document.getElementById('td-sender').textContent    = item.sender || '—';
+
+  document.getElementById('transit-detail-modal').classList.add('open');
+}
+
+function closeTransitDetail() {
+  document.getElementById('transit-detail-modal').classList.remove('open');
+  _transitCurrentTxId = null;
+}
+
+function confirmTransitItem() {
+  if (!_transitCurrentTxId) return;
+  const txId = _transitCurrentTxId;
+  const btn = document.getElementById('td-confirm-btn');
+  const rejectBtn = document.getElementById('td-reject-btn');
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  rejectBtn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Прийняття…';
+
+  fetch(API_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'confirmTransitReceipt',
+      data: { txId, receiverName: APP.user?.name || APP.user?.email || '' }
+    })
+  })
+  .then(res => res.json())
+  .then(res => {
+    btn.disabled = false;
+    rejectBtn.disabled = false;
+    btn.innerHTML = origText;
+
+    if (res.success) {
+      APP.transitPending = APP.transitPending.filter(i => String(i.txId) !== String(txId));
+      renderTransitBadge();
+      renderTransitList();
+      closeTransitDetail();
+      showToast(`✅ Товар прийнято на склад`);
+      refreshData(); // підтягуємо оновлений залишок у "Склад"
+    } else {
+      showToast('❌ ' + (res.error || 'Помилка прийняття'), 'error');
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    rejectBtn.disabled = false;
+    btn.innerHTML = origText;
+    showToast('❌ Помилка мережі', 'error');
+  });
+}
+
+function rejectTransitItem() {
+  if (!_transitCurrentTxId) return;
+  const txId = _transitCurrentTxId;
+
+  const reason = prompt('Причина відхилення (необов\'язково):', '') || '';
+
+  const btn = document.getElementById('td-reject-btn');
+  const confirmBtn = document.getElementById('td-confirm-btn');
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  confirmBtn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Відхилення…';
+
+  fetch(API_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'rejectTransitReceipt',
+      data: { txId, receiverName: APP.user?.name || APP.user?.email || '', reason }
+    })
+  })
+  .then(res => res.json())
+  .then(res => {
+    btn.disabled = false;
+    confirmBtn.disabled = false;
+    btn.innerHTML = origText;
+
+    if (res.success) {
+      APP.transitPending = APP.transitPending.filter(i => String(i.txId) !== String(txId));
+      renderTransitBadge();
+      renderTransitList();
+      closeTransitDetail();
+      showToast(`↩️ Товар відхилено, повернуто відправнику`);
+    } else {
+      showToast('❌ ' + (res.error || 'Помилка відхилення'), 'error');
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    confirmBtn.disabled = false;
+    btn.innerHTML = origText;
+    showToast('❌ Помилка мережі', 'error');
+  });
+}
+
+/** Мінімальне екранування для вставки у innerHTML/атрибути. */
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(str) {
+  return String(str == null ? '' : str).replace(/'/g, '&#39;');
+}
+
 function populateBuyerSelect() {
   const sel = document.getElementById('buyer-select');
   // Зберігаємо поточне значення, якщо є (або беремо з localStorage)
@@ -907,7 +1213,14 @@ function populateBuyerSelect() {
     if (b.isOpt) opt.style.color = '#7c3aed';
     sel.appendChild(opt);
   });
-  if (current) sel.value = current;
+  if (current) {
+    sel.value = current;
+    if (sel.value !== current) {
+      // Збереженого покупця більше не існує у списку — скидаємо на роздріб
+      try { localStorage.removeItem(LS_BUYER_KEY); } catch (e) {}
+      onBuyerChange();
+    }
+  }
 }
 
 /** Повертає true, якщо вибраний покупець є оптовим */
@@ -1186,7 +1499,10 @@ function renderCart() {
 
   cartSection.style.display = '';
   emptyHint.style.display   = 'none';
-  saleBtn.disabled = false;
+  saleBtn.disabled = !APP.dataLoaded;
+  saleBtn.innerHTML = APP.dataLoaded
+    ? '✅ Провести продаж'
+    : '<div class="spinner"></div> Завантаження даних…';
 
   cartItems.innerHTML = APP.cart.map(item => `
     <div class="cart-row" id="cart-row-${item.id}">
@@ -1273,6 +1589,11 @@ function processSale() {
   const btn = document.getElementById('btn-process-sale');
   if (!btn || btn.disabled) return;
 
+  if (!APP.dataLoaded) {
+    alert('⏳ Дані ще завантажуються. Зачекайте секунду і спробуйте знову.');
+    return;
+  }
+
   if (APP.cart.length === 0) {
     alert('❌ Кошик порожній!');
     return;
@@ -1280,6 +1601,18 @@ function processSale() {
 
   const buyer = document.getElementById('buyer-select').value;
   const paymentMethod = document.getElementById('payment-select')?.value || 'Готівка';
+
+  // Страховка: ціни в кошику мають відповідати вибраному покупцю
+  const priceMismatch = APP.cart.some(item => {
+    const stockItem = APP.stock.find(s => String(s.id) === String(item.id));
+    if (!stockItem) return false;
+    return Math.abs(getItemPrice(stockItem) - item.price) > 0.001;
+  });
+  if (priceMismatch) {
+    if (!confirm('⚠️ Ціни в кошику не відповідають вибраному покупцю.\n\nПерерахувати кошик під поточного покупця?')) return;
+    onBuyerChange();
+    return;
+  }
 
   const rawTotal = APP.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const roundedTotal = Math.round(rawTotal / kratno) * kratno;
@@ -1762,6 +2095,59 @@ function _handleScanResult(code) {
   }
 }
 </script>
+<!-- ══ МОДАЛЬНЕ ВІКНО: СПИСОК ТОВАРІВ З ТРАНЗИТНОГО СКЛАДУ ══ -->
+<div id="transit-modal">
+  <div id="transit-modal-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 12px;">
+      <div style="font-weight:800;font-size:1.05rem;color:#1e293b;">📥 Товар з транзитного складу</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="transit-refresh-btn" onclick="manualRefreshTransit()" title="Оновити список"
+          style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;color:#64748b;display:flex;align-items:center;justify-content:center;font-size:1rem;">🔄</button>
+        <button onclick="closeTransitModal()"
+          style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;color:#64748b;">✕</button>
+      </div>
+    </div>
+    <div id="transit-list-scroll">
+      <div id="transit-list-empty" style="text-align:center;color:#94a3b8;font-weight:600;padding:30px 10px;">
+        Немає товарів, що очікують прийняття
+      </div>
+      <div id="transit-list-items"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ МОДАЛЬНЕ ВІКНО: ДЕТАЛІ ЗАПИСУ ТРАНЗИТУ ══ -->
+<div id="transit-detail-modal">
+  <div id="transit-detail-inner">
+    <div style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-weight:800;font-size:1.05rem;color:#1e293b;">Деталі переміщення</div>
+        <button onclick="closeTransitDetail()"
+          style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;color:#64748b;">✕</button>
+      </div>
+
+      <div style="background:#f8fafc;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+        <div id="td-product" style="font-weight:800;font-size:1.1rem;color:#1e293b;margin-bottom:8px;"></div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:.86rem;color:#475569;">
+          <div>📦 Кількість: <b id="td-qty"></b></div>
+          <div>🏭 Звідки: <b id="td-from"></b></div>
+          <div>🕓 Відправлено: <span id="td-sent"></span></div>
+          <div>🚚 Відправив: <span id="td-sender"></span></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button id="td-reject-btn" onclick="rejectTransitItem()" class="btn btn-red btn-lg btn-full">
+          ❌ Відхилити
+        </button>
+        <button id="td-confirm-btn" onclick="confirmTransitItem()" class="btn btn-green btn-lg btn-full">
+          ✅ Підтвердити
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ МОДАЛЬНЕ ВІКНО: КАЛЬКУЛЯТОР ВАГИ ══ -->
 <div id="weight-calc-modal">
   <div id="weight-calc-inner">
