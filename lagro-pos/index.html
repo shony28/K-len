@@ -562,6 +562,7 @@
       <select class="sel" id="payment-select">
         <option value="Готівка" selected>💵 Готівка</option>
         <option value="Карта">💳 Карта</option>
+        <option value="На список">📋 На список</option>
       </select>
     </div>
 
@@ -588,15 +589,19 @@
           <div id="cash-load-status" style="font-size:.75rem;color:#94a3b8;font-weight:600;"></div>
         </div>
 
-        <!-- Готівка / Карта -->
-        <div style="display:flex;gap:10px;margin-bottom:14px;">
-          <div style="flex:1;background:#f0fdf4;border-radius:14px;padding:12px 14px;border:1.5px solid #bbf7d0;">
+        <!-- Готівка / Карта / На список -->
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;background:#f0fdf4;border-radius:14px;padding:12px 14px;border:1.5px solid #bbf7d0;">
             <div style="font-size:.73rem;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">💵 Готівка</div>
             <div id="cash-today-cash" style="font-size:1.35rem;font-weight:900;color:#16a34a;">—</div>
           </div>
-          <div style="flex:1;background:#eff6ff;border-radius:14px;padding:12px 14px;border:1.5px solid #bfdbfe;">
+          <div style="flex:1;min-width:120px;background:#eff6ff;border-radius:14px;padding:12px 14px;border:1.5px solid #bfdbfe;">
             <div style="font-size:.73rem;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">💳 Карта</div>
             <div id="cash-today-card" style="font-size:1.35rem;font-weight:900;color:#2563eb;">—</div>
+          </div>
+          <div style="flex:1;min-width:120px;background:#fdf4ff;border-radius:14px;padding:12px 14px;border:1.5px solid #e9d5ff;">
+            <div style="font-size:.73rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📋 На список</div>
+            <div id="cash-today-list" style="font-size:1.35rem;font-weight:900;color:#7c3aed;">—</div>
           </div>
         </div>
 
@@ -1882,11 +1887,13 @@ function loadCashData() {
     .then(res => {
       if (statusEl) statusEl.textContent = '';
       if (res.success && res.data) {
-        const { cash, card, lastSales } = res.data;
+        const { cash, card, list, lastSales } = res.data;
         const cashEl = document.getElementById('cash-today-cash');
         const cardEl = document.getElementById('cash-today-card');
+        const listEl = document.getElementById('cash-today-list');
         if (cashEl) cashEl.textContent = formatPrice(cash) + ' ₴';
         if (cardEl) cardEl.textContent = formatPrice(card) + ' ₴';
+        if (listEl) listEl.textContent = formatPrice(list || 0) + ' ₴';
         renderLastSales(lastSales);
       }
     })
@@ -1908,10 +1915,12 @@ function renderLastSales(sales) {
   }
 
   el.innerHTML = sales.map(s => {
-    const payIsCard = (s.payment || '').toLowerCase().includes('карт');
-    const payBg    = payIsCard ? '#eff6ff' : '#f0fdf4';
-    const payColor = payIsCard ? '#2563eb' : '#16a34a';
-    const payIcon  = payIsCard ? '💳' : '💵';
+    const payLower = (s.payment || '').toLowerCase();
+    const payIsCard = payLower.includes('карт');
+    const payIsList = payLower.includes('список');
+    const payBg    = payIsCard ? '#eff6ff' : payIsList ? '#fdf4ff' : '#f0fdf4';
+    const payColor = payIsCard ? '#2563eb' : payIsList ? '#7c3aed' : '#16a34a';
+    const payIcon  = payIsCard ? '💳' : payIsList ? '📋' : '💵';
 
     return `
       <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:8px;background:#fafafa;">
