@@ -1184,13 +1184,17 @@ function closeTransferSuccess() {
 }
 
 // ——— Реєстрація Service Worker (PWA) ———
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch((err) => {
-      console.warn('Service Worker не зареєстровано:', err);
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then((reg) => {
+          console.log('Service Worker успішно зареєстровано для області дії:', reg.scope);
+        })
+        .catch((err) => {
+          console.error('Помилка реєстрації Service Worker:', err);
+        });
     });
-  });
-}
+  }
 </script>
 
 </body>
