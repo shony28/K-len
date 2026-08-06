@@ -1,0 +1,23 @@
+{
+  "short_name": "Лагро Надої",
+  "name": "Лагро — Облік надоїв",
+  "description": "Мобільна система обліку надоїв молока для молочної ферми",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./",
+  "scope": "./",
+  "background_color": "#f8fafc",
+  "theme_color": "#f8fafc",
+  "display": "standalone",
+  "orientation": "portrait"
+}
