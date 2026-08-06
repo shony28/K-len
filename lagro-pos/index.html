@@ -259,6 +259,18 @@
     #scan-torch-btn { background: #6c757d; color: #fff; }
     #scan-torch-btn.active { background: #ffc107; color: #212529; }
 
+    /* ── МОДАЛ ПОГАШЕННЯ БОРГУ ── */
+    #debt-modal {
+      display: none; position: fixed; inset: 0; z-index: 9998;
+      background: rgba(0,0,0,.7); align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    #debt-modal.open { display: flex; }
+    #debt-modal-inner {
+      background: #fff; border-radius: 20px; width: 100%; max-width: 420px;
+      padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+
     /* ── СПОВІЩЕННЯ: ТРАНЗИТНИЙ СКЛАД ── */
     #transit-bell-btn {
       position: relative; background: none; border: none; cursor: pointer;
@@ -472,6 +484,9 @@
       <button class="tab-btn" id="tab-stock-btn" onclick="switchTab('stock')">
         📦 Каса/Залишки
       </button>
+      <button class="tab-btn" id="tab-debts-btn" onclick="switchTab('debts')">
+        📋 Борги
+      </button>
     </div>
   </div>
 
@@ -559,11 +574,15 @@
       <label style="display:block;font-weight:800;color:#1e293b;margin:14px 0 8px;font-size:.9rem;">
         💳 Оплата
       </label>
-      <select class="sel" id="payment-select">
+      <select class="sel" id="payment-select" onchange="onPaymentMethodChange()">
         <option value="Готівка" selected>💵 Готівка</option>
         <option value="Карта">💳 Карта</option>
-        <option value="На список">📋 На список</option>
+        <option value="В борг">📋 В борг</option>
+        <option value="Дегустація">🎁 Дегустація</option>
       </select>
+      <div id="debt-buyer-hint" style="display:none;margin-top:8px;font-size:.8rem;font-weight:700;color:#7c3aed;background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:10px;padding:8px 12px;">
+        ⚠️ Для продажу "В борг" оберіть покупця вище (не "Роздрібний покупець")
+      </div>
     </div>
 
       <!-- Підсумок + кнопка -->
@@ -600,8 +619,12 @@
             <div id="cash-today-card" style="font-size:1.35rem;font-weight:900;color:#2563eb;">—</div>
           </div>
           <div style="flex:1;min-width:120px;background:#fdf4ff;border-radius:14px;padding:12px 14px;border:1.5px solid #e9d5ff;">
-            <div style="font-size:.73rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📋 На список</div>
+            <div style="font-size:.73rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">📋 В борг сьогодні</div>
             <div id="cash-today-list" style="font-size:1.35rem;font-weight:900;color:#7c3aed;">—</div>
+          </div>
+          <div style="flex:1;min-width:120px;background:#fff7ed;border-radius:14px;padding:12px 14px;border:1.5px solid #fed7aa;">
+            <div style="font-size:.73rem;font-weight:700;color:#ea580c;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">🎁 Дегустація</div>
+            <div id="cash-today-tasting" style="font-size:1.35rem;font-weight:900;color:#ea580c;">—</div>
           </div>
         </div>
 
@@ -647,6 +670,56 @@
         </button>
       </div>
     </div><!-- / tab-stock -->
+
+    <!-- ── ВКЛАДКА: БОРГИ ── -->
+    <div id="tab-debts" style="display:none;">
+
+      <div class="card" style="padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;">
+          <div style="font-weight:800;color:#1e293b;font-size:.95rem;">📋 Борги покупців</div>
+          <div id="debts-load-status" style="font-size:.75rem;color:#94a3b8;font-weight:600;"></div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;background:#fdf4ff;border-radius:14px;padding:12px 14px;border:1.5px solid #e9d5ff;">
+            <div style="font-size:.73rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Разом винні</div>
+            <div id="debts-total-remaining" style="font-size:1.35rem;font-weight:900;color:#7c3aed;">—</div>
+          </div>
+          <div style="flex:1;background:#f0fdf4;border-radius:14px;padding:12px 14px;border:1.5px solid #bbf7d0;">
+            <div style="font-size:.73rem;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Активних боргів</div>
+            <div id="debts-active-count" style="font-size:1.35rem;font-weight:900;color:#16a34a;">—</div>
+          </div>
+        </div>
+
+        <div class="tabs" style="margin-bottom:14px;">
+          <button class="tab-btn active" id="debts-filter-active-btn" onclick="setDebtsFilter('active')">
+            🔴 Активні
+          </button>
+          <button class="tab-btn" id="debts-filter-all-btn" onclick="setDebtsFilter('all')">
+            📜 Всі (з закритими)
+          </button>
+        </div>
+
+        <input
+          id="debts-search"
+          class="inp"
+          type="text"
+          placeholder="Пошук по покупцю…"
+          oninput="renderDebtsList()"
+          style="margin-bottom:12px;"
+        >
+
+        <div id="debts-list">
+          <div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:20px 0;">Завантаження…</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <button class="btn btn-gray btn-sm" onclick="loadDebts()">
+          🔄 Оновити борги
+        </button>
+      </div>
+    </div><!-- / tab-debts -->
 
   </div><!-- / main content -->
 </div><!-- / screen-main -->
@@ -699,6 +772,53 @@
   </button>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════
+     МОДАЛ: ПОГАШЕННЯ БОРГУ
+══════════════════════════════════════════════════════════════ -->
+<div id="debt-modal">
+  <div id="debt-modal-inner">
+    <div style="font-weight:900;color:#1e293b;font-size:1.15rem;margin-bottom:4px;">
+      💰 Погасити борг
+    </div>
+    <div id="debt-modal-buyer" style="color:#64748b;font-weight:700;font-size:.9rem;margin-bottom:14px;"></div>
+
+    <div style="display:flex;justify-content:space-between;background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:12px 14px;margin-bottom:16px;">
+      <span style="color:#7c3aed;font-weight:700;font-size:.85rem;">Залишок боргу:</span>
+      <span id="debt-modal-remaining" style="color:#7c3aed;font-weight:900;font-size:1.1rem;">0.00 ₴</span>
+    </div>
+
+    <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:8px;font-size:.9rem;">
+      Сума погашення
+    </label>
+    <input
+      id="debt-repay-amount"
+      class="inp"
+      type="number"
+      inputmode="decimal"
+      placeholder="0.00"
+      style="margin-bottom:14px;font-size:1.2rem;font-weight:800;text-align:center;"
+    >
+
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn btn-gray btn-sm" style="flex:1;" onclick="setDebtRepayFull()">Вся сума</button>
+      <button class="btn btn-gray btn-sm" style="flex:1;" onclick="setDebtRepayHalf()">Половина</button>
+    </div>
+
+    <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:8px;font-size:.9rem;">
+      💳 Спосіб оплати
+    </label>
+    <select class="sel" id="debt-repay-payment" style="margin-bottom:18px;">
+      <option value="Готівка" selected>💵 Готівка</option>
+      <option value="Карта">💳 Карта</option>
+    </select>
+
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-gray btn-lg" style="flex:1;" onclick="closeRepayModal()">Скасувати</button>
+      <button class="btn btn-green btn-lg" style="flex:1.4;" id="debt-repay-submit-btn" onclick="submitRepayment()">✅ Підтвердити</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast toast-success" id="toast"></div>
 
@@ -731,8 +851,14 @@ const APP = {
   buyers: [],       // [ 'Покупець 1', ... ] — кеш покупців
   cart:   [],       // [ { id, name, unit, price, qty } ] — поточний кошик
   dataLoaded: false, // чи вже завантажено склад з сервера
-  transitPending: [] // [ { txId, from, to, product, qty, unit, sender, sentAt } ] — очікують прийняття
+  transitPending: [], // [ { txId, from, to, product, qty, unit, sender, sentAt } ] — очікують прийняття
+  debts: [],          // [ { debtId, date, buyer, content, amount, paid, remaining, manager, status } ]
+  debtsLoaded: false,
+  debtsFilter: 'active' // 'active' | 'all'
 };
+
+// Ціль поточної модалки погашення боргу: { debtId, buyer, remaining }
+let _debtModalTarget = null;
 
 let _transitCurrentTxId = null; // txId, що зараз відкритий у деталях
 let _transitPollTimer = null;   // інтервал опитування транзитного складу
@@ -891,6 +1017,8 @@ function handleLogout() {
   APP.cart = [];
   APP.dataLoaded = false;
   APP.transitPending = [];
+  APP.debts = [];
+  APP.debtsLoaded = false;
   stopTransitPolling();
   showScreen('screen-auth');
   location.reload();
@@ -1262,6 +1390,7 @@ function onBuyerChange() {
     }
   });
   renderCart();
+  onPaymentMethodChange();
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1270,8 +1399,12 @@ function onBuyerChange() {
 function switchTab(tab) {
   document.getElementById('tab-cart-btn').classList.toggle('active', tab === 'cart');
   document.getElementById('tab-stock-btn').classList.toggle('active', tab === 'stock');
+  document.getElementById('tab-debts-btn').classList.toggle('active', tab === 'debts');
   document.getElementById('tab-cart').style.display  = (tab === 'cart')  ? '' : 'none';
   document.getElementById('tab-stock').style.display = (tab === 'stock') ? '' : 'none';
+  document.getElementById('tab-debts').style.display = (tab === 'debts') ? '' : 'none';
+
+  if (tab === 'debts') loadDebts();
 
   if (tab === 'stock') { renderStockList(); loadCashData(); }
 }
@@ -1587,6 +1720,14 @@ function updateCartTotal(changedProductId = null) {
   }
 }
 
+/** Показує підказку, коли обрано "В борг", але покупець ще не вказаний */
+function onPaymentMethodChange() {
+  const payment = document.getElementById('payment-select')?.value;
+  const buyer   = document.getElementById('buyer-select')?.value || '';
+  const hint    = document.getElementById('debt-buyer-hint');
+  if (hint) hint.style.display = (payment === 'В борг' && !buyer) ? 'block' : 'none';
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 //  💳  ПРОВЕДЕННЯ ПРОДАЖУ
 // ────────────────────────────────────────────────────────────────────────────
@@ -1606,6 +1747,17 @@ function processSale() {
 
   const buyer = document.getElementById('buyer-select').value;
   const paymentMethod = document.getElementById('payment-select')?.value || 'Готівка';
+
+  // "В борг" обов'язково прив'язується до конкретного покупця
+  if (paymentMethod === 'В борг') {
+    if (!buyer) {
+      alert('❌ Для продажу "В борг" оберіть покупця (не "Роздрібний покупець")');
+      return;
+    }
+    if (!confirm(`⚠️ Ви впевнені, що відпускаєте товар покупцю "${buyer}" у борг?\n\nТовар списується зі складу одразу, гроші за нього ще не отримані.`)) {
+      return;
+    }
+  }
 
   // Страховка: ціни в кошику мають відповідати вибраному покупцю
   const priceMismatch = APP.cart.some(item => {
@@ -1666,7 +1818,11 @@ function processSale() {
 
       document.getElementById('success-raw-total').textContent = formatPrice(rawTotal) + ' ₴';
       document.getElementById('success-rounded-total').textContent = formatPrice(roundedTotal) + ' ₴';
-      document.getElementById('success-date').textContent = res.data?.date || new Date().toLocaleString('uk-UA');
+      let dateLine = res.data?.date || new Date().toLocaleString('uk-UA');
+      if (res.data?.debtId) {
+        dateLine += `  •  📋 Борг: ${res.data.debtId}`;
+      }
+      document.getElementById('success-date').textContent = dateLine;
 
       document.getElementById('cash-received').value = '';
       document.getElementById('change-amount').textContent = '— ₴';
@@ -1887,13 +2043,15 @@ function loadCashData() {
     .then(res => {
       if (statusEl) statusEl.textContent = '';
       if (res.success && res.data) {
-        const { cash, card, list, lastSales } = res.data;
-        const cashEl = document.getElementById('cash-today-cash');
-        const cardEl = document.getElementById('cash-today-card');
-        const listEl = document.getElementById('cash-today-list');
-        if (cashEl) cashEl.textContent = formatPrice(cash) + ' ₴';
-        if (cardEl) cardEl.textContent = formatPrice(card) + ' ₴';
-        if (listEl) listEl.textContent = formatPrice(list || 0) + ' ₴';
+        const { cash, card, list, tasting, lastSales } = res.data;
+        const cashEl    = document.getElementById('cash-today-cash');
+        const cardEl    = document.getElementById('cash-today-card');
+        const listEl    = document.getElementById('cash-today-list');
+        const tastingEl = document.getElementById('cash-today-tasting');
+        if (cashEl)    cashEl.textContent    = formatPrice(cash) + ' ₴';
+        if (cardEl)    cardEl.textContent    = formatPrice(card) + ' ₴';
+        if (listEl)    listEl.textContent    = formatPrice(list || 0) + ' ₴';
+        if (tastingEl) tastingEl.textContent = formatPrice(tasting || 0) + ' ₴';
         renderLastSales(lastSales);
       }
     })
@@ -1916,11 +2074,15 @@ function renderLastSales(sales) {
 
   el.innerHTML = sales.map(s => {
     const payLower = (s.payment || '').toLowerCase();
-    const payIsCard = payLower.includes('карт');
-    const payIsList = payLower.includes('список');
-    const payBg    = payIsCard ? '#eff6ff' : payIsList ? '#fdf4ff' : '#f0fdf4';
-    const payColor = payIsCard ? '#2563eb' : payIsList ? '#7c3aed' : '#16a34a';
-    const payIcon  = payIsCard ? '💳' : payIsList ? '📋' : '💵';
+    const payIsCard    = payLower.includes('карт');
+    const payIsDebt    = payLower.includes('борг');
+    const payIsTasting = payLower.includes('дегуст');
+    const payBg    = payIsCard ? '#eff6ff' : payIsDebt ? '#fdf4ff' : payIsTasting ? '#fff7ed' : '#f0fdf4';
+    const payColor = payIsCard ? '#2563eb' : payIsDebt ? '#7c3aed' : payIsTasting ? '#ea580c' : '#16a34a';
+    const payIcon  = payIsCard ? '💳' : payIsDebt ? '📋' : payIsTasting ? '🎁' : '💵';
+
+    // Погашення боргу — гроші реальні (Готівка/Карта), але вміст рядка це видає
+    const isDebtRepayment = (s.content || '').includes('Погашення боргу');
 
     return `
       <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:8px;background:#fafafa;">
@@ -1933,10 +2095,197 @@ function renderLastSales(sales) {
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           ${s.buyer  ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">💼 ${escHtml(s.buyer)}</span>` : ''}
           ${s.seller ? `<span style="font-size:.73rem;background:#f1f5f9;border-radius:8px;padding:2px 8px;color:#475569;font-weight:600;">🧍 ${escHtml(s.seller)}</span>` : ''}
+          ${isDebtRepayment ? `<span style="font-size:.73rem;background:#fdf4ff;border-radius:8px;padding:2px 8px;color:#7c3aed;font-weight:700;">🔁 Погашення боргу</span>` : ''}
           <span style="font-size:.73rem;background:${payBg};border-radius:8px;padding:2px 8px;color:${payColor};font-weight:700;">${payIcon} ${escHtml(s.payment)}</span>
         </div>
       </div>`;
   }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  📋  БОРГИ
+// ────────────────────────────────────────────────────────────────────────────
+function loadDebts() {
+  const statusEl = document.getElementById('debts-load-status');
+  if (statusEl) statusEl.textContent = '⏳ Оновлення…';
+
+  fetch(`${API_URL}?action=getDebts`, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (statusEl) statusEl.textContent = '';
+      if (res.success) {
+        APP.debts = res.data.debts || [];
+        APP.debtsLoaded = true;
+        renderDebtsList();
+      } else {
+        throw new Error(res.error || 'Помилка завантаження боргів');
+      }
+    })
+    .catch(err => {
+      if (statusEl) statusEl.textContent = '❌';
+      const listEl = document.getElementById('debts-list');
+      if (listEl) listEl.innerHTML =
+        `<div style="color:#dc2626;font-size:.82rem;text-align:center;padding:12px;font-weight:600;">Помилка завантаження: ${escHtml(err.message || String(err))}</div>`;
+    });
+}
+
+function setDebtsFilter(filter) {
+  APP.debtsFilter = filter;
+  document.getElementById('debts-filter-active-btn').classList.toggle('active', filter === 'active');
+  document.getElementById('debts-filter-all-btn').classList.toggle('active', filter === 'all');
+  renderDebtsList();
+}
+
+function renderDebtsList() {
+  const listEl = document.getElementById('debts-list');
+  if (!listEl) return;
+
+  if (!APP.debtsLoaded) {
+    listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:20px 0;">Завантаження…</div>';
+    return;
+  }
+
+  const query = (document.getElementById('debts-search')?.value || '').trim().toLowerCase();
+
+  let debts = APP.debts.slice();
+  if (APP.debtsFilter === 'active') {
+    debts = debts.filter(d => d.remaining > 0.009);
+  }
+  if (query) {
+    debts = debts.filter(d => d.buyer.toLowerCase().includes(query));
+  }
+
+  // ── Зведення ──
+  const activeDebts = APP.debts.filter(d => d.remaining > 0.009);
+  const totalRemaining = activeDebts.reduce((sum, d) => sum + d.remaining, 0);
+  const totalEl = document.getElementById('debts-total-remaining');
+  const countEl = document.getElementById('debts-active-count');
+  if (totalEl) totalEl.textContent = formatPrice(totalRemaining) + ' ₴';
+  if (countEl) countEl.textContent = String(activeDebts.length);
+
+  if (debts.length === 0) {
+    listEl.innerHTML = `<div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:20px 0;">
+      ${APP.debtsFilter === 'active' ? 'Активних боргів немає 🎉' : 'Боргів не знайдено'}
+    </div>`;
+    return;
+  }
+
+  listEl.innerHTML = debts.map(d => {
+    const isClosed = d.remaining <= 0.009;
+    const badgeBg    = isClosed ? '#f0fdf4' : '#fdf4ff';
+    const badgeColor = isClosed ? '#16a34a' : '#7c3aed';
+    const badgeText  = isClosed ? '✅ Закрито' : '🔴 Активний';
+
+    return `
+      <div style="border:1.5px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:10px;background:#fafafa;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+          <div style="font-weight:800;color:#1e293b;font-size:.95rem;">${escHtml(d.buyer || 'Без імені')}</div>
+          <span style="font-size:.73rem;background:${badgeBg};border-radius:8px;padding:2px 8px;color:${badgeColor};font-weight:700;white-space:nowrap;">${badgeText}</span>
+        </div>
+        <div style="font-size:.76rem;color:#94a3b8;font-weight:600;margin-bottom:8px;">${escHtml(d.date)} • ${escHtml(d.debtId)}</div>
+        <div style="font-size:.82rem;color:#475569;font-weight:600;line-height:1.4;margin-bottom:10px;white-space:pre-line;">${escHtml(d.content)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div style="font-size:.8rem;color:#64748b;font-weight:700;">
+            Борг: ${formatPrice(d.amount)} ₴ &nbsp;•&nbsp; Сплачено: ${formatPrice(d.paid)} ₴
+          </div>
+          <div style="font-weight:900;color:${isClosed ? '#16a34a' : '#dc2626'};font-size:1.05rem;">
+            ${formatPrice(d.remaining)} ₴
+          </div>
+        </div>
+        ${!isClosed ? `
+          <button class="btn btn-green btn-sm btn-full" style="margin-top:10px;" onclick="openRepayModal('${escHtml(d.debtId)}')">
+            💰 Погасити
+          </button>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function openRepayModal(debtId) {
+  const debt = APP.debts.find(d => d.debtId === debtId);
+  if (!debt) return;
+
+  _debtModalTarget = { debtId: debt.debtId, buyer: debt.buyer, remaining: debt.remaining };
+
+  document.getElementById('debt-modal-buyer').textContent = debt.buyer || 'Без імені';
+  document.getElementById('debt-modal-remaining').textContent = formatPrice(debt.remaining) + ' ₴';
+  document.getElementById('debt-repay-amount').value = '';
+  document.getElementById('debt-repay-payment').value = 'Готівка';
+  document.getElementById('debt-modal').classList.add('open');
+
+  setTimeout(() => document.getElementById('debt-repay-amount').focus(), 250);
+}
+
+function closeRepayModal() {
+  document.getElementById('debt-modal').classList.remove('open');
+  _debtModalTarget = null;
+}
+
+function setDebtRepayFull() {
+  if (!_debtModalTarget) return;
+  document.getElementById('debt-repay-amount').value = _debtModalTarget.remaining.toFixed(2);
+}
+
+function setDebtRepayHalf() {
+  if (!_debtModalTarget) return;
+  document.getElementById('debt-repay-amount').value = (_debtModalTarget.remaining / 2).toFixed(2);
+}
+
+function submitRepayment() {
+  if (!_debtModalTarget) return;
+
+  const amount = parseFloat(document.getElementById('debt-repay-amount').value);
+  const paymentMethod = document.getElementById('debt-repay-payment').value || 'Готівка';
+
+  if (!amount || amount <= 0) {
+    alert('❌ Вкажіть суму погашення більшу за 0');
+    return;
+  }
+  if (amount - _debtModalTarget.remaining > 0.009) {
+    alert(`❌ Сума погашення (${formatPrice(amount)} ₴) перевищує залишок боргу (${formatPrice(_debtModalTarget.remaining)} ₴)`);
+    return;
+  }
+
+  const btn = document.getElementById('debt-repay-submit-btn');
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Надсилання…';
+
+  const payload = {
+    action: 'repayDebt',
+    data: {
+      debtId:        _debtModalTarget.debtId,
+      amount:        amount,
+      paymentMethod: paymentMethod,
+      managerEmail:  APP.user?.email || '',
+      managerName:   APP.user?.name  || ''
+    }
+  };
+
+  fetch(API_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(res => {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+
+    if (res.success) {
+      showToast(res.data?.closed ? '✅ Борг повністю погашено!' : '✅ Часткове погашення записано', 'success');
+      closeRepayModal();
+      loadDebts();
+      loadCashData();
+    } else {
+      alert('⚠️ Помилка:\n' + (res.error || 'Невідома помилка'));
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+    alert('❌ Помилка при погашенні боргу:\n' + (err.message || err));
+  });
 }
 
 // ────────────────────────────────────────────────────────────────────────────
