@@ -14,8 +14,7 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "https://k-len.pp.ua/milkmaid/",
   "background_color": "#f8fafc",
   "theme_color": "#f8fafc",
   "display": "standalone",
