@@ -1,6 +1,6 @@
 {
   "short_name": "Лагро Надої",
-  "name": "Лагро — Облік надоїв",
+  "name": "Облік надоїв",
   "description": "Мобільна система обліку надоїв молока для молочної ферми",
   "icons": [
     {
@@ -21,4 +21,5 @@
   "display": "standalone",
   "orientation": "portrait"
 }
+
 
