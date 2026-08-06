@@ -15,8 +15,10 @@
     }
   ],
   "start_url": "https://k-len.pp.ua/milkmaid/",
+  "scope": "./",
   "background_color": "#f8fafc",
   "theme_color": "#f8fafc",
   "display": "standalone",
   "orientation": "portrait"
 }
+
