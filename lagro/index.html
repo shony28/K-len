@@ -359,7 +359,7 @@ function clearLS(tkName) { localStorage.removeItem(lsKey(tkName)); }
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyy1IGqhfi3JDoFQ1Xqg7QiODC1Kb0QISkiZDosKtwcojtNvkvgnYn_oSI7yMRXlcVu/exec';
 
 // ── URL GAS транзитного складу ────────────────────────────────────────────────
-const TRANSIT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwJvgP-4jInRTabJ4_GkfN1Y-kkpwhgumCLcCCn178_79T2RI-qtBiyOSvzQWqiw3my/exec';
+//const TRANSIT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwJvgP-4jInRTabJ4_GkfN1Y-kkpwhgumCLcCCn178_79T2RI-qtBiyOSvzQWqiw3my/exec';
 
 // ── Назва цієї дільниці ───────────────────────────────────────────────────────
 const THIS_DILINITSA = 'Дільниця переробки';
@@ -368,13 +368,13 @@ const THIS_DILINITSA = 'Дільниця переробки';
 // Лист "Транзитний склад" має ту саму структуру колонок (A:K), що і оригінал
 // на транзитній таблиці. Читаємо його напряму через Sheets API (як і решту
 // стартового екрану) — це швидше, ніж GAS→GAS ланцюжок запитів.
-const TRANSIT_LOCAL_SHEET = 'Транзитний склад';
-const TRANSIT_LOCAL_RANGE = `'${TRANSIT_LOCAL_SHEET}'!A2:K`;
+//const TRANSIT_LOCAL_SHEET = 'Транзитний склад';
+//const TRANSIT_LOCAL_RANGE = `'${TRANSIT_LOCAL_SHEET}'!A2:K`;
+const PHP_TRANSIT_URL = 'https://klen.2828.pp.ua/transit_api.php';
 
 // ── Доступні дільниці для переміщення (куди можна відправити) ────────────────
 const AVAILABLE_DESTINATIONS = [
-  'Дільниця надоїв молока',
-  'Магазин продажів',  
+    'Магазин продажів',  
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -580,35 +580,18 @@ async function loadTkStructure(sheetName) {
 // способом, що й loadTkStructure: RAW-значення (для точної кількості) +
 // FORMATTED-значення (для дати/часу відправки).
 async function getTransitPendingFast() {
-  const [rawData, formattedData] = await Promise.all([
-    sheetsApiFetch(`/values/${encodeURIComponent(TRANSIT_LOCAL_RANGE)}`, { valueRenderOption: 'UNFORMATTED_VALUE' }),
-    sheetsApiFetch(`/values/${encodeURIComponent(TRANSIT_LOCAL_RANGE)}`, { valueRenderOption: 'FORMATTED_VALUE' })
-  ]);
-
-  const rawRows = rawData.values || [];
-  const fmtRows = formattedData.values || [];
-
-  const pending = [];
-  rawRows.forEach((r, i) => {
-    const txId   = r[0];
-    const to     = r[2];
-    const status = r[10];
-    // Колонки: A txId, B from, C to, D product, E qty, F unit, G sender, H sentAt, K status
-    if (!txId || status !== 'очікує' || to !== THIS_DILINITSA) return;
-    const f = fmtRows[i] || [];
-    pending.push({
-      txId,
-      from:    r[1],
-      to,
-      product: r[3],
-      qty:     parseFloat(r[4]) || 0,
-      unit:    r[5],
-      sender:  r[6],
-      sentAt:  f[7] || ''
-    });
+  const res = await fetch(PHP_TRANSIT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn: 'getTransitList', args: ['очікує', THIS_DILINITSA] })
   });
-
-  return pending;
+  if (!res.ok) throw new Error('Мережева помилка (транзит): ' + res.status);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return (data.rows || []).map(r => ({
+    txId: r.txId, from: r.from, to: r.to, product: r.product,
+    qty: parseFloat(r.qty) || 0, unit: r.unit, sender: r.sender, sentAt: r.sentAt
+  }));
 }
 
 // ═══════════════════════════════════════════════════════════════════
