@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Молочна Ферма Лагро</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+  .loader-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .spinner { width:56px; height:56px; border:5px solid #ffffff33; border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .step-badge { min-width:2rem; height:2rem; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { opacity:1; }
+  .info-process-spinner { animation: spin 1.2s linear infinite; }
+
+  /* ── Оверлей дії (прийняття/відхилення) ── */
+  .action-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 10010;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .action-overlay.open { display: flex; }
+  .action-overlay-box {
+    background: #fff; border-radius: 18px; padding: 28px 36px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4); max-width: 320px; width: 100%;
+  }
+  .action-overlay-spinner {
+    width: 42px; height: 42px; border: 4px solid #e2e8f0; border-top-color: #16a34a;
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  .action-overlay-text { font-weight: 800; color: #1e293b; font-size: .95rem; text-align: center; }
+
+  /* ── Спливаючі повідомлення (тости) ── */
+  #app-toast-container {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 10020;
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+    width: 100%; max-width: 460px; padding: 0 16px; pointer-events: none;
+  }
+  .app-toast {
+    pointer-events: auto; width: 100%; background: #fff; border-radius: 14px;
+    padding: 14px 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25); font-weight: 700;
+    font-size: .9rem; display: flex; align-items: center; gap: 10px; color: #1e293b;
+    border-left: 5px solid #16a34a; opacity: 0; transform: translateY(-14px);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .app-toast.show { opacity: 1; transform: translateY(0); }
+  .app-toast.error { border-left-color: #dc2626; }
+
+  /* ── СПОВІЩЕННЯ: ТРАНЗИТНИЙ СКЛАД (transit-bell-btn) ── */
+  #transit-bell-btn {
+    position: relative; background: none; border: none; cursor: pointer;
+    color: #d1fae5; padding: 6px; border-radius: 10px; display: none;
+    align-items: center; justify-content: center;
+  }
+  /* display перемикається в showAppForUser() одразу після входу і більше
+     НЕ залежить від результату опитування (pollTransitPending) — кнопка
+     видима завжди, навіть якщо перший запит ще триває або зафейлився */
+  #transit-bell-btn.has-pending { color: #fde047; }
+  #transit-bell-badge {
+    position: absolute; top: 0; right: 0; min-width: 16px; height: 16px;
+    background: #dc2626; color: #fff; font-size: .62rem; font-weight: 800;
+    border-radius: 999px; display: none; align-items: center; justify-content: center;
+    padding: 0 4px; line-height: 1; border: 2px solid #15803d;
+  }
+  #transit-bell-badge.show { display: flex; }
+
+  #transit-modal, #transit-detail-modal {
+    display: none; position: fixed; inset: 0; z-index: 9997;
+    background: rgba(0,0,0,.6); align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  #transit-modal.open, #transit-detail-modal.open { display: flex; }
+  #transit-modal-inner, #transit-detail-inner {
+    background: #fff; border-radius: 20px; width: 100%; max-width: 460px;
+    max-height: 82vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4); overflow: hidden;
+  }
+  #transit-list-scroll { overflow-y: auto; padding: 4px 20px 20px; }
+  .transit-item {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: transform .1s;
+  }
+  .transit-item:active { transform: scale(.98); }
+  .transit-item-name { font-weight: 800; color: #1e293b; font-size: .95rem; }
+  .transit-item-meta { color: #92400e; font-size: .78rem; margin-top: 3px; }
+
+  /* ── Екрани авторизації ── */
+  .auth-screen {
+    display: none;
+    position: fixed; inset: 0; z-index: 10000;
+    background: linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #0f4c2a 100%);
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .auth-screen.active { display: flex; }
+  .auth-card {
+    background: #fff; border-radius: 20px; padding: 28px 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3); max-width: 380px; width: 100%;
+  }
+  .auth-logo { font-size: 2.5rem; font-weight: 800; color: #166534; text-align: center; margin-bottom: 8px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ════ ЕКРАН АВТОРИЗАЦІЇ ════ -->
+<div id="screenAuth" class="auth-screen">
+  <div style="max-width:380px;width:100%;">
+    <div class="auth-logo">🐄</div>
+    <p style="color:#86efac;text-align:center;font-weight:700;font-size:1.1rem;margin:0 0 4px;">Молочна Ферма</p>
+    <p style="color:#94a3b8;text-align:center;margin:0 0 32px;font-size:.9rem;">Технологічні карти виробництва</p>
+    <div class="auth-card">
+      <p style="color:#475569;text-align:center;font-size:.95rem;margin:0 0 20px;">
+        Увійдіть за допомогою Google-акаунту для доступу до системи.
+      </p>
+      <div id="g_id_onload"
+        data-client_id="1041458356226-cl2pekuc96jegjs0lu0jdj3kvo9kfgep.apps.googleusercontent.com"
+        data-callback="handleGoogleLogin"
+        data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
+        data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"
+        style="display:flex;justify-content:center;"></div>
+      <p id="authMsg" style="color:#64748b;text-align:center;font-size:.85rem;margin:16px 0 0;min-height:20px;"></p>
+    </div>
+    <p style="color:#475569;text-align:center;font-size:.8rem;margin-top:20px;">🔒 Доступ тільки для авторизованих співробітників</p>
+  </div>
+</div>
+
+<!-- ════ ЕКРАН ОЧІКУВАННЯ ДОСТУПУ ════ -->
+<div id="screenPending" class="auth-screen">
+  <div style="max-width:380px;width:100%;color:#fff;">
+    <div style="font-size:4rem;text-align:center;margin-bottom:16px;">⏳</div>
+    <h2 style="text-align:center;font-size:1.5rem;font-weight:800;margin:0 0 12px;">Ви авторизувались!</h2>
+    <p style="text-align:center;color:#94a3b8;font-size:.95rem;margin:0 0 32px;line-height:1.6;">
+      Очікуйте підтвердження адміністратора. Ваш email буде доданий до листа «Довідник».
+    </p>
+    <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:20px;margin-bottom:24px;">
+      <p style="color:#94a3b8;font-size:.85rem;margin:0 0 6px;">Ваш email:</p>
+      <p id="pendingEmail" style="color:#fff;font-weight:700;word-break:break-all;margin:0;"></p>
+    </div>
+    <button onclick="checkStatusAgain()"
+      style="width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;font-weight:800;font-size:1rem;border:none;cursor:pointer;margin-bottom:12px;">
+      🔄 Оновити статус доступу
+    </button>
+    <button onclick="handleLogout()"
+      style="width:100%;padding:16px;border-radius:14px;background:rgba(255,255,255,.1);color:#fff;font-weight:700;font-size:1rem;border:1px solid rgba(255,255,255,.2);cursor:pointer;">
+      Вийти з акаунту
+    </button>
+  </div>
+</div>
+
+<!-- ════ LOADER ════ -->
+<div id="loader" class="loader-overlay hidden">
+  <div class="spinner mb-4"></div>
+  <p class="text-white text-lg font-semibold tracking-wide">Завантаження...</p>
+</div>
+
+<!-- ════ ТОСТИ (спливаючі повідомлення) ════ -->
+<div id="app-toast-container"></div>
+
+<!-- ════ ОВЕРЛЕЙ ДІЇ (прийняття/відхилення транзиту) ════ -->
+<div id="transit-action-overlay" class="action-overlay">
+  <div class="action-overlay-box">
+    <div class="action-overlay-spinner"></div>
+    <div class="action-overlay-text" id="transit-action-overlay-text">Обробка…</div>
+  </div>
+</div>
+
+<!-- ════ HEADER ════ -->
+<header class="bg-green-700 text-white px-2.5 sm:px-4 shadow-md sticky top-0 z-50" style="padding-top:0.8rem;padding-bottom:0.8rem;">
+  <div class="flex items-center gap-1.5 sm:gap-3">
+    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <button id="btnHome" class="text-xl sm:text-2xl leading-none shrink-0" title="Головна" onclick="loadStartScreen()">🐄</button>
+      <button id="btnWarehouse" onclick="loadWarehouseScreen()"
+        class="px-2 py-1.5 sm:px-3 rounded-lg bg-green-600 border border-green-400 text-white text-sm font-bold flex items-center gap-1 active:scale-95 transition-transform shrink-0"
+        title="Склад" style="display:none;">
+        <span>📦</span><span class="hidden sm:inline">Склад</span>
+      </button>
+    </div>
+
+    <div class="flex-1 min-w-0 text-center px-1">
+      <p class="hidden sm:block text-xs opacity-75 uppercase tracking-wider">Лагро</p>
+      <p id="headerTitle" class="text-sm sm:text-base font-bold leading-tight whitespace-normal break-words">Головне меню</p>
+    </div>
+
+    <div class="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
+      <button id="transit-bell-btn" onclick="openTransitModal()" title="Товар з транзитного складу">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="sm:w-5 sm:h-5">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span id="transit-bell-badge">0</span>
+      </button>
+      <div id="headerUser" class="flex items-center gap-1.5 sm:gap-2 min-w-0" style="display:none!important;">
+        <img id="headerUserPhoto" src="" alt="" class="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-green-400 object-cover hidden" referrerpolicy="no-referrer" />
+        <div class="hidden sm:flex flex-col min-w-0 leading-tight">
+          <span id="headerUserName" class="text-xs font-semibold opacity-90 max-w-[110px] truncate"></span>
+          <span id="headerUserEmail" class="text-[10px] opacity-70 max-w-[110px] truncate"></span>
+        </div>
+        <button onclick="handleLogout()" title="Вийти"
+          class="px-1.5 py-1 sm:px-2 rounded-lg bg-green-800/60 hover:bg-green-800 border border-green-400/60 text-white text-xs font-bold flex items-center gap-1 active:scale-95 transition-transform shrink-0">
+          <span aria-hidden="true">⏏</span><span class="hidden sm:inline">Вийти</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ════ SCREENS ════ -->
+<main class="max-w-2xl mx-auto px-3 py-5 pb-24">
+
+  <!-- START SCREEN -->
+  <div id="screenStart">
+    <section id="inProgressSection" class="hidden mb-6">
+      <h2 class="text-sm font-bold uppercase text-orange-600 tracking-widest mb-2">⏳ Процеси в роботі</h2>
+      <div id="inProgressList" class="flex flex-col gap-3"></div>
+    </section>
+    <section>
+      <h2 class="text-sm font-bold uppercase text-green-700 tracking-widest mb-2">📋 Всі процеси</h2>
+      <div id="allProcessesList" class="flex flex-col gap-3"></div>
+    </section>
+  </div>
+
+  <!-- STEP SCREEN -->
+  <div id="screenStep" class="hidden">
+    <div id="stepProgressBar" class="flex gap-1 mb-5 flex-wrap"></div>
+    <div id="stepContent" class="flex flex-col gap-4"></div>
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-3 max-w-2xl mx-auto">
+      <button id="btnBack" class="flex-1 py-4 rounded-xl bg-gray-200 text-gray-700 font-bold text-lg active:scale-95 transition-transform">← Назад</button>
+      <button id="btnNext" class="flex-2 flex-grow-[2] py-4 rounded-xl bg-green-600 text-white font-bold text-lg active:scale-95 transition-transform shadow-md">Далі →</button>
+    </div>
+  </div>
+
+  <!-- DONE SCREEN -->
+  <div id="screenDone" class="hidden text-center py-12">
+    <div class="text-7xl mb-4">✅</div>
+    <h2 class="text-2xl font-bold text-green-700 mb-2">Процес завершено!</h2>
+    <p id="doneMessage" class="text-gray-500 mb-6"></p>
+    <button id="btnDoneHome" class="bg-green-600 text-white px-8 py-4 rounded-xl font-bold text-lg">На головну</button>
+  </div>
+
+  <!-- WAREHOUSE SCREEN -->
+  <div id="screenWarehouse" class="hidden">
+    <div class="flex items-center gap-2 mb-4">
+      <button onclick="loadStartScreen()" class="text-sm text-gray-600 font-semibold flex items-center gap-1">← Назад</button>
+      <h2 class="text-lg font-bold text-gray-800">📦 Склад дільниці</h2>
+      <button onclick="loadWarehouseScreen()" class="ml-auto text-sm text-green-700 font-semibold">🔄 Оновити</button>
+    </div>
+    <div id="warehouseList" class="flex flex-col gap-3"></div>
+    <p id="warehouseEmpty" class="hidden text-center text-gray-400 py-10">Склад порожній</p>
+  </div>
+
+</main>
+
+<!-- ════ MODAL: Переміщення товару ════ -->
+<div id="modalTransfer" class="hidden fixed inset-0 z-[9000] flex items-end justify-center" style="background:rgba(0,0,0,0.5);">
+  <div class="bg-white rounded-t-3xl w-full max-w-2xl px-5 py-6 shadow-2xl" style="max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-800">📤 Переміщення товару</h3>
+      <button onclick="closeTransferModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+
+    <div class="bg-gray-50 rounded-xl px-4 py-3 mb-4">
+      <p class="text-xs text-gray-500 mb-1">Товар</p>
+      <p id="transferProductName" class="font-bold text-gray-800 text-base"></p>
+      <p class="text-xs text-gray-500 mt-1">Доступно: <span id="transferAvailable" class="font-semibold text-gray-700"></span></p>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-gray-700 font-semibold mb-2 text-sm">Куди переміщається:</label>
+      <div class="relative">
+        <select id="transferDestination"
+          class="w-full border-2 border-blue-300 focus:border-blue-600 rounded-xl px-4 py-3 text-base text-gray-800 bg-blue-50 outline-none appearance-none pr-10">
+          <option value="" disabled selected>— Оберіть дільницю —</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">&#x25BC;</div>
+      </div>
+    </div>
+
+    <div class="mb-5">
+      <label class="block text-gray-700 font-semibold mb-2 text-sm">Кількість (<span id="transferUnit"></span>):</label>
+      <input type="number" id="transferQty" inputmode="decimal" min="0.001" step="any"
+        class="w-full border-2 border-blue-300 focus:border-blue-600 rounded-xl px-4 py-4 text-2xl font-bold text-blue-800 bg-blue-50 outline-none"
+        placeholder="0"/>
+    </div>
+
+    <div id="transferError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-4 text-sm"></div>
+
+    <button id="btnTransferSubmit" onclick="submitTransfer()"
+      class="w-full py-4 rounded-xl bg-green-600 text-white font-bold text-lg active:scale-95 transition-transform shadow-md">
+      📤 Відправити на транзитний склад
+    </button>
+    <p class="text-xs text-gray-400 text-center mt-3">Товар отримає статус «очікує» до підтвердження дільницею-отримувачем</p>
+  </div>
+</div>
+
+<!-- ════ MODAL: Успіх переміщення ════ -->
+<div id="modalTransferSuccess" class="hidden fixed inset-0 z-[9001] flex items-center justify-center" style="background:rgba(0,0,0,0.5);">
+  <div class="bg-white rounded-3xl mx-4 p-8 max-w-sm w-full text-center shadow-2xl">
+    <div class="text-6xl mb-4">✅</div>
+    <h3 class="text-xl font-bold text-green-700 mb-2">Відправлено!</h3>
+    <p id="transferSuccessMsg" class="text-gray-500 text-sm mb-6"></p>
+    <button onclick="closeTransferSuccess()" class="w-full py-3 rounded-xl bg-green-600 text-white font-bold">Зрозуміло</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+let state = {
+  currentTk: null,       // sheet name
+  tkRows: [],            // full structure from LocalStorage
+  currentStep: 1,
+  stepGroups: {},        // { stepNum: [rows] }
+  userInputs: {},        // { key: value }
+  eDisplayMap: {},       // { rowIndex: displayValue }
+  stepList: [],          // sorted unique step numbers
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+
+function showLoader(msg) {
+  $('loader').querySelector('p').textContent = msg || 'Зачекайте...';
+  $('loader').classList.remove('hidden');
+}
+function hideLoader() { $('loader').classList.add('hidden'); }
+
+function lsKey(tkName) { return 'tk_' + tkName.replace(/\s+/g, '_'); }
+
+function saveToLS() {
+  if (!state.currentTk) return;
+  const data = {
+    tkRows: state.tkRows,
+    currentStep: state.currentStep,
+    userInputs: state.userInputs,
+    eDisplayMap: state.eDisplayMap,
+  };
+  localStorage.setItem(lsKey(state.currentTk), JSON.stringify(data));
+}
+
+function loadFromLS(tkName) {
+  const raw = localStorage.getItem(lsKey(tkName));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+function clearLS(tkName) { localStorage.removeItem(lsKey(tkName)); }
+
+// ── URL опублікованого Google Apps Script веб-додатку ─────────────────────────
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyy1IGqhfi3JDoFQ1Xqg7QiODC1Kb0QISkiZDosKtwcojtNvkvgnYn_oSI7yMRXlcVu/exec';
+
+// ── URL GAS транзитного складу ────────────────────────────────────────────────
+const TRANSIT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwJvgP-4jInRTabJ4_GkfN1Y-kkpwhgumCLcCCn178_79T2RI-qtBiyOSvzQWqiw3my/exec';
+
+// ── Назва цієї дільниці ───────────────────────────────────────────────────────
+const THIS_DILINITSA = 'Дільниця переробки';
+
+// ── Локальна копія транзитного складу в ЦІЙ ЖЕ таблиці (через IMPORTRANGE) ───
+// Лист "Транзитний склад" має ту саму структуру колонок (A:K), що і оригінал
+// на транзитній таблиці. Читаємо його напряму через Sheets API (як і решту
+// стартового екрану) — це швидше, ніж GAS→GAS ланцюжок запитів.
+const TRANSIT_LOCAL_SHEET = 'Транзитний склад';
+const TRANSIT_LOCAL_RANGE = `'${TRANSIT_LOCAL_SHEET}'!A2:K`;
+
+// ── Доступні дільниці для переміщення (куди можна відправити) ────────────────
+const AVAILABLE_DESTINATIONS = [
+  'Дільниця надоїв молока',
+  'Магазин продажів',  
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  АВТОРИЗАЦІЯ
+// ═══════════════════════════════════════════════════════════════════
+const AUTH_LS_KEY = 'farmApp_user_v1';
+let APP_USER = null;
+
+function showAuthScreen(id) {
+  document.querySelectorAll('.auth-screen').forEach(s => s.classList.remove('active'));
+  if (id) document.getElementById(id).classList.add('active');
+}
+
+function handleGoogleLogin(response) {
+  const msg = document.getElementById('authMsg');
+  if (msg) msg.textContent = 'Перевірка доступу... ⏳';
+
+  const url = `${WEBAPP_URL}?action=loginByToken&token=${encodeURIComponent(response.credential)}`;
+  fetch(url, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        onLoginSuccess(res.data);
+      } else {
+        if (msg) msg.textContent = 'Помилка: ' + (res.error || 'Невідома помилка');
+      }
+    })
+    .catch(err => {
+      if (msg) msg.textContent = 'Помилка мережі. Спробуйте ще раз.';
+    });
+}
+
+function onLoginSuccess(userInfo) {
+  APP_USER = userInfo;
+  localStorage.setItem(AUTH_LS_KEY, JSON.stringify(userInfo));
+  if (userInfo.isAllowed) {
+    showAppForUser(userInfo);
+  } else {
+    document.getElementById('pendingEmail').textContent = userInfo.email || '—';
+    showAuthScreen('screenPending');
+  }
+}
+
+function showAppForUser(userInfo) {
+  // Ховаємо екрани авторизації
+  showAuthScreen(null);
+  // Показуємо ім'я, email та фото у хедері
+  const headerUser = document.getElementById('headerUser');
+  const headerUserName = document.getElementById('headerUserName');
+  const headerUserEmail = document.getElementById('headerUserEmail');
+  const headerUserPhoto = document.getElementById('headerUserPhoto');
+  if (headerUser) { headerUser.style.removeProperty('display'); headerUser.style.display = 'flex'; }
+  if (headerUserName) headerUserName.textContent = userInfo.name || userInfo.email || '';
+  if (headerUserEmail) headerUserEmail.textContent = userInfo.email || '';
+  if (headerUserPhoto) {
+    if (userInfo.picture) {
+      headerUserPhoto.src = userInfo.picture;
+      headerUserPhoto.classList.remove('hidden');
+    } else {
+      headerUserPhoto.classList.add('hidden');
+    }
+  }
+  // Показуємо кнопку Склад
+  const btnWarehouse = document.getElementById('btnWarehouse');
+  if (btnWarehouse) btnWarehouse.style.display = '';
+  // Показуємо кнопку-дзвіночок транзитного складу одразу (не чекаючи на опитування)
+  const transitBtn = document.getElementById('transit-bell-btn');
+  if (transitBtn) transitBtn.style.display = 'inline-flex';
+  // Запускаємо основний екран
+  loadStartScreen();
+  // Запускаємо опитування транзитного складу (дзвіночок)
+  startTransitPolling();
+}
+
+function checkStatusAgain() {
+  if (!APP_USER || !APP_USER.email) return;
+  fetch(`${WEBAPP_URL}?action=checkStatus&email=${encodeURIComponent(APP_USER.email)}`, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success && res.data.isAllowed) {
+        onLoginSuccess(res.data);
+      } else {
+        alert('Доступ все ще очікує підтвердження адміністратора.');
+      }
+    })
+    .catch(() => alert('Помилка мережі. Спробуйте ще раз.'));
+}
+
+function handleLogout() {
+  localStorage.removeItem(AUTH_LS_KEY);
+  APP_USER = null;
+  stopTransitPolling();
+  location.reload();
+}
+
+// GAS call wrapper — використовується ТІЛЬКИ для операцій запису
+// (submitStepData, finishProcess), бо їх не можна робити публічним API-ключем.
+async function gasCall(fn, args) {
+  const res = await fetch(WEBAPP_URL, {
+    method: 'POST',
+    // text/plain уникає CORS preflight-запиту (OPTIONS),
+    // який Apps Script веб-додатки не обробляють
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn, args: Array.isArray(args) ? args : [args] })
+  });
+
+  if (!res.ok) {
+    throw new Error('Помилка мережі (GAS): ' + res.status);
+  }
+
+  return res.json();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ЧИТАННЯ НАПРЯМУ ЧЕРЕЗ GOOGLE SHEETS API v4 (без навантаження на GAS)
+// ═══════════════════════════════════════════════════════════════════
+// Таблиця має бути доступна за посиланням на перегляд ("Anyone with the
+// link — Viewer"). API-ключ треба обмежити (Application restrictions →
+// HTTP referrers → домен GitHub Pages; API restrictions → Google Sheets API),
+// щоб ним не могли скористатись сторонні.
+const SPREADSHEET_ID = '1kkgWAkOmCIB1PzrZv5X4EtjnH0G8RI0NB1aNqMTxz3E';
+const SHEETS_API_KEY = 'AIzaSyCuwPcMEX74Xi8FAgqmzCggEwY88p7UT7g';
+
+async function sheetsApiFetch(path, params) {
+  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}${path}`);
+  url.searchParams.set('key', SHEETS_API_KEY);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (Array.isArray(v)) v.forEach(item => url.searchParams.append(k, item));
+    else url.searchParams.set(k, v);
+  });
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error('Sheets API: ' + (data.error?.message || res.status));
+  }
+  return data;
+}
+
+// ── Стартовий екран: список ТК-листів + їхній A1 (поточний крок) ─────────────
+async function getStartData() {
+  const meta = await sheetsApiFetch('', { fields: 'sheets.properties.title' });
+  const tkNames = (meta.sheets || [])
+    .map(s => s.properties.title)
+    .filter(t => t.startsWith('ТК '));
+
+  const allProcesses = [];
+  const inProgress = [];
+
+  if (tkNames.length === 0) return { allProcesses, inProgress };
+
+  const ranges = tkNames.map(n => `'${n}'!A1`);
+  const valuesData = await sheetsApiFetch('/values:batchGet', { ranges });
+
+  (valuesData.valueRanges || []).forEach((vr, i) => {
+    const name = tkNames[i];
+    const val = vr.values?.[0]?.[0];
+    if (val !== undefined && val !== '' && val !== 'Завершено' && Number(val) > 0) {
+      inProgress.push({ name, currentStep: Number(val) });
+    } else {
+      allProcesses.push({ name });
+    }
+  });
+
+  return { allProcesses, inProgress };
+}
+
+// ── Повна структура ТК: A2:H (значення) + окремо форматовані значення E ──────
+async function loadTkStructure(sheetName) {
+  const range = `'${sheetName}'!A1:H`;
+
+  const [rawData, formattedData] = await Promise.all([
+    sheetsApiFetch(`/values/${encodeURIComponent(range)}`, { valueRenderOption: 'UNFORMATTED_VALUE' }),
+    sheetsApiFetch(`/values/${encodeURIComponent(range)}`, { valueRenderOption: 'FORMATTED_VALUE' })
+  ]);
+
+  const allRows = rawData.values || [];
+  if (allRows.length < 2) return { rows: [], currentStep: 'Завершено' };
+
+  const a1val = allRows[0][0];
+  const currentStep = (a1val === 'Завершено' || a1val === undefined || a1val === '') ? 'Завершено' : Number(a1val);
+
+  const dataRows = allRows.slice(1);
+  const formattedRows = (formattedData.values || []).slice(1);
+
+  const rows = dataRows.map((row, i) => ({
+    step:     row[0],
+    type:     row[1],
+    label:    row[2],
+    eValue:   row[3],
+    eDisplay: formattedRows[i]?.[3] ?? '',
+    action:   row[4],
+    product:  row[5],
+    unit:     row[6],
+    rowIndex: i + 2
+  }));
+
+  return { rows, currentStep };
+}
+
+// ── Швидке зчитування "очікуючих" транзитних записів для ЦІЄЇ дільниці ────────
+// Читає напряму лист "Транзитний склад" (локальна IMPORTRANGE-копія) тим самим
+// способом, що й loadTkStructure: RAW-значення (для точної кількості) +
+// FORMATTED-значення (для дати/часу відправки).
+async function getTransitPendingFast() {
+  const [rawData, formattedData] = await Promise.all([
+    sheetsApiFetch(`/values/${encodeURIComponent(TRANSIT_LOCAL_RANGE)}`, { valueRenderOption: 'UNFORMATTED_VALUE' }),
+    sheetsApiFetch(`/values/${encodeURIComponent(TRANSIT_LOCAL_RANGE)}`, { valueRenderOption: 'FORMATTED_VALUE' })
+  ]);
+
+  const rawRows = rawData.values || [];
+  const fmtRows = formattedData.values || [];
+
+  const pending = [];
+  rawRows.forEach((r, i) => {
+    const txId   = r[0];
+    const to     = r[2];
+    const status = r[10];
+    // Колонки: A txId, B from, C to, D product, E qty, F unit, G sender, H sentAt, K status
+    if (!txId || status !== 'очікує' || to !== THIS_DILINITSA) return;
+    const f = fmtRows[i] || [];
+    pending.push({
+      txId,
+      from:    r[1],
+      to,
+      product: r[3],
+      qty:     parseFloat(r[4]) || 0,
+      unit:    r[5],
+      sender:  r[6],
+      sentAt:  f[7] || ''
+    });
+  });
+
+  return pending;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  START SCREEN
+// ═══════════════════════════════════════════════════════════════════
+async function loadStartScreen() {
+  showLoader('Завантаження списку процесів...');
+  $('headerTitle').textContent = 'Головне меню';
+  hide('screenStep'); hide('screenDone'); hide('screenWarehouse'); show('screenStart');
+
+  try {
+    const data = await getStartData();
+    renderStartScreen(data);
+  } catch(e) {
+    alert('Помилка завантаження: ' + e.message);
+  } finally { hideLoader(); }
+
+  // Паралельно (не блокуючи показ списку процесів) скануємо лист
+  // "Транзитний склад" — чи є товари, готові до переміщення на цю дільницю.
+  pollTransitPending();
+}
+
+function renderStartScreen({ allProcesses, inProgress }) {
+  // In-progress
+  const ipSection = $('inProgressSection');
+  const ipList = $('inProgressList');
+  ipList.innerHTML = '';
+  if (inProgress.length > 0) {
+    show('inProgressSection');
+    inProgress.forEach(p => {
+      ipList.appendChild(makeProcessCard(p.name, true, p.currentStep));
+    });
+  } else {
+    hide('inProgressSection');
+  }
+
+  // All
+  const allList = $('allProcessesList');
+  allList.innerHTML = '';
+  allProcesses.forEach(p => {
+    allList.appendChild(makeProcessCard(p.name, false));
+  });
+}
+
+function makeProcessCard(name, inProgress, currentStep) {
+  const div = document.createElement('div');
+  div.className = 'bg-white rounded-2xl shadow p-4 flex items-center justify-between gap-3';
+  div.innerHTML = `
+    <div>
+      <p class="font-bold text-gray-800 text-base">${name.replace('ТК ', '')}</p>
+      ${inProgress ? `<p class="text-xs text-orange-500 mt-0.5">Крок ${currentStep} — не завершено</p>` : ''}
+    </div>
+    <button class="px-5 py-3 rounded-xl font-bold text-white text-sm shadow active:scale-95 transition-transform
+      ${inProgress ? 'bg-orange-500' : 'bg-green-600'}">
+      ${inProgress ? 'Продовжити' : 'Розпочати'}
+    </button>`;
+  div.querySelector('button').onclick = () => startProcess(name, inProgress);
+  return div;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PROCESS START
+// ═══════════════════════════════════════════════════════════════════
+async function startProcess(tkName, resume) {
+  state.currentTk = tkName;
+  $('headerTitle').textContent = tkName.replace('ТК ', '');
+
+  const cached = loadFromLS(tkName);
+
+  // Нове або відновлення — завжди завантажуємо з таблиці,
+  // бо A1 (currentStep) є єдиним достовірним джерелом поточного кроку
+  showLoader('Завантаження технологічної карти...');
+  try {
+    const result = await loadTkStructure(tkName);
+    if (result.error) { alert(result.error); return; }
+
+    state.tkRows = result.rows;
+    // currentStep ЗАВЖДИ береться з таблиці (A1), не з кешу
+    state.currentStep = (result.currentStep === 'Завершено' || !result.currentStep) ? 1 : result.currentStep;
+
+    if (resume && cached && cached.tkRows && cached.tkRows.length > 0) {
+      // При відновленні беремо userInputs та eDisplayMap з кешу,
+      // але крок вже встановлено вище з таблиці
+      state.userInputs = cached.userInputs || {};
+      state.eDisplayMap = cached.eDisplayMap || {};
+    } else {
+      state.userInputs = {};
+      // Заповнюємо eDisplayMap з завантаженої структури
+      state.eDisplayMap = {};
+      result.rows.forEach(row => {
+        state.eDisplayMap[row.rowIndex] = row.eDisplay;
+      });
+    }
+
+    // Для INPUT_NUMBER_not_cleaned — встановлюємо дефолти в userInputs
+    result.rows.forEach(row => {
+      if (row.type === 'INPUT_NUMBER_not_cleaned' && row.eDisplay !== '') {
+        state.userInputs[row.rowIndex] = row.eDisplay;
+      }
+    });
+
+    buildStepGroups();
+    saveToLS();
+    renderStep(state.currentStep);
+    hide('screenStart'); show('screenStep');
+  } catch(e) {
+    alert('Помилка: ' + e.message);
+  } finally { hideLoader(); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STEP GROUPS
+// ═══════════════════════════════════════════════════════════════════
+function buildStepGroups() {
+  state.stepGroups = {};
+  state.tkRows.forEach(row => {
+    if (!row.step) return;
+    if (!state.stepGroups[row.step]) state.stepGroups[row.step] = [];
+    state.stepGroups[row.step].push(row);
+  });
+  state.stepList = Object.keys(state.stepGroups).map(Number).sort((a,b) => a-b);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER STEP
+// ═══════════════════════════════════════════════════════════════════
+function renderStep(stepNum) {
+  state.currentStep = stepNum;
+  const rows = state.stepGroups[stepNum] || [];
+
+  // Progress bar
+  const bar = $('stepProgressBar');
+  bar.innerHTML = '';
+  state.stepList.forEach(s => {
+    const dot = document.createElement('div');
+    const isCurrent = s == stepNum;
+    const isPast = s < stepNum;
+    dot.className = `step-badge rounded-full flex items-center justify-center text-xs font-bold border-2
+      ${isCurrent ? 'bg-green-600 border-green-600 text-white' : isPast ? 'bg-green-200 border-green-400 text-green-700' : 'bg-gray-100 border-gray-300 text-gray-400'}`;
+    dot.textContent = s;
+    bar.appendChild(dot);
+  });
+
+  // Content
+  const content = $('stepContent');
+  content.innerHTML = '';
+
+  rows.forEach(row => {
+    const el = renderRow(row);
+    if (el) content.appendChild(el);
+  });
+
+  // Buttons
+  const isFirst = stepNum === state.stepList[0];
+  $('btnBack').classList.toggle('hidden', isFirst);
+  $('btnNext').textContent = getNextButtonLabel(rows);
+  $('btnNext').disabled = false;
+  $('btnNext').classList.remove('opacity-40', 'cursor-not-allowed');
+  // Перевіряємо блокуючі елементи (CHECK / TIMER / SELECT)
+  updateNextButton();
+}
+
+function getNextButtonLabel(rows) {
+  const btn = rows.find(r => r.type === 'BUTTON' || r.type === 'BUTTON_END');
+  return btn ? btn.label : 'Далі →';
+}
+
+function renderRow(row) {
+  switch (row.type) {
+    case 'INFO_TITLE': {
+      const div = document.createElement('div');
+      div.className = 'bg-blue-50 border-l-4 border-blue-500 px-4 py-3 rounded-xl';
+      div.innerHTML = `<p class="font-bold text-blue-800 text-lg">${row.label}</p>`;
+      return div;
+    }
+    case 'INFO': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow-sm px-4 py-3 flex justify-between items-center';
+      const val = state.eDisplayMap[row.rowIndex] ?? '';
+      const hasVal = val !== '' && val !== '0';
+      div.innerHTML = `
+        <p class="text-gray-600 text-sm flex-1 pr-3">${row.label}</p>
+        <span class="font-bold text-gray-900 text-base whitespace-nowrap ${hasVal ? 'text-green-700' : 'text-gray-300'}">
+          ${hasVal ? val + (row.unit ? ' ' + row.unit : '') : '—'}
+        </span>`;
+      return div;
+    }
+    case 'INPUT_NUMBER':
+    case 'INPUT_NUMBER_not_cleaned': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow px-4 py-4';
+      const savedVal = state.userInputs[row.rowIndex] ?? (row.type === 'INPUT_NUMBER_not_cleaned' ? (state.eDisplayMap[row.rowIndex] ?? '') : '');
+      div.innerHTML = `
+        <label class="block text-gray-700 font-semibold mb-2 text-base">${row.label}${row.unit ? ` <span class="text-sm text-gray-400 font-normal">(${row.unit})</span>` : ''}</label>
+        <input
+          type="number"
+          inputmode="decimal"
+          class="w-full border-2 border-blue-300 focus:border-blue-600 rounded-xl px-4 py-4 text-2xl font-bold text-blue-800 bg-blue-50 outline-none"
+          data-rowindex="${row.rowIndex}"
+          data-type="${row.type}"
+          value="${savedVal}"
+          placeholder="0"
+        />`;
+      div.querySelector('input').addEventListener('input', e => {
+        state.userInputs[row.rowIndex] = e.target.value;
+      });
+      return div;
+    }
+    // ── INFO_TEXT: звичайний текстовий абзац ──────────────────────────────────
+    case 'INFO_TEXT': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow-sm px-4 py-3';
+      div.innerHTML = `<p class="text-gray-700 text-sm leading-relaxed">${row.label}</p>`;
+      return div;
+    }
+
+    // ── INFO_PROCESS: великий текст по центру з пульсуючою анімацією ──────────
+    case 'INFO_PROCESS': {
+      const div = document.createElement('div');
+      div.className = 'bg-gradient-to-b from-green-50 to-white rounded-2xl shadow px-6 py-10 flex flex-col items-center justify-center text-center gap-4';
+      div.innerHTML = `
+        <div class="info-process-spinner w-16 h-16 rounded-full border-4 border-green-200 border-t-green-600"></div>
+        <p class="text-green-800 font-bold text-xl leading-snug">${row.label}</p>
+        ${row.unit ? `<p class="text-gray-400 text-sm">${row.unit}</p>` : ''}`;
+      return div;
+    }
+
+    // ── INFO_WARN: попередження жовтим блоком ──────────────────────────────────
+    case 'INFO_WARN': {
+      const div = document.createElement('div');
+      div.className = 'bg-amber-50 border-l-4 border-amber-400 rounded-xl px-4 py-3 flex gap-3 items-start';
+      div.innerHTML = `
+        <span class="text-2xl leading-none mt-0.5">&#x26A0;&#xFE0F;</span>
+        <p class="text-amber-900 font-semibold text-sm leading-relaxed">${row.label}</p>`;
+      return div;
+    }
+
+    // ── INFO_CHECK: чекліст — блокує «Далі» поки всі не відмічені ────────────
+    case 'INFO_CHECK': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow px-4 py-4';
+      const checkId = 'chk_' + row.rowIndex;
+      const isChecked = !!state.userInputs['chk_' + row.rowIndex];
+      div.innerHTML = `
+        <label class="flex items-start gap-3 cursor-pointer select-none" for="${checkId}">
+          <input type="checkbox" id="${checkId}" data-check data-rowindex="${row.rowIndex}"
+            class="sr-only" ${isChecked ? 'checked' : ''}>
+          <div class="chk-box w-6 h-6 flex-shrink-0 mt-0.5 rounded-lg border-2 flex items-center justify-center transition-all
+            ${isChecked ? 'bg-green-600 border-green-600' : 'border-gray-300'}">
+            <svg class="w-4 h-4 text-white ${isChecked ? '' : 'hidden'}" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <span class="text-gray-800 font-medium text-base leading-snug">${row.label}</span>
+        </label>`;
+      const inp = div.querySelector('input[type=checkbox]');
+      const box = div.querySelector('.chk-box');
+      const tick = box.querySelector('svg');
+      function updateBox() {
+        state.userInputs['chk_' + row.rowIndex] = inp.checked;
+        if (inp.checked) {
+          box.classList.add('bg-green-600', 'border-green-600');
+          box.classList.remove('border-gray-300');
+          tick.classList.remove('hidden');
+        } else {
+          box.classList.remove('bg-green-600', 'border-green-600');
+          box.classList.add('border-gray-300');
+          tick.classList.add('hidden');
+        }
+        updateNextButton();
+      }
+      inp.addEventListener('change', updateBox);
+      return div;
+    }
+
+    // ── TIMER: таймер зворотного відліку, блокує «Далі» до завершення ────────
+    // Час в секундах береться з колонки D (eDisplay / eValue)
+    case 'TIMER': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow px-4 py-6 flex flex-col items-center gap-3';
+      const totalSec = Number(String(row.eDisplay || row.eValue || '0').replace(',', '.')) || 0;
+      div.innerHTML = `
+        <p class="text-gray-600 font-semibold text-base text-center">${row.label}</p>
+        <div class="relative w-28 h-28">
+          <svg class="w-full h-full" style="transform:rotate(-90deg)" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#e5e7eb" stroke-width="8"/>
+            <circle id="timerArc_${row.rowIndex}" cx="50" cy="50" r="44" fill="none" stroke="#16a34a" stroke-width="8"
+              stroke-dasharray="276.46" stroke-dashoffset="0" stroke-linecap="round" style="transition:stroke-dashoffset 1s linear"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+            <span id="timerDisplay_${row.rowIndex}" class="text-2xl font-bold text-gray-800">${formatTime(totalSec)}</span>
+          </div>
+        </div>
+        <button id="timerBtn_${row.rowIndex}"
+          class="px-6 py-2 rounded-xl font-bold text-sm bg-green-600 text-white active:scale-95 transition-transform shadow">
+          &#x25B6; Старт
+        </button>`;
+
+      requestAnimationFrame(() => {
+        const display = document.getElementById('timerDisplay_' + row.rowIndex);
+        const arc = document.getElementById('timerArc_' + row.rowIndex);
+        const btn = document.getElementById('timerBtn_' + row.rowIndex);
+        if (!display || !arc || !btn) return;
+        const circumference = 276.46;
+        let remaining = (state.timers && state.timers[row.rowIndex] != null) ? state.timers[row.rowIndex] : totalSec;
+        let intervalId = null;
+        function tick() {
+          if (remaining <= 0) {
+            clearInterval(intervalId);
+            display.textContent = '00:00';
+            arc.style.strokeDashoffset = circumference;
+            arc.style.stroke = '#bbf7d0';
+            btn.textContent = '\u2705 Готово';
+            btn.disabled = true;
+            btn.className = 'px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 text-gray-400 cursor-default';
+            if (!state.timers) state.timers = {};
+            state.timers[row.rowIndex] = 0;
+            updateNextButton();
+            return;
+          }
+          display.textContent = formatTime(remaining);
+          arc.style.strokeDashoffset = String(circumference * (1 - remaining / totalSec));
+          if (!state.timers) state.timers = {};
+          state.timers[row.rowIndex] = remaining;
+          remaining--;
+        }
+        if (remaining <= 0) { remaining = 0; tick(); }
+        else {
+          tick();
+          btn.addEventListener('click', function() {
+            if (intervalId) {
+              clearInterval(intervalId); intervalId = null;
+              btn.textContent = '\u25B6 Продовжити';
+            } else {
+              intervalId = setInterval(tick, 1000);
+              btn.textContent = '\u23F8 Пауза';
+            }
+          });
+        }
+      });
+      return div;
+    }
+
+    // ── INPUT_TEXT: текстове поле ─────────────────────────────────────────────
+    case 'INPUT_TEXT': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow px-4 py-4';
+      const savedVal = state.userInputs[row.rowIndex] || '';
+      div.innerHTML = `
+        <label class="block text-gray-700 font-semibold mb-2 text-base">${row.label}</label>
+        <textarea rows="2"
+          class="w-full border-2 border-blue-300 focus:border-blue-600 rounded-xl px-4 py-3 text-base text-gray-800 bg-blue-50 outline-none resize-none"
+          data-rowindex="${row.rowIndex}" data-type="INPUT_TEXT"
+          placeholder="Введіть текст...">${savedVal}</textarea>`;
+      div.querySelector('textarea').addEventListener('input', function(e) {
+        state.userInputs[row.rowIndex] = e.target.value;
+      });
+      return div;
+    }
+
+    // ── SELECT: випадаючий список, варіанти з колонки D через «;» ─────────────
+    case 'SELECT': {
+      const div = document.createElement('div');
+      div.className = 'bg-white rounded-2xl shadow px-4 py-4';
+      const raw = String(row.eDisplay || row.eValue || '');
+      const options = raw.split(';').map(function(s) { return s.trim(); }).filter(Boolean);
+      const savedVal = state.userInputs[row.rowIndex] || '';
+      const optionsHtml = options.map(function(o) {
+        return '<option value="' + o + '"' + (o === savedVal ? ' selected' : '') + '>' + o + '</option>';
+      }).join('');
+      div.innerHTML = `
+        <label class="block text-gray-700 font-semibold mb-2 text-base">${row.label}</label>
+        <div class="relative">
+          <select data-rowindex="${row.rowIndex}" data-type="SELECT"
+            class="w-full border-2 border-blue-300 focus:border-blue-600 rounded-xl px-4 py-3 text-base text-gray-800 bg-blue-50 outline-none appearance-none pr-10">
+            <option value="" disabled ${!savedVal ? 'selected' : ''}>&mdash; Оберіть варіант &mdash;</option>
+            ${optionsHtml}
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">&#x25BC;</div>
+        </div>`;
+      div.querySelector('select').addEventListener('change', function(e) {
+        state.userInputs[row.rowIndex] = e.target.value;
+        updateNextButton();
+      });
+      return div;
+    }
+
+    case 'BUTTON':
+    case 'BUTTON_END':
+      return null; // handled by footer buttons
+    default:
+      return null;
+  }
+}
+
+// ── Допоміжна: форматування секунд -> MM:SS ───────────────────────────────────
+function formatTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return m + ':' + s;
+}
+
+// ── Перевірка стану кнопки «Далі» (чекліст + таймери + SELECT) ───────────────
+function updateNextButton() {
+  const btn = document.getElementById('btnNext');
+  if (!btn) return;
+
+  // INFO_CHECK: всі чекбокси мають бути відмічені
+  const checkboxes = document.querySelectorAll('#stepContent input[data-check]');
+  const allChecked = Array.from(checkboxes).every(function(c) { return c.checked; });
+
+  // TIMER: всі таймери мають добігти 0
+  const rows = state.stepGroups[state.currentStep] || [];
+  const timerRows = rows.filter(function(r) { return r.type === 'TIMER'; });
+  const allTimersDone = timerRows.every(function(r) {
+    return state.timers && state.timers[r.rowIndex] === 0;
+  });
+
+  // SELECT: всі select мають мати вибране значення
+  const selects = document.querySelectorAll('#stepContent select[data-type=SELECT]');
+  const allSelected = Array.from(selects).every(function(s) { return s.value !== ''; });
+
+  const canProceed = allChecked && allTimersDone && allSelected;
+  btn.disabled = !canProceed;
+  btn.classList.toggle('opacity-40', !canProceed);
+  btn.classList.toggle('cursor-not-allowed', !canProceed);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+$('btnBack').onclick = () => {
+  const idx = state.stepList.indexOf(state.currentStep);
+  if (idx > 0) {
+    renderStep(state.stepList[idx - 1]);
+    saveToLS();
+    window.scrollTo(0, 0);
+  }
+};
+
+$('btnNext').onclick = async () => {
+  const rows = state.stepGroups[state.currentStep] || [];
+  const isEnd = rows.some(r => r.type === 'BUTTON_END');
+  const idx = state.stepList.indexOf(state.currentStep);
+  const nextStep = state.stepList[idx + 1];
+
+  // Валідація і збір INPUT_NUMBER
+  const inputs = [];
+  let valid = true;
+  document.querySelectorAll('#stepContent input[type=number]').forEach(inp => {
+    const val = inp.value.trim();
+    if (val === '') { valid = false; inp.focus(); inp.classList.add('border-red-500'); return; }
+    inp.classList.remove('border-red-500');
+    inputs.push({ rowIndex: Number(inp.dataset.rowindex), value: Number(val) });
+  });
+  if (!valid) { alert('Будь ласка, заповніть всі числові поля!'); return; }
+
+  // Збираємо INPUT_TEXT
+  document.querySelectorAll('#stepContent textarea[data-type=INPUT_TEXT]').forEach(function(ta) {
+    inputs.push({ rowIndex: Number(ta.dataset.rowindex), value: ta.value });
+  });
+
+  // Збираємо SELECT
+  document.querySelectorAll('#stepContent select[data-type=SELECT]').forEach(function(sel) {
+    inputs.push({ rowIndex: Number(sel.dataset.rowindex), value: sel.value });
+  });
+
+  // Збираємо payload для GAS
+  const gasInputs = inputs.map(i => ({ rowIndex: i.rowIndex, value: i.value }));
+
+  if (isEnd) {
+    // Крок з BUTTON_END — спочатку записуємо дані, потім фінал
+    showLoader('Завершення процесу...');
+    try {
+      if (gasInputs.length > 0) {
+        await gasCall('submitStepData', [state.currentTk, gasInputs, 'Завершено']);
+      }
+      const result = await gasCall('finishProcess', [state.currentTk]);
+      if (result.error) { alert(result.error); return; }
+      clearLS(state.currentTk);
+      showDoneScreen();
+    } catch(e) { alert('Помилка: ' + e.message); }
+    finally { hideLoader(); }
+    return;
+  }
+
+  // Звичайний крок з BUTTON
+  showLoader('Збереження даних...');
+  try {
+    const result = await gasCall('submitStepData', [state.currentTk, gasInputs, nextStep]);
+    if (result.error) { alert(result.error); return; }
+
+    // Оновлюємо eDisplayMap
+    if (result.eDisplayValues) {
+      result.eDisplayValues.forEach(item => {
+        state.eDisplayMap[item.rowIndex] = item.eDisplay;
+      });
+    }
+
+    saveToLS();
+    renderStep(nextStep);
+    window.scrollTo(0, 0);
+  } catch(e) { alert('Помилка: ' + e.message); }
+  finally { hideLoader(); }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  DONE SCREEN
+// ═══════════════════════════════════════════════════════════════════
+function showDoneScreen() {
+  hide('screenStep');
+  hide('screenStart');
+  show('screenDone');
+  $('doneMessage').textContent = `Технологічну карту "${state.currentTk.replace('ТК ', '')}" успішно завершено. Склад і журнал оновлено.`;
+}
+
+$('btnDoneHome').onclick = loadStartScreen;
+$('btnHome').onclick = loadStartScreen;
+
+// ═══════════════════════════════════════════════════════════════════
+//  WAREHOUSE SCREEN
+// ═══════════════════════════════════════════════════════════════════
+async function loadWarehouseScreen() {
+  showLoader('Завантаження складу...');
+  $('headerTitle').textContent = '📦 Склад';
+  hide('screenStart'); hide('screenStep'); hide('screenDone'); show('screenWarehouse');
+
+  try {
+    const data = await sheetsApiFetch(`/values/${encodeURIComponent("'Склад'!A1:D")}`, { valueRenderOption: 'FORMATTED_VALUE' });
+    const rows = (data.values || []).slice(1); // пропускаємо заголовок
+    const list = $('warehouseList');
+    list.innerHTML = '';
+
+    const validRows = rows.filter(r => r[0] && String(r[0]).trim() !== '');
+    if (validRows.length === 0) {
+      hide('warehouseList');
+      show('warehouseEmpty');
+    } else {
+      hide('warehouseEmpty');
+      show('warehouseList');
+      validRows.forEach(r => {
+        const product = r[0] || '';
+        const qty = parseFloat(String(r[1] || '0').replace(',', '.')) || 0;
+        const unit = r[2] || '';
+        list.appendChild(makeWarehouseCard(product, qty, unit));
+      });
+    }
+  } catch(e) {
+    alert('Помилка завантаження складу: ' + e.message);
+  } finally { hideLoader(); }
+}
+
+function makeWarehouseCard(product, qty, unit) {
+  const div = document.createElement('div');
+  div.className = 'bg-white rounded-2xl shadow p-4 flex items-center justify-between gap-3';
+  const qtyColor = qty > 0 ? 'text-green-700' : qty < 0 ? 'text-red-600' : 'text-gray-400';
+  div.innerHTML = `
+    <div class="flex-1 min-w-0">
+      <p class="font-bold text-gray-800 text-base truncate">${product}</p>
+      <p class="text-sm mt-0.5 ${qtyColor} font-semibold">${qty} ${unit}</p>
+    </div>
+    <button class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 hover:bg-blue-200 flex items-center justify-center text-blue-700 text-xl font-bold active:scale-95 transition-transform"
+      title="Перемістити на транзитний склад"
+      onclick="openTransferModal('${product.replace(/'/g,"\\'")}', ${qty}, '${unit.replace(/'/g,"\\'")}')">
+      ➤
+    </button>`;
+  return div;
+}
+
+// ── Модальне вікно переміщення ────────────────────────────────────────────────
+let _transferProduct = '';
+let _transferMaxQty = 0;
+let _transferUnit = '';
+
+function openTransferModal(product, qty, unit) {
+  _transferProduct = product;
+  _transferMaxQty = qty;
+  _transferUnit = unit;
+
+  $('transferProductName').textContent = product;
+  $('transferAvailable').textContent = qty + ' ' + unit;
+  $('transferUnit').textContent = unit;
+  $('transferQty').value = '';
+  $('transferError').classList.add('hidden');
+
+  // Заповнюємо список дільниць
+  const sel = $('transferDestination');
+  sel.innerHTML = '<option value="" disabled selected>— Оберіть дільницю —</option>';
+  AVAILABLE_DESTINATIONS.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d;
+    sel.appendChild(opt);
+  });
+
+  $('modalTransfer').classList.remove('hidden');
+}
+
+function closeTransferModal() {
+  $('modalTransfer').classList.add('hidden');
+}
+
+async function submitTransfer() {
+  const destination = $('transferDestination').value;
+  const qtyRaw = parseFloat(String($('transferQty').value).replace(',', '.'));
+  const errEl = $('transferError');
+
+  errEl.classList.add('hidden');
+
+  if (!destination) {
+    errEl.textContent = 'Оберіть дільницю призначення';
+    errEl.classList.remove('hidden'); return;
+  }
+  if (isNaN(qtyRaw) || qtyRaw <= 0) {
+    errEl.textContent = 'Введіть коректну кількість';
+    errEl.classList.remove('hidden'); return;
+  }
+  if (qtyRaw > _transferMaxQty) {
+    errEl.textContent = `Недостатньо товару на складі. Доступно: ${_transferMaxQty} ${_transferUnit}`;
+    errEl.classList.remove('hidden'); return;
+  }
+
+  const btn = $('btnTransferSubmit');
+  btn.disabled = true;
+  btn.textContent = '⏳ Відправляємо...';
+
+  try {
+    const sender = APP_USER ? (APP_USER.name || APP_USER.email || '') : '';
+    const result = await gasCall('sendToTransit', [
+      _transferProduct,
+      qtyRaw,
+      _transferUnit,
+      THIS_DILINITSA,
+      destination,
+      sender
+    ]);
+
+    if (result.error) {
+      errEl.textContent = 'Помилка: ' + result.error;
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    closeTransferModal();
+    let successMsg = `"${_transferProduct}" (${qtyRaw} ${_transferUnit}) відправлено до "${destination}". Статус: очікує підтвердження.`;
+    if (result.warning) {
+      successMsg += `\n\n⚠️ Увага: ${result.warning}`;
+    }
+    $('transferSuccessMsg').textContent = successMsg;
+    $('modalTransferSuccess').classList.remove('hidden');
+
+    // Оновлюємо екран складу в фоні
+    loadWarehouseScreen();
+
+  } catch(e) {
+    errEl.textContent = 'Помилка мережі: ' + e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Відправити на транзитний склад';
+  }
+}
+
+function closeTransferSuccess() {
+  $('modalTransferSuccess').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+window.onload = function() {
+  // Перевіряємо збережену сесію
+  try {
+    const saved = JSON.parse(localStorage.getItem(AUTH_LS_KEY));
+    if (saved && saved.email) {
+      APP_USER = saved;
+      if (saved.isAllowed) {
+        showAppForUser(saved);
+      } else {
+        document.getElementById('pendingEmail').textContent = saved.email || '—';
+        showAuthScreen('screenPending');
+      }
+      return;
+    }
+  } catch(e) {}
+  // Показуємо екран входу
+  showAuthScreen('screenAuth');
+};
+</script>
+
+<!-- ══ МОДАЛЬНЕ ВІКНО: СПИСОК ТОВАРІВ З ТРАНЗИТНОГО СКЛАДУ ══ -->
+<div id="transit-modal">
+  <div id="transit-modal-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 12px;">
+      <div style="font-weight:800;font-size:1.05rem;color:#1e293b;">📥 Товар з транзитного складу</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="transit-modal-refresh-btn" onclick="refreshTransitModal()"
+          style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;color:#166534;font-size:1rem;" title="Оновити">🔄</button>
+        <button onclick="closeTransitModal()"
+          style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;color:#64748b;">✕</button>
+      </div>
+    </div>
+    <div id="transit-list-scroll">
+      <div id="transit-list-empty" style="text-align:center;color:#94a3b8;font-weight:600;padding:30px 10px;">
+        Немає товарів, що очікують прийняття
+      </div>
+      <div id="transit-list-items"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ МОДАЛЬНЕ ВІКНО: ДЕТАЛІ ЗАПИСУ ТРАНЗИТУ ══ -->
+<div id="transit-detail-modal">
+  <div id="transit-detail-inner">
+    <div style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-weight:800;font-size:1.05rem;color:#1e293b;">Деталі переміщення</div>
+        <button onclick="closeTransitDetail()"
+          style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;color:#64748b;">✕</button>
+      </div>
+
+      <div style="background:#f8fafc;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+        <div id="td-product" style="font-weight:800;font-size:1.1rem;color:#1e293b;margin-bottom:8px;"></div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:.86rem;color:#475569;">
+          <div>📦 Кількість: <b id="td-qty"></b></div>
+          <div>🏭 Звідки: <b id="td-from"></b></div>
+          <div>🕓 Відправлено: <span id="td-sent"></span></div>
+          <div>🚚 Відправив: <span id="td-sender"></span></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button id="td-reject-btn" onclick="rejectTransitItem()"
+          style="flex:1;padding:14px;border-radius:12px;background:#fee2e2;color:#dc2626;font-weight:800;font-size:.95rem;border:1px solid #fecaca;cursor:pointer;">
+          ❌ Відхилити
+        </button>
+        <button id="td-confirm-btn" onclick="confirmTransitItem()"
+          style="flex:1;padding:14px;border-radius:12px;background:#16a34a;color:#fff;font-weight:800;font-size:.95rem;border:none;cursor:pointer;">
+          ✅ Підтвердити
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  ТРАНЗИТНИЙ СКЛАД — СПОВІЩЕННЯ (transit-bell-btn)
+//  Логіка ідентична POS-ТЕРМІНАЛ (POSindex31_1.html).
+// ═══════════════════════════════════════════════════════════════════
+let TRANSIT_PENDING = [];
+let _transitCurrentTxId = null;
+let _transitPollTimer = null;
+
+function startTransitPolling() {
+  stopTransitPolling();
+  pollTransitPending(); // одразу опитуємо один раз
+  _transitPollTimer = setInterval(pollTransitPending, 45000); // кожні 45 сек
+}
+
+function stopTransitPolling() {
+  if (_transitPollTimer) {
+    clearInterval(_transitPollTimer);
+    _transitPollTimer = null;
+  }
+}
+
+function pollTransitPending() {
+  if (!APP_USER || !APP_USER.isAllowed) return;
+  // Основний, швидкий шлях: читаємо напряму лист "Транзитний склад"
+  // (локальна IMPORTRANGE-копія в цій же таблиці) через Sheets API.
+  getTransitPendingFast()
+    .then(pending => {
+      TRANSIT_PENDING = pending;
+      renderTransitBadge();
+      if (document.getElementById('transit-modal').classList.contains('open')) {
+        renderTransitList();
+      }
+    })
+    .catch(err => {
+      console.warn('Швидкий запит транзитного складу (лист "Транзитний склад") не вдався, пробуємо через GAS:', err);
+      pollTransitPendingViaGas();
+    });
+}
+
+// Резервний шлях (повільніший ланцюжок GAS→GAS) — на випадок, якщо лист
+// "Транзитний склад"/IMPORTRANGE тимчасово недоступний або ще не налаштований.
+function pollTransitPendingViaGas() {
+  if (!APP_USER || !APP_USER.isAllowed) return Promise.resolve();
+  return fetch(`${WEBAPP_URL}?action=getTransitPending`, { method: 'GET', redirect: 'follow' })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        TRANSIT_PENDING = res.data.pending || [];
+        renderTransitBadge();
+        if (document.getElementById('transit-modal').classList.contains('open')) {
+          renderTransitList();
+        }
+      }
+    })
+    .catch(err => console.error('Помилка опитування транзитного складу (GAS резерв):', err));
+}
+
+function renderTransitBadge() {
+  const btn   = document.getElementById('transit-bell-btn');
+  const badge = document.getElementById('transit-bell-badge');
+  if (!btn || !badge) return;
+  // display кнопки більше НЕ керується тут — вона вмикається одразу
+  // в showAppForUser() і завжди видима після входу.
+  const count = TRANSIT_PENDING.length;
+
+  if (count > 0) {
+    btn.classList.add('has-pending');
+    badge.textContent = count > 9 ? '9+' : String(count);
+    badge.classList.add('show');
+  } else {
+    btn.classList.remove('has-pending');
+    badge.classList.remove('show');
+  }
+}
+
+function openTransitModal() {
+  renderTransitList();
+  document.getElementById('transit-modal').classList.add('open');
+}
+
+function refreshTransitModal() {
+  const btn = document.getElementById('transit-modal-refresh-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '.5';
+    btn.classList.add('info-process-spinner');
+  }
+  getTransitPendingFast()
+    .then(pending => {
+      TRANSIT_PENDING = pending;
+      renderTransitBadge();
+      renderTransitList();
+    })
+    .catch(err => {
+      console.warn('Швидке оновлення транзитного складу не вдалось, пробуємо через GAS:', err);
+      return pollTransitPendingViaGas();
+    })
+    .finally(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.classList.remove('info-process-spinner');
+      }
+    });
+}
+
+function closeTransitModal() {
+  document.getElementById('transit-modal').classList.remove('open');
+}
+
+function renderTransitList() {
+  const wrap  = document.getElementById('transit-list-items');
+  const empty = document.getElementById('transit-list-empty');
+
+  if (!TRANSIT_PENDING.length) {
+    wrap.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  wrap.innerHTML = TRANSIT_PENDING.map(item => {
+    const qtyStr = (parseFloat(item.qty) % 1 === 0) ? item.qty : parseFloat(item.qty).toFixed(3).replace(/0+$/, '');
+    return `
+      <div class="transit-item" onclick="openTransitDetail('${escapeTransitAttr(item.txId)}')">
+        <div class="transit-item-name">📦 ${escapeTransitHtml(item.product)}</div>
+        <div class="transit-item-meta">
+          ${qtyStr} ${escapeTransitHtml(item.unit)} · з «${escapeTransitHtml(item.from)}» · ${escapeTransitHtml(item.sentAt)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openTransitDetail(txId) {
+  const item = TRANSIT_PENDING.find(i => String(i.txId) === String(txId));
+  if (!item) { alert('Запис не знайдено — оновіть список'); return; }
+
+  _transitCurrentTxId = txId;
+
+  const qtyStr = (parseFloat(item.qty) % 1 === 0) ? item.qty : parseFloat(item.qty).toFixed(3).replace(/0+$/, '');
+  document.getElementById('td-product').textContent = item.product;
+  document.getElementById('td-qty').textContent      = `${qtyStr} ${item.unit}`;
+  document.getElementById('td-from').textContent     = item.from;
+  document.getElementById('td-sent').textContent     = item.sentAt || '—';
+  document.getElementById('td-sender').textContent   = item.sender || '—';
+
+  document.getElementById('transit-detail-modal').classList.add('open');
+}
+
+function closeTransitDetail() {
+  document.getElementById('transit-detail-modal').classList.remove('open');
+  _transitCurrentTxId = null;
+}
+
+async function confirmTransitItem() {
+  if (!_transitCurrentTxId) return;
+  const txId = _transitCurrentTxId;
+  const btn = document.getElementById('td-confirm-btn');
+  const rejectBtn = document.getElementById('td-reject-btn');
+  btn.disabled = true;
+  rejectBtn.disabled = true;
+  showActionOverlay('⏳ Прийняття…');
+
+  try {
+    const receiverName = APP_USER ? (APP_USER.name || APP_USER.email || '') : '';
+    const res = await gasCall('confirmTransitReceipt', [{ txId, receiverName }]);
+
+    if (res.error) {
+      showToast('❌ ' + res.error, 'error');
+    } else {
+      TRANSIT_PENDING = TRANSIT_PENDING.filter(i => String(i.txId) !== String(txId));
+      renderTransitBadge();
+      renderTransitList();
+      closeTransitDetail();
+      showToast('✅ Товар прийнято на склад');
+      // Оновлюємо екран складу, якщо він відкритий
+      if (!document.getElementById('screenWarehouse').classList.contains('hidden')) {
+        loadWarehouseScreen();
+      }
+    }
+  } catch (e) {
+    showToast('❌ Помилка мережі: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    rejectBtn.disabled = false;
+    hideActionOverlay();
+  }
+}
+
+async function rejectTransitItem() {
+  if (!_transitCurrentTxId) return;
+  const txId = _transitCurrentTxId;
+  const reason = prompt('Причина відхилення (необов\'язково):', '') || '';
+
+  const btn = document.getElementById('td-reject-btn');
+  const confirmBtn = document.getElementById('td-confirm-btn');
+  btn.disabled = true;
+  confirmBtn.disabled = true;
+  showActionOverlay('⏳ Відхилення…');
+
+  try {
+    const receiverName = APP_USER ? (APP_USER.name || APP_USER.email || '') : '';
+    const res = await gasCall('rejectTransitReceipt', [{ txId, receiverName, reason }]);
+
+    if (res.error) {
+      showToast('❌ ' + res.error, 'error');
+    } else {
+      TRANSIT_PENDING = TRANSIT_PENDING.filter(i => String(i.txId) !== String(txId));
+      renderTransitBadge();
+      renderTransitList();
+      closeTransitDetail();
+      showToast('↩️ Товар відхилено, повернуто відправнику');
+    }
+  } catch (e) {
+    showToast('❌ Помилка мережі: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    confirmBtn.disabled = false;
+    hideActionOverlay();
+  }
+}
+
+function showToast(message, type = 'success', duration = 2600) {
+  const container = document.getElementById('app-toast-container');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = 'app-toast' + (type === 'error' ? ' error' : '');
+  el.innerHTML = `<span>${message}</span>`;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+function showActionOverlay(text) {
+  const overlay = document.getElementById('transit-action-overlay');
+  const textEl = document.getElementById('transit-action-overlay-text');
+  if (!overlay) return;
+  if (textEl) textEl.textContent = text;
+  overlay.classList.add('open');
+}
+
+function hideActionOverlay() {
+  const overlay = document.getElementById('transit-action-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function escapeTransitHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeTransitAttr(str) {
+  return String(str == null ? '' : str).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
