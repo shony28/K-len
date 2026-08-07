@@ -1612,6 +1612,19 @@ function escapeTransitHtml(str) {
 function escapeTransitAttr(str) {
   return String(str == null ? '' : str).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 }
+
+// ——— Реєстрація Service Worker (PWA) ———
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then((reg) => {
+          console.log('Service Worker успішно зареєстровано для області дії:', reg.scope);
+        })
+        .catch((err) => {
+          console.error('Помилка реєстрації Service Worker:', err);
+        });
+    });
+  }
 </script>
 </body>
 </html>
