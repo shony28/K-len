@@ -120,6 +120,12 @@
     }
     .sel:focus { border-color: var(--c-blue); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 
+    /* ── TEXTAREA (без select-стрілки) ── */
+    .txt-area { width: 100%; resize: vertical; min-height: 52px; border-radius: 14px;
+      border: 2px solid var(--c-border); padding: 12px 16px; font-family: inherit;
+      font-size: 1rem; font-weight: 600; background: #f8fafc; color: var(--c-text); outline: none; }
+    .txt-area:focus { border-color: var(--c-blue); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+
     /* ── ВКЛАДКИ ── */
     .tabs { display: flex; border-radius: 16px; background: #e2e8f0; padding: 4px; gap: 4px; }
     .tab-btn {
@@ -584,6 +590,12 @@
       <div id="debt-buyer-hint" style="display:none;margin-top:8px;font-size:.8rem;font-weight:700;color:#7c3aed;background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:10px;padding:8px 12px;">
         ⚠️ Для продажу "В борг" оберіть покупця вище (не "Роздрібний покупець")
       </div>
+      <div id="debt-note-wrap" style="display:none;margin-top:10px;">
+        <label style="display:block;font-weight:800;color:#7c3aed;margin-bottom:6px;font-size:.85rem;">
+          📝 Примітка до боргу (необов'язково)
+        </label>
+        <textarea id="debt-note" class="txt-area" rows="2" placeholder="Напр.: віддасть у п'ятницю, борг за квітень…"></textarea>
+      </div>
     </div>
 
       <!-- Підсумок + кнопка -->
@@ -840,6 +852,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwk631dvIy2ubZ06X6C1Tgg
 const LS_KEY  = 'posApp_user_v1'; // ключ для LocalStorage
 const LS_CART_KEY  = 'posApp_cart_v1';
 const LS_BUYER_KEY = 'posApp_buyer_v1';
+const PHP_TRANSIT_URL = 'https://klen.2828.pp.ua/transit_api.php';
+const THIS_DILINITSA = 'Магазин продажів';
 
 // ────────────────────────────────────────────────────────────────────────────
 //  ⚙️  НАЛАШТУВАННЯ ОКРУГЛЕННЯ СУМИ ЧЕКУ
@@ -1124,16 +1138,18 @@ function stopTransitPolling() {
 
 function pollTransitPending() {
   if (!APP.user?.isAllowed) return;
-  fetch(`${API_URL}?action=getTransitPending`, { method: 'GET', redirect: 'follow' })
+  fetch(PHP_TRANSIT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn: 'getTransitList', args: ['очікує', THIS_DILINITSA] })
+  })
     .then(res => res.json())
-    .then(res => {
-      if (res.success) {
-        APP.transitPending = res.data.pending || [];
-        renderTransitBadge();
-        // Якщо список зараз відкритий — оновлюємо і його
-        if (document.getElementById('transit-modal').classList.contains('open')) {
-          renderTransitList();
-        }
+    .then(data => {
+      if (data.error) return;
+      APP.transitPending = data.rows || [];
+      renderTransitBadge();
+      if (document.getElementById('transit-modal').classList.contains('open')) {
+        renderTransitList();
       }
     })
     .catch(err => console.error('Помилка опитування транзитного складу:', err));
@@ -1149,11 +1165,15 @@ function manualRefreshTransit() {
   btn.style.opacity = '0.5';
   btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></div>';
 
-  fetch(`${API_URL}?action=getTransitPending`, { method: 'GET', redirect: 'follow' })
+  fetch(PHP_TRANSIT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn: 'getTransitList', args: ['очікує', THIS_DILINITSA] })
+  })
     .then(res => res.json())
     .then(res => {
-      if (res.success) {
-        APP.transitPending = res.data.pending || [];
+      if (!res.error) {
+        APP.transitPending = res.rows || [];
         renderTransitBadge();
         renderTransitList();
         showToast('🔄 Список оновлено');
@@ -1727,10 +1747,16 @@ function updateCartTotal(changedProductId = null) {
 
 /** Показує підказку, коли обрано "В борг", але покупець ще не вказаний */
 function onPaymentMethodChange() {
-  const payment = document.getElementById('payment-select')?.value;
-  const buyer   = document.getElementById('buyer-select')?.value || '';
-  const hint    = document.getElementById('debt-buyer-hint');
+  const payment  = document.getElementById('payment-select')?.value;
+  const buyer    = document.getElementById('buyer-select')?.value || '';
+  const hint     = document.getElementById('debt-buyer-hint');
+  const noteWrap = document.getElementById('debt-note-wrap');
   if (hint) hint.style.display = (payment === 'В борг' && !buyer) ? 'block' : 'none';
+  if (noteWrap) noteWrap.style.display = (payment === 'В борг') ? 'block' : 'none';
+  if (payment !== 'В борг') {
+    const noteEl = document.getElementById('debt-note');
+    if (noteEl) noteEl.value = '';
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1752,6 +1778,7 @@ function processSale() {
 
   const buyer = document.getElementById('buyer-select').value;
   const paymentMethod = document.getElementById('payment-select')?.value || 'Готівка';
+  const debtNote = (paymentMethod === 'В борг') ? (document.getElementById('debt-note')?.value || '').trim() : '';
 
   // "В борг" обов'язково прив'язується до конкретного покупця
   if (paymentMethod === 'В борг') {
@@ -1797,6 +1824,7 @@ function processSale() {
       })),
       buyer:          buyer,
       paymentMethod:  paymentMethod,
+      debtNote:       debtNote,
       managerEmail:   APP.user?.email || '',
       managerName:    APP.user?.name  || ''
     }
@@ -1837,6 +1865,10 @@ function processSale() {
 
       APP.cart = [];
       renderCart();
+      const noteEl = document.getElementById('debt-note');
+      if (noteEl) noteEl.value = '';
+      const noteWrapEl = document.getElementById('debt-note-wrap');
+      if (noteWrapEl) noteWrapEl.style.display = 'none';
       refreshData();
     } else {
       showToast('❌ ' + (res.error || 'Помилка проведення'), 'error');
@@ -2192,6 +2224,10 @@ function renderDebtsList() {
         </div>
         <div style="font-size:.76rem;color:#94a3b8;font-weight:600;margin-bottom:8px;">${escHtml(d.date)} • ${escHtml(d.debtId)}</div>
         <div style="font-size:.82rem;color:#475569;font-weight:600;line-height:1.4;margin-bottom:10px;white-space:pre-line;">${escHtml(d.content)}</div>
+        ${d.note ? `
+        <div style="font-size:.8rem;color:#7c3aed;font-weight:600;line-height:1.4;margin-bottom:10px;background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:10px;padding:8px 10px;white-space:pre-line;">
+          📝 ${escHtml(d.note)}
+        </div>` : ''}
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
           <div style="font-size:.8rem;color:#64748b;font-weight:700;">
             Борг: ${formatPrice(d.amount)} ₴ &nbsp;•&nbsp; Сплачено: ${formatPrice(d.paid)} ₴
