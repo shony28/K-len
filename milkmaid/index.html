@@ -466,7 +466,7 @@
             <span class="text-2xl flex-shrink-0">🐄</span>
           </div>
           <div id="mm-cows-saved-row" class="hidden mt-2 flex items-center justify-between">
-            <p class="text-xs text-brand-700 font-semibold">✓ Збережено: <span id="mm-cows-saved-value"></span> корів сьогодні</p>
+            <p class="text-xs text-brand-700 font-semibold">✓ <span id="mm-cows-saved-label">Збережено</span>: <span id="mm-cows-saved-value"></span> корів сьогодні</p>
             <button onclick="mmEditCows()" class="text-xs text-slate-500 font-semibold px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-all">✏️ Змінити</button>
           </div>
           <button id="mm-cows-save-btn" onclick="mmSaveCows()" class="btn-primary mt-2" disabled>
@@ -517,10 +517,10 @@
         </button>
       </div>
 
-      <!-- Today's entries -->
+      <!-- Recent entries (усі оператори, 3 останні дні) -->
       <div class="glass-strong rounded-3xl p-5 border-slate-200">
         <div class="flex items-center justify-between mb-3">
-          <p class="section-label" style="margin-bottom:0">📋 Мої записи сьогодні</p>
+          <p class="section-label" style="margin-bottom:0">📋 Записи за останні дні</p>
           <button onclick="mmRefresh()" id="mm-refresh-btn"
             class="text-xs text-brand-700 font-semibold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-all">
             🔄 Оновити
@@ -528,10 +528,6 @@
         </div>
         <div id="mm-entries-list">
           <p class="text-center text-slate-400 text-sm py-4">Завантаження…</p>
-        </div>
-        <div id="mm-total-row" class="hidden mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
-          <span class="text-sm font-semibold text-slate-600">Разом за день:</span>
-          <span id="mm-total-value" class="text-lg font-extrabold text-brand-700"></span>
         </div>
       </div>
 
@@ -627,8 +623,9 @@ const state = {
   // Для доярки
   milkUnit:            'л',
   milkProductName:     'Молоко',
-  milkTodayEntries:    [],
+  milkRecentEntries:   [],
   milkCowsCount:       null,
+  milkCowsCountFromServer: false,
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -782,7 +779,9 @@ function checkAccessStatus() {
 function logout() {
   localStorage.clear();
   state.user = { email: '', name: '', picture: '' };
-  state.milkTodayEntries = [];
+  state.milkRecentEntries = [];
+  state.milkCowsCount = null;
+  state.milkCowsCountFromServer = false;
   showScreen('auth');
   // Re-render Google button
   if (window.google && google.accounts && google.accounts.id) {
@@ -846,7 +845,8 @@ function mmTodayKey() {
   return MM_COWS_KEY_PREFIX + (state.user ? state.user.email : '') + '_' + dateStr;
 }
 
-function mmGetSavedCows() {
+// Локальний кеш (fallback), використовується лише поки немає відповіді сервера
+function mmGetLocalCows() {
   try {
     var raw = localStorage.getItem(mmTodayKey());
     var n = parseInt(raw, 10);
@@ -854,25 +854,33 @@ function mmGetSavedCows() {
   } catch (e) { return null; }
 }
 
-function mmSetSavedCows(n) {
+function mmSetLocalCows(n) {
   try { localStorage.setItem(mmTodayKey(), String(n)); } catch (e) {}
 }
 
+function mmClearLocalCows() {
+  try { localStorage.removeItem(mmTodayKey()); } catch (e) {}
+}
+
+// Кількість корів сьогодні — спільна для всіх операторів. Береться з
+// останнього запису в Журналі надоїв за сьогодні (з сервера). Якщо
+// сервер ще не відповів, тимчасово показуємо локально збережене
+// значення (це власний ввід поточного пристрою), щоб уникнути "миготіння".
 function mmApplyCowsState() {
-  var saved = mmGetSavedCows();
+  var saved = (state.milkCowsCount != null) ? state.milkCowsCount : mmGetLocalCows();
   var input      = document.getElementById('mm-cows-input');
   var savedRow   = document.getElementById('mm-cows-saved-row');
   var savedValue = document.getElementById('mm-cows-saved-value');
+  var savedLabel = document.getElementById('mm-cows-saved-label');
   var saveBtn    = document.getElementById('mm-cows-save-btn');
   var inputCard  = document.getElementById('mm-input-card');
-
-  state.milkCowsCount = saved;
 
   if (saved) {
     input.value = saved;
     input.disabled = true;
     savedRow.classList.remove('hidden');
     savedValue.textContent = saved;
+    if (savedLabel) savedLabel.textContent = state.milkCowsCountFromServer ? 'Збережено' : 'Збережено (локально)';
     saveBtn.classList.add('hidden');
     inputCard.style.opacity = '';
     inputCard.style.pointerEvents = '';
@@ -895,13 +903,21 @@ function mmValidateCows() {
 function mmSaveCows() {
   var val = parseInt(document.getElementById('mm-cows-input').value, 10);
   if (!(val > 0)) { showToast('Введіть кількість корів', 'warning'); return; }
-  mmSetSavedCows(val);
+  // Кількість корів офіційно фіксується в Журналі надоїв при наступному
+  // записі надою (щоб всі оператори бачили одне і те саме значення).
+  // Локально зберігаємо одразу, щоб інтерфейс не "стрибав" до відповіді сервера.
+  state.milkCowsCount = val;
+  state.milkCowsCountFromServer = false;
+  mmSetLocalCows(val);
   mmApplyCowsState();
-  showToast('✅ Збережено кількість корів: ' + val, 'success', 3000);
+  mmValidateInput();
+  showToast('✅ Кількість корів: ' + val + '. Буде записано разом з першим надоєм.', 'success', 4000);
 }
 
 function mmEditCows() {
-  try { localStorage.removeItem(mmTodayKey()); } catch (e) {}
+  state.milkCowsCount = null;
+  state.milkCowsCountFromServer = false;
+  mmClearLocalCows();
   mmApplyCowsState();
 }
 
@@ -937,10 +953,26 @@ async function mmRefresh() {
     var data = await apiGet({ action: 'getMilkData', email: state.user.email, name: state.user.name });
     state.milkUnit          = data.unit          || 'л';
     state.milkProductName   = data.productName   || 'Молоко';
-    state.milkTodayEntries  = data.todayEntries  || [];
+    state.milkRecentEntries = data.recentEntries || [];
 
     document.getElementById('mm-unit-badge').textContent    = state.milkUnit;
     document.getElementById('mm-product-label').textContent = state.milkProductName;
+
+    // Кількість корів сьогодні — спільна для всіх операторів, підтягуємо
+    // з сервера (останній запис у Журналі за сьогодні). Якщо сервер ще
+    // не має жодного значення на сьогодні — залишаємо те, що людина
+    // могла вже ввести локально (стан "не збережено на сервері").
+    if (data.cowsCountToday) {
+      state.milkCowsCount = data.cowsCountToday;
+      state.milkCowsCountFromServer = true;
+      mmSetLocalCows(data.cowsCountToday);
+    } else if (state.milkCowsCountFromServer) {
+      // Раніше було серверне значення, а тепер (напр. новий день) — немає
+      state.milkCowsCount = null;
+      state.milkCowsCountFromServer = false;
+    }
+    mmApplyCowsState();
+    mmValidateInput();
 
     mmRenderEntries();
   } catch(err) {
@@ -950,43 +982,82 @@ async function mmRefresh() {
   }
 }
 
+function mmDayLabel(dateKey) {
+  // dateKey у форматі yyyy-MM-dd
+  var parts = dateKey.split('-');
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  var today = new Date();
+  var yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  var toKey = function(x) { return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); };
+  if (dateKey === toKey(today)) return 'Сьогодні';
+  if (dateKey === toKey(yesterday)) return 'Вчора';
+  return d.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
 function mmRenderEntries() {
   var list = document.getElementById('mm-entries-list');
-  var totalRow = document.getElementById('mm-total-row');
-  var entries = state.milkTodayEntries;
+  var entries = state.milkRecentEntries;
 
   if (!entries || entries.length === 0) {
-    list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6">Сьогодні записів ще немає</p>';
-    totalRow.classList.add('hidden');
+    list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6">Записів за останні дні ще немає</p>';
     return;
   }
 
-  var total = 0;
-  var html = entries.map(function(e, i) {
-    total += e.qty || 0;
-    // Форматуємо час
-    var timeStr = '';
-    var dt = String(e.datetime || '');
-    var tm = dt.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
-    if (tm) timeStr = tm[1] + ':' + tm[2];
+  // Групуємо записи по днях (dateKey), зберігаючи порядок від найновішого дня
+  var groups = [];
+  var groupsByKey = {};
+  entries.forEach(function(e) {
+    var key = e.dateKey || '';
+    if (!groupsByKey[key]) {
+      groupsByKey[key] = { dateKey: key, entries: [], total: 0 };
+      groups.push(groupsByKey[key]);
+    }
+    groupsByKey[key].entries.push(e);
+    groupsByKey[key].total += (e.qty || 0);
+  });
+
+  var myName  = (state.user.name || '').trim().toLowerCase();
+  var myEmail = (state.user.email || '').trim().toLowerCase();
+
+  var html = groups.map(function(group) {
+    var rowsHtml = group.entries.map(function(e, i) {
+      var timeStr = '';
+      var dt = String(e.datetime || '');
+      var tm = dt.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (tm) timeStr = tm[1] + ':' + tm[2];
+
+      var opName = String(e.operator || '').trim();
+      var opLc = opName.toLowerCase();
+      var isMine = opLc && (opLc === myName || opLc === myEmail);
+
+      return (
+        '<div class="flex items-center justify-between py-2.5 ' + (i > 0 ? 'border-t border-slate-100' : '') + '">' +
+          '<div class="flex items-center gap-2">' +
+            '<span class="text-lg">🥛</span>' +
+            '<div>' +
+              '<p class="text-sm font-semibold text-slate-800">' + fmtNum(e.qty) + ' ' + escapeHtml(e.unit || state.milkUnit) + (e.cowNumber ? ' · 🐄 ' + escapeHtml(e.cowNumber) : '') + '</p>' +
+              '<p class="text-xs text-slate-400">' + (timeStr ? 'о ' + timeStr : '') +
+                (opName ? ' · 👤 ' + escapeHtml(opName) + (isMine ? ' (ви)' : '') : '') +
+              '</p>' +
+            '</div>' +
+          '</div>' +
+          '<span class="text-xs text-brand-700 font-bold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100">✓</span>' +
+        '</div>'
+      );
+    }).join('');
 
     return (
-      '<div class="flex items-center justify-between py-2.5 ' + (i > 0 ? 'border-t border-slate-100' : '') + '">' +
-        '<div class="flex items-center gap-2">' +
-          '<span class="text-lg">🥛</span>' +
-          '<div>' +
-            '<p class="text-sm font-semibold text-slate-800">' + fmtNum(e.qty) + ' ' + escapeHtml(e.unit || state.milkUnit) + (e.cowNumber ? ' · 🐄 ' + escapeHtml(e.cowNumber) : '') + '</p>' +
-            '<p class="text-xs text-slate-400">' + (timeStr ? 'о ' + timeStr : '') + ' · #' + escapeHtml(e.opId || '') + '</p>' +
-          '</div>' +
+      '<div class="mb-4 last:mb-0">' +
+        '<div class="flex items-center justify-between mb-1.5 px-0.5">' +
+          '<p class="text-xs font-bold text-slate-500 uppercase tracking-wide">' + escapeHtml(mmDayLabel(group.dateKey)) + '</p>' +
+          '<p class="text-xs font-extrabold text-brand-700">' + fmtNum(group.total) + ' ' + escapeHtml(state.milkUnit) + '</p>' +
         '</div>' +
-        '<span class="text-xs text-brand-700 font-bold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100">✓ Записано</span>' +
+        '<div class="bg-white/60 rounded-2xl px-3 border border-slate-100">' + rowsHtml + '</div>' +
       '</div>'
     );
   }).join('');
 
   list.innerHTML = html;
-  totalRow.classList.remove('hidden');
-  document.getElementById('mm-total-value').textContent = fmtNum(total) + ' ' + state.milkUnit;
 }
 
 async function mmSubmit() {
@@ -994,7 +1065,7 @@ async function mmSubmit() {
   var qty = parseFloat(input.value);
   if (!(qty > 0)) { showToast('Введіть кількість молока', 'warning'); return; }
 
-  var cows = mmGetSavedCows();
+  var cows = state.milkCowsCount || mmGetLocalCows();
   if (!cows) { showToast('Спочатку вкажіть кількість корів сьогодні', 'warning'); return; }
 
   var cowNumberInput = document.getElementById('mm-cow-number-input');
@@ -1015,9 +1086,11 @@ async function mmSubmit() {
     input.value = '';
     if (cowNumberInput) cowNumberInput.value = '';
     document.getElementById('mm-cow-block').classList.add('hidden');
+    // Кількість корів щойно підтверджена сервером у Журналі надоїв
+    state.milkCowsCountFromServer = true;
     mmValidateInput();
     showToast('Записано ' + fmtNum(result.qty) + ' ' + result.unit + ' молока!', 'success', 4000);
-    // Оновити список
+    // Оновити список (підтягне й актуальну кількість корів від сервера)
     await mmRefresh();
   } catch(err) {
     showToast('Помилка: ' + err.message, 'error', 7000);
