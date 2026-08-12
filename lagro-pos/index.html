@@ -585,7 +585,6 @@
         <option value="Карта">💳 Карта</option>
         <option value="В борг">📋 В борг</option>
         <option value="Дегустація">🎁 Дегустація</option>
-        <option value="Лотерея">🎟️ Лотерея</option>
       </select>
       <div id="debt-buyer-hint" style="display:none;margin-top:8px;font-size:.8rem;font-weight:700;color:#7c3aed;background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:10px;padding:8px 12px;">
         ⚠️ Для продажу "В борг" оберіть покупця вище (не "Роздрібний покупець")
@@ -594,7 +593,7 @@
         <label style="display:block;font-weight:800;color:#7c3aed;margin-bottom:6px;font-size:.85rem;">
           📝 Примітка до боргу (необов'язково)
         </label>
-        <textarea id="debt-note" class="txt-area" rows="2" placeholder="Напр.: віддасть у п'ятницю..."></textarea>
+        <textarea id="debt-note" class="txt-area" rows="2" placeholder="Напр.: віддасть у п'ятницю, борг за квітень…"></textarea>
       </div>
     </div>
 
@@ -2116,10 +2115,9 @@ function renderLastSales(sales) {
     const payIsCard    = payLower.includes('карт');
     const payIsDebt    = payLower.includes('борг');
     const payIsTasting = payLower.includes('дегуст');
-    const payIsLottery = payLower.includes('лотере');
-    const payBg    = payIsCard ? '#eff6ff' : payIsDebt ? '#fdf4ff' : payIsTasting ? '#fff7ed' : payIsLottery ? '#fefce8' : '#f0fdf4';
-    const payColor = payIsCard ? '#2563eb' : payIsDebt ? '#7c3aed' : payIsTasting ? '#ea580c' : payIsLottery ? '#ca8a04' : '#16a34a';
-    const payIcon  = payIsCard ? '💳' : payIsDebt ? '📋' : payIsTasting ? '🎁' : payIsLottery ? '🎟️' : '💵';
+    const payBg    = payIsCard ? '#eff6ff' : payIsDebt ? '#fdf4ff' : payIsTasting ? '#fff7ed' : '#f0fdf4';
+    const payColor = payIsCard ? '#2563eb' : payIsDebt ? '#7c3aed' : payIsTasting ? '#ea580c' : '#16a34a';
+    const payIcon  = payIsCard ? '💳' : payIsDebt ? '📋' : payIsTasting ? '🎁' : '💵';
 
     // Погашення боргу — гроші реальні (Готівка/Карта), але вміст рядка це видає
     const isDebtRepayment = (s.content || '').includes('Погашення боргу');
