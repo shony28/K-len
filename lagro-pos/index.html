@@ -638,10 +638,6 @@
             <div style="font-size:.73rem;font-weight:700;color:#ea580c;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">🎁 Дегустація</div>
             <div id="cash-today-tasting" style="font-size:1.35rem;font-weight:900;color:#ea580c;">—</div>
           </div>
-          <div style="flex:1;min-width:120px;background:#fefce8;border-radius:14px;padding:12px 14px;border:1.5px solid #fde68a;">
-            <div style="font-size:.73rem;font-weight:700;color:#ca8a04;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">🎟️ Лотерея</div>
-            <div id="cash-today-lottery" style="font-size:1.35rem;font-weight:900;color:#ca8a04;">—</div>
-          </div>
         </div>
 
         <!-- Останні операції -->
@@ -2079,17 +2075,15 @@ function loadCashData() {
     .then(res => {
       if (statusEl) statusEl.textContent = '';
       if (res.success && res.data) {
-        const { cash, card, list, tasting, lottery, lastSales } = res.data;
+        const { cash, card, list, tasting, lastSales } = res.data;
         const cashEl    = document.getElementById('cash-today-cash');
         const cardEl    = document.getElementById('cash-today-card');
         const listEl    = document.getElementById('cash-today-list');
         const tastingEl = document.getElementById('cash-today-tasting');
-        const lotteryEl = document.getElementById('cash-today-lottery');
         if (cashEl)    cashEl.textContent    = formatPrice(cash) + ' ₴';
         if (cardEl)    cardEl.textContent    = formatPrice(card) + ' ₴';
         if (listEl)    listEl.textContent    = formatPrice(list || 0) + ' ₴';
         if (tastingEl) tastingEl.textContent = formatPrice(tasting || 0) + ' ₴';
-        if (lotteryEl) lotteryEl.textContent = formatPrice(lottery || 0) + ' ₴';
         renderLastSales(lastSales);
       }
     })
