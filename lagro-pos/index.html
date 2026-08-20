@@ -822,6 +822,7 @@
     <select class="sel" id="debt-repay-payment" style="margin-bottom:18px;">
       <option value="Готівка" selected>💵 Готівка</option>
       <option value="Карта">💳 Карта</option>
+      <option value="На гаманець М.М.">👛 На гаманець М.М.</option>
     </select>
 
     <div style="display:flex;gap:10px;">
@@ -2109,9 +2110,10 @@ function renderLastSales(sales) {
     const payIsCard    = payLower.includes('карт');
     const payIsDebt    = payLower.includes('борг');
     const payIsTasting = payLower.includes('дегуст');
-    const payBg    = payIsCard ? '#eff6ff' : payIsDebt ? '#fdf4ff' : payIsTasting ? '#fff7ed' : '#f0fdf4';
-    const payColor = payIsCard ? '#2563eb' : payIsDebt ? '#7c3aed' : payIsTasting ? '#ea580c' : '#16a34a';
-    const payIcon  = payIsCard ? '💳' : payIsDebt ? '📋' : payIsTasting ? '🎁' : '💵';
+    const payIsWallet  = payLower.includes('гаманець');
+    const payBg    = payIsCard ? '#eff6ff' : payIsDebt ? '#fdf4ff' : payIsTasting ? '#fff7ed' : payIsWallet ? '#fefce8' : '#f0fdf4';
+    const payColor = payIsCard ? '#2563eb' : payIsDebt ? '#7c3aed' : payIsTasting ? '#ea580c' : payIsWallet ? '#ca8a04' : '#16a34a';
+    const payIcon  = payIsCard ? '💳' : payIsDebt ? '📋' : payIsTasting ? '🎁' : payIsWallet ? '👛' : '💵';
 
     // Погашення боргу — гроші реальні (Готівка/Карта), але вміст рядка це видає
     const isDebtRepayment = (s.content || '').includes('Погашення боргу');
