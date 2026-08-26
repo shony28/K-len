@@ -1,0 +1,3379 @@
+<!DOCTYPE html>
+<html lang="ua">
+<head>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Інтернет Магазин Лагро</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Material+Icons+Outlined');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@500&display=swap');
+
+        /* Цветовые схемы */
+        :root {
+            /* Default схема */
+            --primary-color: #292c32;
+            --primary-hover: #1a2947;
+            --secondary-color: #333333;
+            --secondary-hover: #131d29;
+            --accent-color: #012a57;
+        
+            --card-background: #ffffff;
+            --text-color: #000000;
+            --text-secondary: #555;
+            --text-muted: #666;
+            
+            --success-color: #28a745;
+            --success-hover: #218838;
+            --danger-color: #dc3545;
+            
+        }
+
+        /* Blue Professional схема */
+        [data-theme="blue"] {
+            --primary-color: #0d47a1;
+            --primary-hover: #1976d2;
+            --secondary-color: #1e3a8a;
+            --secondary-hover: #1e40af;
+            --accent-color: #0f172a;
+            
+            --card-background: #ffffff;
+            --text-color: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            
+            --success-color: #059669;
+            --success-hover: #047857;
+            --danger-color: #dc2626;
+            
+        }
+
+        /* Green Nature схема */
+        [data-theme="green"] {
+            --primary-color: #16a34a;
+            --primary-hover: #15803d;
+            --secondary-color: #166534;
+            --secondary-hover: #14532d;
+            --accent-color: #052e16;
+            
+            --card-background: #ffffff;
+            --text-color: #052e16;
+            --text-secondary: #365314;
+            --text-muted: #4d7c0f;
+            
+            --success-color: #22c55e;
+            --success-hover: #16a34a;
+            --danger-color: #ef4444;
+            
+        }
+
+
+
+
+
+
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header-top__logo,
+        .header-top__logo2,
+        .header-top__home,
+        .header-top__page,
+        .dropdown-toggle,
+        #reset-btn {
+            cursor: pointer;
+        }
+
+
+        label {
+            display: block;
+        }
+
+        textarea {
+            margin-top: 5px;
+            width: 99%;
+        }
+
+ 
+        .product {
+            border: 1px solid #ddd;
+            margin: 0; /* убираем margin, так как используем gap */
+            padding: 10px;
+            width: calc(100% - 40px);
+            max-width: 240px;
+            background-color: var(--card-background);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transition: transform .1s;
+        }
+
+        .product:hover {
+            transform: scale(1.00001) translateY(-1px);
+         
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .product img {
+            max-width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .product h2 {
+            font-size: 1.2em;
+            margin: 10px 0;
+            height: 75px; /* Фиксированная высота для 2 строк */
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* Ограничиваем до 2 строк */
+            -webkit-box-orient: vertical;
+            line-height: 1.4em; /* 60px / 2 строки = 30px на строку */
+        }
+
+        /* Когда описание скрыто, увеличиваем высоту заголовка */
+        body:has(#product-description-style) .product h2 {
+            height: 112px; /* Увеличенная высота для 3 строк */
+            -webkit-line-clamp: 3; /* Ограничиваем до 3 строк */
+        }
+
+        .products-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            padding-top: 7px;
+        }
+
+        .product p.description {
+            height: 37px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 5px 1px;
+            color: #5f5f5f;
+        }
+
+        .product .price,
+        .product button {
+            display: block;
+            margin: 10px 0;
+            text-align: left;
+            font-size: 20px;
+        }
+
+
+        .header-top,
+        .header-top * {
+            box-sizing: border-box;
+        }
+
+        .header-top {
+            background: var(--main-white, #ffffff);
+            border-style: solid;
+            border-color: #b5b5b5;
+            border-width: 0px 0px 1px 0px;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            align-self: stretch;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .header-top__logo {
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-start;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .header-top__logo2 {
+            display: flex;
+            flex-direction: row;
+            gap: 0px;
+            align-items: center;
+            justify-content: flex-start;
+            flex-shrink: 0;
+            height: auto;
+            position: relative;
+            overflow: visible;
+            max-height: 100px;
+            max-width: 220px;
+        }
+
+        .header-top__search-field {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-start;
+            flex-shrink: 0;
+            width: 100%;
+            max-width: 300px;
+            height: 56px;
+            position: relative;
+        }
+
+        .header-top__icon-32-px-search {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            position: relative;
+            overflow: visible;
+        }
+
+        .header-top__search {
+            color: #656565;
+            text-align: left;
+            font-family: "Inter-Medium", sans-serif;
+            font-size: 30px;
+            line-height: 18px;
+            font-weight: 500;
+            opacity: 0.5;
+            position: relative;
+            width: 100%;
+            display: flex;
+
+        }
+
+        .header-top__search input[type="text"] {
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-family: "Inter-Medium", sans-serif;
+            font-size: 18px;
+            color: #333;
+            outline: none;
+        }
+
+        .header-top__search input[type="text"]::placeholder {
+            color: #656565;
+            opacity: 0.5;
+        }
+
+        /* Бургер меню стили */
+        .burger-menu {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 1001;
+        }
+
+        .burger-line {
+            width: 25px;
+            height: 3px;
+            background-color: #000;
+            margin: 3px 0;
+            transition: 0.3s;
+        }
+
+        .burger-menu.active .burger-line:nth-child(1) {
+            transform: rotate(-45deg) translate(-5px, 7px);
+        }
+
+        .burger-menu.active .burger-line:nth-child(2) {
+            opacity: 0;
+        }
+
+        .burger-menu.active .burger-line:nth-child(3) {
+            transform: rotate(45deg) translate(-5px, -7px);
+        }
+
+        .header-top__navigation {
+            display: flex;
+            flex-direction: row;
+            gap: 32px;
+            align-items: flex-start;
+            justify-content: flex-start;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            font-size: inherit;
+            color: inherit;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1000;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-content .header-top__page {
+            padding: 10px 16px;
+            display: block;
+            color: #333;
+            text-decoration: none;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .dropdown-content .header-top__page:hover {
+            background-color: #f5f5f5;
+        }
+
+        .dropdown-content .header-top__page:last-child {
+            border-bottom: none;
+        }
+
+        .header-top__home,
+        .header-top__about,
+        .header-top__contact-us,
+        .header-top__blog {
+            color: var(--main-black, #000000);
+            text-align: left;
+            font-family: "Inter-Medium", sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            position: relative;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .header-top__home {
+            opacity: 1;
+        }
+
+        .header-top__about,
+        .header-top__contact-us,
+        .header-top__blog {
+            opacity: 0.3;
+        }
+
+        .header-top__about:hover,
+        .header-top__contact-us:hover,
+        .header-top__blog:hover {
+            opacity: 0.7;
+        }
+
+        .header-top__icons {
+            display: flex;
+            flex-direction: row;
+            gap: 24px;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .header-top__icon-32-px-favorites,
+        .header-top__icon-32-px-user {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            position: relative;
+            overflow: visible;
+            cursor: pointer;
+        }
+
+        .header-top__icon-32-px-cart {
+            background: #ffffff;
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .header-top__cart-1 {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            right: 0%;
+            left: 0%;
+            bottom: 0%;
+            top: 0%;
+            overflow: visible;
+        }
+
+        #cart-count {
+            background: red;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 12px;
+            position: absolute;
+            top: -5px;
+            right: -5px;
+        }
+
+        /* Мобильная навигация */
+        .mobile-nav-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .mobile-nav {
+            position: fixed;
+            top: 0;
+            right: -150%;
+            width: 250px;
+            height: 100%;
+            background-color: white;
+            z-index: 1000;
+            transition: right 0.3s ease;
+            padding: 80px 20px 20px;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-nav.active {
+            right: 0;
+        }
+
+        .mobile-nav-item {
+            display: block;
+            padding: 15px 0;
+            color: #000;
+            text-decoration: none;
+            font-family: "Inter-Medium", sans-serif;
+            font-size: 18px;
+            font-weight: 500;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .mobile-nav-item:hover {
+            color: #007bff;
+        }
+
+        
+
+        #cart {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            overflow-y: auto;
+            display: none;
+            z-index: 999;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #cart .header {
+            text-align: center;
+            margin: 0;
+            padding: 10px;
+            background: none;
+            color: black;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .cart-item span.remove-item {
+            cursor: pointer;
+            color: #dc3545;
+            margin-right: 10px;
+        }
+
+        .cart-item .details {
+            display: flex;
+            flex-grow: 1;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .cart-item .info {
+            flex-grow: 1;
+            text-align: left;
+        }
+
+        .cart-item .quantity-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .quantity-controls button {
+            padding: 5px 10px;
+            background-color: #0a3457;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color .2s;
+        }
+
+        .quantity-controls button:hover {
+            background-color: #0056b3;
+        }
+
+        .item-price {
+            min-width: 80px;
+            text-align: right;
+        }
+
+        #place-order {
+            padding: 12px 24px;
+            background-color: var(--success-color);
+            color: white;
+            font-size: 1.1em;
+            border: none;
+            cursor: pointer;
+            transition: background-color .2s;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        #place-order:hover {
+            background-color: var(--success-hover);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            font-size: 18px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        .cart-header {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cart-back-button {
+            position: absolute;
+            left: 0;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #333;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .cart-back-button:hover {
+            background-color: #f0f0f0;
+        }
+
+        .cart-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #cart-items {
+            border-right: none;
+        }
+
+        #order-form {
+            padding-top: 10px;
+        }
+
+        .order-summary {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .order-summary p {
+            margin: 5px 0;
+        }
+
+        .cart-button {
+            padding: 10px 20px;
+            background-color: #0a3457;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color .2s;
+            width: 100%;
+        }
+
+        .cart-button:hover {
+            background-color: #061d35;
+        }
+
+        @media (min-width: 768px) {
+            .cart-container {
+                flex-direction: row;
+                justify-content: space-between;
+                max-width: 1400px;
+                margin: auto;
+            }
+
+            #cart-items {
+                width: 60%;
+                border-right: 1px solid #ddd;
+                padding: 30px;
+            }
+
+            #order-form {
+                width: 35%;
+                padding: 20px;
+            }
+        }
+
+        @media (min-width: 600px) {
+            .product {
+                width: calc(50% - 40px);
+            }
+        }
+
+        @media (min-width: 768px) {
+            .product {
+                width: calc(33.33% - 40px);
+            }
+        }
+
+        @media (min-width: 992px) {
+            .product {
+                width: calc(25% - 40px);
+            }
+        }
+
+        .product .quantity-and-button {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .product .quantity-and-button input[type="number"] {
+            width: 60px;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+
+        .product .quantity-and-button button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            height: 100%;
+            width: 100%;
+            transition: background-color .2s;
+            text-align: center;
+            border-radius: 5px;
+        }
+
+        .product .quantity-and-button button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Медиа-запросы для адаптивности */
+        @media (max-width: 768px) {
+            .header-top {
+                padding: 10px 15px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .header-top__logo2 {
+                max-height: 70px;
+            }
+
+            .header-top__search-field {
+                order: 3;
+                width: 100%;
+                max-width: none;
+                margin-top: 10px;
+                padding: 12px;
+                height: 48px;
+            }
+
+            .header-top__navigation {
+                display: none;
+            }
+
+            .burger-menu {
+                display: flex;
+                order: 2;
+            }
+
+            .header-top__icons {
+                gap: 15px;
+            }
+
+            .mobile-nav-overlay.active {
+                display: block;
+            }
+        }
+
+        @media (max-width: 480px) {
+            img {
+                max-width: 100%;
+            }
+            .header-top {
+                padding: 8px 10px;
+            }
+
+            .header-top__icons {
+                gap: 10px;
+            }
+
+            .header-top__icon-32-px-cart,
+            .header-top__icon-32-px-favorites,
+            .header-top__icon-32-px-user {
+                width: 28px;
+                height: 28px;
+            }
+            .product {
+                margin: 4px;
+                padding: 5px;
+                width: 43%;
+            }
+            .product .quantity-and-button button {
+                padding: 10px 2px;
+            }
+            .products-container {
+                gap: 1px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .header-top {
+                padding: 16px 16px;
+            }
+
+            .header-top__search-field {
+                width: 372px;
+            }
+            /* код для изменения порядка элементов */
+            .header-top__logo {
+                order: 1;
+            }
+            
+            .header-top__search-field {
+                order: 2;
+            }
+            
+            .header-top__navigation {
+                order: 3;
+            }
+            
+            .header-top__icons {
+                order: 4;
+            }
+        }
+
+        @media (min-width: 1050px) {
+            .header-top {
+                padding: 16px 160px;
+            }
+        }
+        .product-page {
+            display: none;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .product-page.active {
+            display: block;
+        }
+
+        .back-button {
+            background: #f9f9f9;
+            color: #3f3f40;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+
+
+        .product-details {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .product-image-large {
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .product-image-large img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .product-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .product-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 0;
+            color: #333;
+        }
+
+        .product-article {
+            font-size: 14px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 5px 10px;
+            border-radius: 4px;
+            width: fit-content;
+        }
+
+        .product-description {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .product-price {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .product-actions input[type="number"] {
+            width: 80px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .product-actions button {
+            padding: 12px 24px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .product-actions button:hover {
+            background: var(--secondary-hover);
+        }
+
+        @media (max-width: 768px) {
+            .product-details {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .product-image-large {
+                max-width: none;
+            }
+            
+            .product-title {
+                font-size: 24px;
+            }
+            
+            .product-actions {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            
+            .product-actions input[type="number"] {
+                width: 93%;
+            }
+        }
+
+        /* Скрываем список товаров когда показана карточка */
+        #products.hidden {
+            display: none;
+        }
+
+
+        /* Стили для плавающей корзины */
+        .floating-cart {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 50px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .floating-cart.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .floating-cart .header-top__icon-32-px-cart {
+            position: relative;
+        }
+
+        .floating-cart #cart-count {
+            background: red;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 12px;
+            position: absolute;
+            top: -5px;
+            right: -5px;
+        }
+
+        #floating-cart-count {
+            background: red;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 12px;
+            position: absolute;
+            top: -5px;
+            right: -5px;
+        }
+
+        .header-top__logo-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+            margin: 10px 0px 0px 10px;
+        }
+
+        .empty-cart-message {
+            text-align: center;
+            color: #999;
+            font-size: 18px;
+            margin: 40px 0;
+            opacity: 0.6;
+        }
+
+        .order-success-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #4CAF50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            opacity: 0;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        .order-success-overlay span {
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        @keyframes fadeInOut {
+            0% {
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            80% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .quantity-and-button input:disabled,
+        .quantity-and-button button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .product-actions input:disabled,
+        .product-actions button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header-top">
+        <div class="header-top__logo" onclick="goToHome()">
+            <!-- Убираем img, оставляем контейнер пустым -->
+        </div>
+        
+        <!-- Бургер меню кнопка -->
+        <div class="burger-menu" onclick="toggleMobileNav()">
+            <div class="burger-line"></div>
+            <div class="burger-line"></div>
+            <div class="burger-line"></div>
+        </div>
+        
+        <!-- Обычная навигация для десктопа -->
+        <div class="header-top__navigation">
+            <div class="header-top__home" onclick="goToHome()">Головна</div>
+          
+        </div>
+        
+        <div class="header-top__icons">
+            <div class="header-top__icon-32-px-cart" onclick="toggleCart()">
+                <img class="header-top__cart-1" src="cart-10.svg" alt="Cart" />
+                <div id="cart-count">0</div>
+            </div>
+        </div>
+        
+        <!-- Поиск на мобильных будет под основным контентом -->
+        <div class="header-top__search-field">
+            <img class="header-top__icon-32-px-search" src="icon-32-px-search0.svg" alt="Search Icon" />
+            <div class="header-top__search">
+                <input type="text" id="search" placeholder="Пошук товарів..." oninput="toggleResetButton()">
+                <span id="reset-btn" onclick="resetSearch()" style="display: none;">×</span>
+            </div>
+        </div>
+
+        
+        
+    </div>
+
+    <!-- Мобильная навигация -->
+    <div class="mobile-nav-overlay" onclick="closeMobileNav()"></div>
+    <div class="mobile-nav" id="mobile-nav">
+        <div class="mobile-nav-item" onclick="goToHome(); closeMobileNav()">Головна</div>
+
+    </div>
+
+    <!-- Плавающая корзина -->
+    <div class="floating-cart" id="floating-cart">
+        <div class="header-top__icon-32-px-cart" onclick="toggleCart()">
+            <img class="header-top__cart-1" src="cart-10.svg" alt="Cart" />
+            <div id="floating-cart-count">0</div>
+        </div>
+    </div>
+
+    <div id="products"></div>
+
+    <div id="product-page" class="product-page">
+        <button class="back-button" onclick="showProductsList()">← Назад до товарів</button>
+        
+        <div class="product-details">
+            <div class="product-image-large">
+                <img id="page-image" src="" alt="">
+            </div>
+            
+            <div class="product-info">
+                <h1 id="page-title" class="product-title"></h1>
+                <div id="page-article" class="product-article"></div>
+                <div id="page-description" class="product-description"></div>
+                <div id="page-price" class="product-price"></div>
+                
+                <div class="product-actions">
+                    <input type="number" id="page-quantity" min="1" value="1">
+                    <button id="page-add-button">Додати до кошику</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cart">
+        <div class="cart-header">
+            <button class="cart-back-button" onclick="toggleCart()">← Назад</button>
+            <h2>Кошик</h2>
+        </div>
+        <div class="cart-container">
+            <div id="cart-items"></div>
+                <div id="order-form">
+                    <div id="dynamic-order-fields"></div>
+                    <div class="order-summary">
+                        <p><span id="total-price">0</span></p>
+                        <p style="font-size: 14px; font-weight: normal; color: #666;">Загальна кількість товарів: <span id="total-quantity">0</span></p>
+                    </div>
+                    <button id="place-order" onclick="placeOrder()">Оформити замовлення</button>
+                    <button class="cart-button" onclick="toggleCart()">Приховати кошик</button>
+                </div>
+        </div>
+    </div>
+  <script>
+        const SPREADSHEET_ID = '1V_447DUv_Cfj2efNOFBnuTtW2iZRH2QCG8rYOGxSKTs'; // null для использования параметра ?id= или конкретный ID '1a8iWHQI57_3Z3eGJWmysiCSM_PVrD98roIUofae0GoI'
+        const RANGE = 'goods!A2:E';
+        
+        let TELEGRAM_CHAT_ID = '';
+        const CATEGORIES_RANGE = 'category!A2:D';
+        const SETTINGS_SHEET_NAME = 'settings';
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 2000;
+        const PAGES_RANGE = 'pages!A2:B';
+        const ALIASES_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS90r90sxq0VCLBYX9V-p3OWXyV7y2Zm2CjLcqz0yaWvsJV04s_5LgihNciNBDy4iug3Yl7dEaHd40C/pub?gid=0&single=true&output=csv';
+        
+        let allCategories = [];
+        let currentCategoryId = null; // для отслеживания текущей категории
+        let cart = [];
+        let isCartVisible = false;
+        let isMobileNavVisible = false;
+        let allProducts = [];
+        let settingsData = {};
+        let allPages = [];
+        let currentPageId = null;
+        let columnMapping = {};
+        let ORDERS_WEB_APP_URL = '';
+        let deliveryCost = 0;
+        let freeDeliveryRules = {};
+        let orderFields = []; // Массив всех полей для формы заказа
+
+        function getParameterByName(name, url = window.location.href) {
+            // Сначала пробуем получить из query параметров
+            name = name.replace(/[\[\]]/g, '\\$&');
+            const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+            const results = regex.exec(url);
+            
+            if (results && results[2]) {
+                return decodeURIComponent(results[2].replace(/\+/g, ' '));
+            }
+            
+            // Извлекаем из красивого URL
+            const path = new URL(url).pathname;
+            const parts = path.split('/').filter(p => p); // убираем пустые элементы
+            
+            // Проверяем старый формат /shop/id/...
+            if (parts[0] === 'shop') {
+                const index = parts.indexOf(name);
+                if (index !== -1 && index + 1 < parts.length) {
+                    return decodeURIComponent(parts[index + 1]);
+                }
+            }
+            
+            // Новый формат: первый элемент это id (если не 'shop')
+            if (name === 'id' && parts.length > 0 && parts[0] !== 'shop') {
+                return decodeURIComponent(parts[0]);
+            }
+            
+            // Для других параметров в новом формате
+            if (parts.length > 0 && parts[0] !== 'shop') {
+                const index = parts.indexOf(name);
+                if (index !== -1 && index + 1 < parts.length) {
+                    return decodeURIComponent(parts[index + 1]);
+                }
+            }
+            
+            return null;
+        }
+
+
+        // Функція для роботи з URL-параметрами
+        function updateURL(params) {
+            const spreadsheetId = SPREADSHEET_ID || getParameterByName('id');
+            
+            // Формируем новый красивый URL
+            let pathParts = [];
+            
+            // Добавляем id ТОЛЬКО если он НЕ задан в SPREADSHEET_ID (т.е. берется из URL)
+            if (!SPREADSHEET_ID && spreadsheetId) {
+                pathParts.push(encodeURIComponent(spreadsheetId));
+            }
+            
+            // Добавляем другие параметры
+            if (params.goodsId) {
+                pathParts.push('goodsId', encodeURIComponent(params.goodsId));
+            } else if (params.categoryId) {
+                pathParts.push('categoryId', encodeURIComponent(params.categoryId));
+            } else if (params.pageId) {
+                pathParts.push('pageId', encodeURIComponent(params.pageId));
+            }
+            
+            const newPath = '/' + pathParts.join('/');
+            window.history.pushState({}, '', newPath);
+        }
+
+
+        //функцию генерации JSON-LD
+        function generateProductJsonLd(product) {
+                const [id, name, description, price, imageUrl, tags] = product;
+                
+                // Проверяем наличие цены
+                const numPrice = parseFloat(price);
+                const isAvailable = numPrice && numPrice > 0;
+                
+                const jsonLd = {
+                    "@context": "https://schema.org/",
+                    "@type": "Product",
+                    "name": name,
+                    "image": imageUrl,
+                    "description": description
+                };
+                
+                // Добавляем информацию о цене только если товар доступен
+                if (isAvailable) {
+                    jsonLd.offers = {
+                        "@type": "Offer",
+                        "price": numPrice.toFixed(2),
+                        "priceCurrency": "UAH",
+                        "availability": "https://schema.org/InStock"
+                    };
+                } else {
+                    jsonLd.offers = {
+                        "@type": "Offer",
+                        "availability": "https://schema.org/OutOfStock"
+                    };
+                }
+                
+                return jsonLd;
+            }
+
+            function insertJsonLd(jsonLd) {
+                // Удаляем предыдущий JSON-LD если есть
+                const existingScript = document.getElementById('product-jsonld');
+                if (existingScript) {
+                    existingScript.remove();
+                }
+                
+                // Создаем новый script тег с JSON-LD
+                const script = document.createElement('script');
+                script.id = 'product-jsonld';
+                script.type = 'application/ld+json';
+                script.text = JSON.stringify(jsonLd);
+                document.head.appendChild(script);
+            }
+
+
+        // Функция для выполнения fetch с повторными попытками
+        async function fetchWithRetry(url, retries = MAX_RETRIES, delay = RETRY_DELAY) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return await response.text();
+                } catch (error) {
+                    console.warn(`Спроба ${i + 1} не вдалася:`, error);
+                    if (i < retries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+        }
+
+        async function getSpreadsheetId() {
+            try {
+                const idParam = getParameterByName('id');
+                
+                if (!idParam) {
+                    throw new Error('Параметр id не вказано');
+                }
+                
+                console.log('Обробка параметра id:', idParam);
+                
+                // Проверяем, является ли параметр spreadsheetId (40+ символов)
+                const isSpreadsheetId = /^[A-Za-z0-9_-]{40,}$/.test(idParam);
+                if (isSpreadsheetId) {
+                    console.log('Параметр id розпізнано як SPREADSHEET_ID');
+                    return idParam;
+                }
+                
+                console.log('Перевірка id як alias:', idParam);
+                
+                // Попытка загрузить aliases с retry логикой
+                let csvText;
+                try {
+                    csvText = await fetchWithRetry(ALIASES_CSV_URL);
+                } catch (error) {
+                    console.error('Помилка завантаження aliases CSV:', error);
+                    // Попробуем еще раз через небольшую задержку
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    try {
+                        csvText = await fetchWithRetry(ALIASES_CSV_URL);
+                    } catch (retryError) {
+                        console.error('Повторна помилка завантаження aliases CSV:', retryError);
+                        throw new Error(`Не вдалося завантажити список aliases. Спробуйте оновити сторінку.`);
+                    }
+                }
+                
+                const rows = csvText.split('\n').slice(1);
+                let found = false;
+                let spreadsheetId = null;
+                
+                for (const row of rows) {
+                    if (row.trim() === '') continue;
+                    
+                    const columns = row.split(',').map(item => item.trim());
+                    if (columns.length >= 2) {
+                        const csvAlias = columns[0];
+                        const csvSpreadsheetId = columns[1];
+                        
+                        if (csvAlias === idParam && csvSpreadsheetId) {
+                            spreadsheetId = csvSpreadsheetId;
+                            console.log('Знайдено SPREADSHEET_ID для alias:', idParam);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!found) {
+                    throw new Error(`ID таблиці для alias "${idParam}" не знайдено, і параметр не є SPREADSHEET_ID`);
+                }
+                
+                return spreadsheetId;
+                
+            } catch (error) {
+                console.error('Помилка отримання SPREADSHEET_ID:', error);
+                throw error;
+            }
+        }
+
+        // Сохранение данных в localStorage
+        function cacheSettingsData(data) {
+            try {
+                localStorage.setItem('settingsData', JSON.stringify(data));
+            } catch (e) {
+                console.warn('Не вдалося зберегти налаштування в localStorage:', e);
+            }
+        }
+
+        // Получение данных из localStorage
+        function getCachedSettingsData() {
+            try {
+                const data = localStorage.getItem('settingsData');
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                console.warn('Не вдалося отримати налаштування з localStorage:', e);
+                return null;
+            }
+        }
+
+        
+        // Загрузка настроек с листа "settings"
+        async function loadSettings() {
+            try {
+                const spreadsheetId = SPREADSHEET_ID || await getSpreadsheetId();
+                
+                if (!spreadsheetId) {
+                    console.error('SPREADSHEET_ID не визначено');
+                    return;
+                }
+                
+                console.log('Завантаження налаштувань...');
+                const targetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?sheet=${SETTINGS_SHEET_NAME}&range=A:C&tqx=out:json`;
+                const text = await fetchWithRetry(targetUrl);
+
+                let jsonText = text.trim();
+                if (jsonText.startsWith('/*O_o*/\ngoogle.visualization.Query.setResponse(')) {
+                    jsonText = jsonText.substring(47);
+                    jsonText = jsonText.substring(0, jsonText.length - 2);
+                }
+
+                const jsonData = JSON.parse(jsonText);
+                if (!jsonData.table || !jsonData.table.rows) {
+                    console.warn('Лист налаштувань порожній або відсутній');
+                    return;
+                }
+
+                const rows = jsonData.table.rows;
+                settingsData = {};
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.c && row.c.length >= 3) {
+                        const settingName = row.c[0] ? (row.c[0].v || '') : '';
+                        const settingValue = row.c[2] ? (row.c[2].v || '') : '';
+                        if (settingName && settingValue !== '') {
+                            settingsData[settingName.toString()] = settingValue.toString();
+                        }
+                    }
+                }
+
+                console.log('Налаштування завантажено:', settingsData);
+                cacheSettingsData(settingsData);
+                applySettings();
+                
+                await loadPages();
+                
+            } catch (error) {
+                console.error('Помилка завантаження налаштувань:', error);
+                const cachedSettings = getCachedSettingsData();
+                if (cachedSettings) {
+                    console.log('Використовую кешовані налаштування:', cachedSettings);
+                    settingsData = cachedSettings;
+                    applySettings();
+                    await loadPages();
+                } else {
+                    console.warn('Немає кешованих налаштувань, використовую значення за замовчуванням');
+                }
+            }
+        }
+
+
+            function updateDeliveryCost() {
+                    const deliveryElement = document.getElementById('delivery');
+                    if (!deliveryElement) return;
+                    
+                    const selectedValue = deliveryElement.value;
+                    
+                    // Проверяем, есть ли стоимость доставки
+                    if (selectedValue.includes(':')) {
+                        const [deliveryName, cost] = selectedValue.split(':');
+                        const baseCost = parseFloat(cost) || 0;
+                        
+                        // Проверяем, есть ли правило бесплатной доставки для этой доставки
+                        if (freeDeliveryRules[deliveryName]) {
+                            const freeFromAmount = freeDeliveryRules[deliveryName];
+                            const cartTotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
+                            
+                            // Если сумма корзины >= минимальной суммы для бесплатной доставки
+                            if (cartTotal >= freeFromAmount) {
+                                deliveryCost = 0;
+                            } else {
+                                deliveryCost = baseCost;
+                            }
+                        } else {
+                            deliveryCost = baseCost;
+                        }
+                    } else {
+                        deliveryCost = 0;
+                    }
+                    
+                    // Обновляем только отображение суммы, БЕЗ полного перерендера корзины
+                    updateCartSummary();
+                }
+
+
+              function updateCartSummary() {
+                        const totalPriceElement = document.getElementById('total-price');
+                        const totalQuantityElement = document.getElementById('total-quantity');
+                        
+                        if (!totalPriceElement || !totalQuantityElement) return;
+                        
+                        let totalQuantity = 0;
+                        let totalPrice = 0;
+                        
+                        cart.forEach(item => {
+                            totalQuantity += item.quantity;
+                            totalPrice += item.price * item.quantity;
+                        });
+                        
+                        const deliverySelect = document.getElementById('delivery');
+                        
+                        // Формируем информацию о доставке и итоговой сумме
+                        let summaryHtml = '';
+                        
+                        // 1. Выбранная доставка и стоимость доставки
+                        if (deliverySelect && deliverySelect.value) {
+                            const deliveryName = deliverySelect.value.includes(':') 
+                                ? deliverySelect.value.split(':')[0] 
+                                : deliverySelect.value;
+                            
+                            // Проверяем, есть ли стоимость доставки
+                            if (deliverySelect.value.includes(':')) {
+                                // Проверяем, действует ли бесплатная доставка
+                                if (freeDeliveryRules[deliveryName] && totalPrice >= freeDeliveryRules[deliveryName]) {
+                                    summaryHtml += `${deliveryName}: <span style="text-decoration: line-through;">${deliverySelect.value.split(':')[1]} грн</span> <span style="color: green; font-weight: bold;">0 грн (Безкоштовно)</span><br>`;
+                                } else if (deliveryCost > 0) {
+                                    summaryHtml += `${deliveryName}: ${deliveryCost.toFixed(2)} грн<br>`;
+                                    
+                                    // Показываем, сколько осталось до бесплатной доставки
+                                    if (freeDeliveryRules[deliveryName]) {
+                                        const remaining = freeDeliveryRules[deliveryName] - totalPrice;
+                                        if (remaining > 0) {
+                                            summaryHtml += `<span style="color: #666; font-size: 14px;">Ще ${remaining.toFixed(2)} грн до безкоштовної доставки</span><br>`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 2. Сумма общая
+                        const totalWithDelivery = totalPrice + deliveryCost;
+                        summaryHtml += `<span style="color: #000; font-size: 20px; margin-top: 10px; display: inline-block;">Загальна сума: ${totalWithDelivery.toFixed(2)} грн`;
+                        
+                        totalPriceElement.innerHTML = summaryHtml;
+                        totalQuantityElement.innerText = totalQuantity;
+                        
+                        // Обновляем счетчик в иконке корзины
+                        document.getElementById('cart-count').innerText = totalQuantity;
+                        updateFloatingCartCount();
+                    }  
+
+
+        function getColumnMapping(headerRow) {
+                const mapping = {};
+                const requiredHeaders = ['id', 'name', 'description', 'price', 'image-url', 'tags'];
+                
+                headerRow.forEach((cell, index) => {
+                    if (!cell) return;
+                    const headerValue = (cell.v || '').toString().toLowerCase().trim();
+                    
+                    if (requiredHeaders.includes(headerValue)) {
+                        mapping[headerValue] = index;
+                    }
+                });
+                
+                // Проверяем, что все обязательные заголовки найдены
+                const missingHeaders = requiredHeaders.filter(header => !(header in mapping));
+                if (missingHeaders.length > 0) {
+                    console.warn('Відсутні заголовки:', missingHeaders);
+                }
+                
+                return mapping;
+            }
+
+        // Загрузка страниц с листа "pages"
+        async function loadPages() {
+            try {
+                const spreadsheetId = SPREADSHEET_ID || await getSpreadsheetId();
+                
+                if (!spreadsheetId) {
+                    console.error('SPREADSHEET_ID не визначено');
+                    return;
+                }
+                
+                console.log('Завантаження сторінок...');
+                const targetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&range=${PAGES_RANGE}`;
+                const text = await fetchWithRetry(targetUrl);
+                
+                let jsonText = text.trim();
+                if (jsonText.startsWith('/*O_o*/\ngoogle.visualization.Query.setResponse(')) {
+                    jsonText = jsonText.substring(47);
+                    jsonText = jsonText.substring(0, jsonText.length - 2);
+                }
+
+                const jsonData = JSON.parse(jsonText);
+                if (!jsonData.table || !jsonData.table.rows) {
+                    console.warn('Лист сторінок порожній або відсутній');
+                    return;
+                }
+
+                const rows = jsonData.table.rows;
+                allPages = rows.map(row => {
+                    return row.c.map(cell => cell ? (cell.v !== null ? cell.v : '') : '');
+                });
+
+                console.log('Сторінки завантажено:', allPages);
+                renderNavigation();
+                
+            } catch (error) {
+                console.error('Помилка завантаження сторінок:', error);
+                renderDefaultNavigation();
+            }
+        }
+
+        
+        // Отрендерить навигацию на основе загруженных страниц
+        function renderNavigation() {
+            const navigationContainer = document.querySelector('.header-top__navigation');
+            
+            if (!navigationContainer) {
+                console.error('Контейнер навігації не знайдено');
+                return;
+            }
+            
+            // Очищаем текущую навигацию
+            navigationContainer.innerHTML = '<div class="header-top__home" onclick="goToHome()">Головна</div>';
+            
+            // Максимальное количество видимых пунктов (включая "Головна")
+            const maxVisibleItems = 3;
+            const visiblePages = allPages.slice(0, maxVisibleItems - 1); // -1 для "Головна"
+            const hiddenPages = allPages.slice(maxVisibleItems - 1);
+            
+            // Добавляем видимые страницы
+            visiblePages.forEach(page => {
+                const [pageId, pageTitle] = page;
+                if (pageId && pageTitle) {
+                    const pageElement = document.createElement('div');
+                    pageElement.className = 'header-top__page';
+                    pageElement.textContent = pageId;
+                    pageElement.onclick = () => showPage(pageId, pageTitle);
+                    navigationContainer.appendChild(pageElement);
+                }
+            });
+            
+            // Если есть скрытые страницы, добавляем выпадающий список
+            if (hiddenPages.length > 0) {
+                const dropdown = document.createElement('div');
+                dropdown.className = 'dropdown';
+                
+                const dropdownToggle = document.createElement('button');
+                dropdownToggle.className = 'dropdown-toggle';
+                dropdownToggle.textContent = '•••';
+                dropdownToggle.onclick = toggleDropdown;
+                
+                const dropdownContent = document.createElement('div');
+                dropdownContent.className = 'dropdown-content';
+                dropdownContent.id = 'dropdown-content';
+                
+                hiddenPages.forEach(page => {
+                    const [pageId, pageTitle] = page;
+                    if (pageId && pageTitle) {
+                        const pageElement = document.createElement('div');
+                        pageElement.className = 'header-top__page';
+                        pageElement.textContent = pageId;
+                        pageElement.onclick = () => {
+                            showPage(pageId, pageTitle);
+                            closeDropdown();
+                        };
+                        dropdownContent.appendChild(pageElement);
+                    }
+                });
+                
+                dropdown.appendChild(dropdownToggle);
+                dropdown.appendChild(dropdownContent);
+                navigationContainer.appendChild(dropdown);
+            }
+            
+            // Обновляем мобильное меню (без изменений)
+            renderMobileNavigation();
+        }
+
+        function toggleDropdown() {
+            const dropdownContent = document.getElementById('dropdown-content');
+            if (dropdownContent) {
+                dropdownContent.classList.toggle('show');
+            }
+        }
+
+        function closeDropdown() {
+            const dropdownContent = document.getElementById('dropdown-content');
+            if (dropdownContent) {
+                dropdownContent.classList.remove('show');
+            }
+        }
+
+        // Закрытие выпадающего списка при клике вне его
+        document.addEventListener('click', function(event) {
+            if (!event.target.matches('.dropdown-toggle')) {
+                closeDropdown();
+            }
+        });
+
+
+        // Отрендерить мобильное меню
+        function renderMobileNavigation() {
+            const mobileNav = document.getElementById('mobile-nav');
+            
+            if (!mobileNav) {
+                console.error('Мобільне меню не знайдено');
+                return;
+            }
+            
+            // Очищаем мобильное меню
+            mobileNav.innerHTML = '';
+            
+            // Добавляем "Головна"
+            const homeItem = document.createElement('div');
+            homeItem.className = 'mobile-nav-item';
+            homeItem.textContent = 'Головна';
+            homeItem.onclick = () => {
+                goToHome();
+                closeMobileNav();
+            };
+            mobileNav.appendChild(homeItem);
+            
+            // Добавляем страницы из листа
+            allPages.forEach(page => {
+                const [pageId, pageTitle] = page;
+                if (pageId && pageTitle) {
+                    const pageItem = document.createElement('div');
+                    pageItem.className = 'mobile-nav-item';
+                    pageItem.textContent = pageId;
+                    pageItem.onclick = () => {
+                        showPage(pageId, pageTitle);
+                        closeMobileNav();
+                    };
+                    mobileNav.appendChild(pageItem);
+                }
+            });
+        }
+
+        // Отрендерить навигацию по умолчанию при ошибке загрузки
+        function renderDefaultNavigation() {
+            const navigationContainer = document.querySelector('.header-top__navigation');
+            
+            if (!navigationContainer) {
+                return;
+            }
+            
+            navigationContainer.innerHTML = `
+                <div class="header-top__home" onclick="goToHome()">Головна</div>
+                
+            `;
+            
+            // Обновляем мобильное меню по умолчанию
+            const mobileNav = document.getElementById('mobile-nav');
+            if (mobileNav) {
+                mobileNav.innerHTML = `
+                    <!-- Эта строка будет создана динамически через renderMobileNavigation() -->
+                    
+                `;
+            }
+        }
+
+        // Показать страницу
+        function showPage(pageId, pageTitle) {
+            currentPageId = pageId;
+            updateURL({pageId: pageId});
+            
+            const productsContainer = document.getElementById('products');
+            productsContainer.innerHTML = '';
+            
+            // Добавить кнопку "Назад"
+            const backButton = document.createElement('button');
+            backButton.className = 'back-button';
+            backButton.textContent = '← Назад';
+            backButton.onclick = () => {
+                goToHome();
+            };
+            productsContainer.appendChild(backButton);
+            
+            // Заголовок страницы
+            const title = document.createElement('h1');
+            title.textContent = pageId;
+            title.style.cssText = 'text-align: center; margin: 20px 0; font-size: 28px; color: #333;';
+            productsContainer.appendChild(title);
+            
+            // Найти содержимое страницы
+            const pageData = allPages.find(p => p[0] === pageId);
+            if (pageData && pageData[1]) {
+                const content = document.createElement('div');
+                content.style.cssText = 'max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6;';
+                content.innerHTML = pageData[1].replace(/\n/g, '<br>');
+                productsContainer.appendChild(content);
+            }
+            
+            document.getElementById('products').classList.remove('hidden');
+            document.getElementById('product-page').classList.remove('active');
+        }
+        
+        
+        
+        // Применение настроек к интерфейсу
+       function applySettings() {
+    // Применение текста для кнопки добавления в корзину
+    if (settingsData.buttonAddToCartName) {
+        const addButtons = document.querySelectorAll('.quantity-and-button button, #page-add-button');
+        addButtons.forEach(button => {
+            button.textContent = settingsData.buttonAddToCartName;
+        });
+        
+        console.log('Застосовано текст кнопки:', settingsData.buttonAddToCartName);
+    }
+    
+    // Применение telegramChatId
+    if (settingsData.telegramChatId) {
+        TELEGRAM_CHAT_ID = settingsData.telegramChatId;
+        console.log('Застосовано Telegram Chat ID:', settingsData.telegramChatId);
+    }
+    
+    // Применение OrdersWebAppUrl
+    if (settingsData.OrdersWebAppUrl) {
+        ORDERS_WEB_APP_URL = settingsData.OrdersWebAppUrl;
+        console.log('Застосовано Orders Web App URL:', settingsData.OrdersWebAppUrl);
+    }
+    
+    // Применение sellersEmail
+    if (settingsData.sellersEmail) {
+        console.log('Застосовано Sellers Email:', settingsData.sellersEmail);
+    }
+    
+    // Применение цветовой схемы
+    if (settingsData.styleColor) {
+        const theme = settingsData.styleColor.toLowerCase();
+        if (theme === 'default') {
+            document.body.removeAttribute('data-theme');
+        } else {
+            document.body.setAttribute('data-theme', theme);
+        }
+        
+        console.log('Застосовано цветову схему:', settingsData.styleColor);
+    }
+    
+    // Парсинг настройки freeDeliveryFromAmount
+    if (settingsData.freeDeliveryFromAmount) {
+        freeDeliveryRules = {};
+        const rules = settingsData.freeDeliveryFromAmount.split(';');
+        rules.forEach(rule => {
+            const trimmedRule = rule.trim();
+            if (trimmedRule && trimmedRule.includes(':')) {
+                const [deliveryName, amount] = trimmedRule.split(':').map(s => s.trim());
+                freeDeliveryRules[deliveryName] = parseFloat(amount) || 0;
+            }
+        });
+        console.log('Застосовано правила безкоштовної доставки:', freeDeliveryRules);
+    }
+    
+    // Парсим поля заказа (но не рендерим их здесь)
+    parseOrderFields();
+    
+    // Применение логотипа (изображение или текст)
+    const logoContainer = document.querySelector('.header-top__logo');
+    if (logoContainer) {
+        if (settingsData.logoUrl) {
+            // Если есть URL логотипа, показываем изображение
+            logoContainer.innerHTML = `<img class="header-top__logo2" src="${settingsData.logoUrl}" alt="Logo" onerror="this.style.display='none'" />`;
+            console.log('Застосовано URL логотипу:', settingsData.logoUrl);
+        } else if (settingsData.logoTitle) {
+            // Если нет URL, но есть текст, показываем текст
+            logoContainer.innerHTML = `<span class="header-top__logo-text">${settingsData.logoTitle}</span>`;
+            console.log('Застосовано текст логотипу:', settingsData.logoTitle);
+        } else {
+            // По умолчанию показываем текст или оставляем пустым
+            logoContainer.innerHTML = `<span class="header-top__logo-text">Logo</span>`;
+        }
+    }
+    
+    // Применение настройки видимости описания товаров
+    if (settingsData.showProductDescription === 'off') {
+        // Скрываем описания товаров
+        const style = document.createElement('style');
+        style.id = 'product-description-style';
+        style.textContent = '.product p.description { display: none !important; }';
+        document.head.appendChild(style);
+        console.log('Описание товаров скрыто');
+    } else {
+        // Удаляем стиль, если он был добавлен ранее
+        const existingStyle = document.getElementById('product-description-style');
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+        console.log('Описание товаров отображается');
+    }
+    
+    // Рендерим корзину после применения настроек всегда (не только если есть товары)
+    renderCart();
+}
+        
+
+        function parseOrderFields() {
+            orderFields = [];
+            
+            // Системное поле: телефон (если не отключено)
+            if (settingsData.disablePhoneField !== 'off') {
+                orderFields.push({
+                    id: 'phone',
+                    type: 'tel',
+                    label: 'Номер телефону',
+                    required: true,
+                    placeholder: '+380XXXXXXXXX',
+                    isSystem: true
+                });
+            }
+            
+            // Парсим кастомные поля из настроек
+            let fieldIndex = 1;
+            while (settingsData[`orderField${fieldIndex}`]) {
+                const fieldConfig = settingsData[`orderField${fieldIndex}`];
+                const parts = fieldConfig.split('|').map(p => p.trim());
+                
+                if (parts.length >= 2) {
+                    const field = {
+                        id: `orderField${fieldIndex}`,
+                        type: parts[0] || 'text',
+                        label: parts[1] || `Поле ${fieldIndex}`,
+                        required: parts[2] === 'yes' || parts[2] === 'true',
+                        placeholder: parts[3] || '',
+                        options: parts[4] ? parts[4].split(';').map(o => o.trim()) : [],
+                        isSystem: false
+                    };
+                    orderFields.push(field);
+                }
+                fieldIndex++;
+            }
+            
+            // Системное поле: доставка (если не отключено)
+            if (settingsData.disableDeliveryField !== 'off') {
+                orderFields.push({
+                    id: 'delivery',
+                    type: 'select',
+                    label: 'Доставка',
+                    required: true,
+                    placeholder: 'Виберіть спосіб доставки',
+                    options: [],
+                    isSystem: true
+                });
+            }
+            
+            console.log('Поля заказа:', orderFields);
+        }
+
+        //функция рендеринга динамических полей
+        function renderOrderFields() {
+            const container = document.getElementById('dynamic-order-fields');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            orderFields.forEach(field => {
+                const formGroup = document.createElement('div');
+                formGroup.className = 'form-group';
+                
+                const label = document.createElement('label');
+                label.setAttribute('for', field.id);
+                label.textContent = field.label + (field.required ? ' *' : '');
+                formGroup.appendChild(label);
+                
+                let inputElement;
+                
+                switch (field.type) {
+                    case 'select':
+                        inputElement = document.createElement('select');
+                        inputElement.id = field.id;
+                        
+                        // Добавляем placeholder option
+                        const placeholderOption = document.createElement('option');
+                        placeholderOption.value = '';
+                        placeholderOption.textContent = field.placeholder || `Виберіть ${field.label.toLowerCase()}`;
+                        inputElement.appendChild(placeholderOption);
+                        
+                        // Для системного поля delivery используем deliverySelect из настроек
+                        if (field.id === 'delivery' && settingsData.deliverySelect) {
+                            const deliveryOptions = settingsData.deliverySelect.split(';');
+                            deliveryOptions.forEach(optionText => {
+                                const trimmedText = optionText.trim();
+                                if (trimmedText) {
+                                    const option = document.createElement('option');
+                                    if (trimmedText.includes(':')) {
+                                        const [deliveryName, deliveryCost] = trimmedText.split(':').map(s => s.trim());
+                                        option.value = `${deliveryName}:${deliveryCost}`;
+                                        option.textContent = `${deliveryName} ${deliveryCost} грн`;
+                                    } else {
+                                        option.value = trimmedText;
+                                        option.textContent = trimmedText;
+                                    }
+                                    inputElement.appendChild(option);
+                                }
+                            });
+                            // Добавляем обработчик изменения доставки
+                            inputElement.addEventListener('change', updateDeliveryCost);
+                        } else {
+                            // Для кастомных select полей
+                            field.options.forEach(optionText => {
+                                if (optionText) {
+                                    const option = document.createElement('option');
+                                    option.value = optionText;
+                                    option.textContent = optionText;
+                                    inputElement.appendChild(option);
+                                }
+                            });
+                        }
+                        break;
+                        
+                    case 'textarea':
+                        inputElement = document.createElement('textarea');
+                        inputElement.id = field.id;
+                        inputElement.placeholder = field.placeholder;
+                        inputElement.rows = 3;
+                        break;
+                        
+                    case 'checkbox':
+                        inputElement = document.createElement('input');
+                        inputElement.type = 'checkbox';
+                        inputElement.id = field.id;
+                        // Для checkbox меняем структуру - label справа от checkbox
+                        formGroup.innerHTML = '';
+                        formGroup.style.display = 'flex';
+                        formGroup.style.alignItems = 'center';
+                        formGroup.appendChild(inputElement);
+                        const checkboxLabel = document.createElement('label');
+                        checkboxLabel.setAttribute('for', field.id);
+                        checkboxLabel.textContent = ' ' + field.label + (field.required ? ' *' : '');
+                        checkboxLabel.style.marginLeft = '8px';
+                        formGroup.appendChild(checkboxLabel);
+                        container.appendChild(formGroup);
+                        return; // Выходим, т.к. структура уже готова
+                        
+                    case 'tel':
+                        inputElement = document.createElement('input');
+                        inputElement.type = 'tel';
+                        inputElement.id = field.id;
+                        inputElement.placeholder = field.placeholder;
+                        
+                        // Для системного поля phone добавляем специальные обработчики
+                        if (field.id === 'phone') {
+                            inputElement.value = '+38';
+                            inputElement.maxLength = 13;
+                            inputElement.addEventListener('input', function(e) {
+                                formatPhone(e.target);
+                            });
+                            inputElement.addEventListener('keydown', handlePhoneKeydown);
+                            inputElement.addEventListener('click', handlePhoneClick);
+                            inputElement.addEventListener('focus', function(e) {
+                                setTimeout(() => {
+                                    e.target.setSelectionRange(3, 3);
+                                }, 0);
+                            });
+                        }
+                        break;
+                        
+                    default: // text, email, date, time и др.
+                        inputElement = document.createElement('input');
+                        inputElement.type = field.type;
+                        inputElement.id = field.id;
+                        inputElement.placeholder = field.placeholder;
+                        break;
+                }
+                
+                formGroup.appendChild(inputElement);
+                container.appendChild(formGroup);
+            });
+        }
+
+        async function fetchProducts() {
+            try {
+                // Сначала получаем реальный spreadsheetId (либо из параметра, либо из aliases)
+                const spreadsheetId = SPREADSHEET_ID || await getSpreadsheetId();
+                
+                if (!spreadsheetId) {
+                    console.error('Не вказано ID таблиці');
+                    return;
+                }
+                
+                // Загружаем настройки в начале
+                await loadSettings();
+                
+                // СНАЧАЛА загружаем только заголовки отдельным запросом
+                const headersUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&range=goods!A1:Z1&headers=0`;
+                const headersResponse = await fetch(headersUrl);
+                const headersTextData = await headersResponse.text();
+                const headersJsonString = headersTextData.replace('/*O_o*/', '').replace(/google\.visualization\.Query\.setResponse\(|\);$/g, '');
+                const headersData = JSON.parse(headersJsonString);
+                
+                console.log('Сирі дані заголовків:', headersData.table.rows[0].c);
+                
+                // Получаем маппинг столбцов
+                const headerRow = headersData.table.rows[0].c;
+                const columnMapping = {};
+                const requiredHeaders = ['id', 'name', 'description', 'price', 'image-url', 'tags'];
+                
+                headerRow.forEach((cell, index) => {
+                    if (!cell || (!cell.v && !cell.f)) return;
+                    
+                    let headerValue = '';
+                    if (cell.f !== undefined && cell.f !== null) {
+                        headerValue = cell.f.toString().toLowerCase().trim();
+                    } else if (cell.v !== undefined && cell.v !== null) {
+                        headerValue = cell.v.toString().toLowerCase().trim();
+                    }
+                    
+                    if (requiredHeaders.includes(headerValue)) {
+                        columnMapping[headerValue] = index;
+                    }
+                });
+                
+                console.log('Маппінг колонок:', columnMapping);
+                
+                // Проверяем, что все обязательные заголовки найдены
+                const missingHeaders = requiredHeaders.filter(header => !(header in columnMapping));
+                if (missingHeaders.length > 0) {
+                    console.error('Відсутні заголовки:', missingHeaders);
+                    console.log('Спробуйте змінити формат ячейок заголовків на "Текст"');
+                    return;
+                }
+                
+                // ЗАТЕМ загружаем данные товаров (со второй строки)
+                const productsUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&range=goods!A2:Z&headers=0`;
+                const productsResponse = await fetch(productsUrl);
+                const productsTextData = await productsResponse.text();
+                const productsJsonString = productsTextData.replace('/*O_o*/', '').replace(/google\.visualization\.Query\.setResponse\(|\);$/g, '');
+                const productsData = JSON.parse(productsJsonString);
+                const productsRows = productsData.table.rows;
+                
+                const formattedProducts = productsRows.map(row => {
+                    const rowData = new Array(6).fill('');
+                    
+                    const getCellValue = (cell) => {
+                        if (!cell) return '';
+                        if (cell.f !== undefined && cell.f !== null) {
+                            return String(cell.f);
+                        }
+                        if (cell.v !== undefined && cell.v !== null) {
+                            return String(cell.v);
+                        }
+                        return '';
+                    };
+                    
+                    if (columnMapping['id'] !== undefined && row.c[columnMapping['id']]) {
+                        rowData[0] = getCellValue(row.c[columnMapping['id']]);
+                    }
+                    if (columnMapping['name'] !== undefined && row.c[columnMapping['name']]) {
+                        rowData[1] = getCellValue(row.c[columnMapping['name']]);
+                    }
+                    if (columnMapping['description'] !== undefined && row.c[columnMapping['description']]) {
+                        rowData[2] = getCellValue(row.c[columnMapping['description']]);
+                    }
+                    if (columnMapping['price'] !== undefined && row.c[columnMapping['price']]) {
+                        rowData[3] = getCellValue(row.c[columnMapping['price']]);
+                    }
+                    if (columnMapping['image-url'] !== undefined && row.c[columnMapping['image-url']]) {
+                        rowData[4] = getCellValue(row.c[columnMapping['image-url']]);
+                    }
+                    if (columnMapping['tags'] !== undefined && row.c[columnMapping['tags']]) {
+                        rowData[5] = getCellValue(row.c[columnMapping['tags']]);
+                    }
+                    
+                    return rowData;
+                });
+                
+                allProducts = formattedProducts;
+
+                // Загружаем категории
+                const categoriesUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&range=${CATEGORIES_RANGE}`;
+                const categoriesResponse = await fetch(categoriesUrl);
+                const categoriesTextData = await categoriesResponse.text();
+                const categoriesJsonString = categoriesTextData.replace('/*O_o*/', '').replace(/google\.visualization\.Query\.setResponse\(|\);$/g, '');
+                const categoriesData = JSON.parse(categoriesJsonString);
+                const categoriesRows = categoriesData.table.rows;
+                const formattedCategories = categoriesRows.map(row => {
+                    return row.c.map(cell => cell ? (cell.v !== null ? cell.v : '') : '');
+                });
+
+                allCategories = formattedCategories;
+
+                // Проверяем URL-параметры для определения что показывать
+                const goodsId = getParameterByName('goodsId');
+                const categoryId = getParameterByName('categoryId');
+                const pageId = getParameterByName('pageId');
+                
+                if (pageId) {
+                    const pageData = allPages.find(p => p[0] === pageId);
+                    if (pageData) {
+                        showPage(pageId, pageData[1] || pageId);
+                        return;
+                    }
+                }
+                
+                if (goodsId) {
+                    const product = allProducts.find(p => p[0] === goodsId);
+                    if (product) {
+                        const [id, name, description, price, imageUrl, tags] = product;
+                        showProductPage(id, name, description, price, imageUrl);
+                        return;
+                    }
+                }
+                
+                if (categoryId) {
+                    const category = allCategories.find(c => c[0] === categoryId);
+                    if (category) {
+                        showCategory(categoryId);
+                        return;
+                    }
+                }
+                
+                // По умолчанию показываем главную страницу с категориями
+                showMainCategories();
+                
+            } catch (error) {
+                console.error("Ошибка при загрузке данных:", error);
+                alert(error.message || "Помилка завантаження даних");
+            }
+        }
+        
+        // Показать главные категории (без родительских) и товары без категории
+        function showMainCategories() {
+            currentCategoryId = null;
+            
+            // Обновляем URL для главной страницы
+            const spreadsheetId = SPREADSHEET_ID || getParameterByName('id');
+            let newPath = '/';
+            if (!SPREADSHEET_ID && spreadsheetId) {
+                newPath += encodeURIComponent(spreadsheetId);
+            }
+            window.history.pushState({}, '', newPath);
+            
+            const productsContainer = document.getElementById('products');
+            productsContainer.innerHTML = '';
+            
+            // Главные категории (без родительских)
+            const mainCategories = allCategories.filter(category => !category[2]);
+            
+            // Товары без категории (пустые или отсутствующие tags)
+            const uncategorizedProducts = allProducts.filter(product => !product[5] || product[5].trim() === '');
+            
+            // Отображаем категории
+            if (mainCategories.length > 0) {
+                renderCategories(mainCategories, productsContainer);
+            }
+            
+            // Если есть товары без категории, добавляем заголовок и отображаем их
+            if (uncategorizedProducts.length > 0) {
+                const productsTitle = document.createElement('h2');
+                productsContainer.appendChild(productsTitle);
+                
+                renderProducts(uncategorizedProducts, productsContainer);
+            }
+            
+            document.getElementById('products').classList.remove('hidden');
+            document.getElementById('product-page').classList.remove('active');
+        }
+
+        // Показать категорию (подкатегории и товары)
+            function showCategory(categoryId) {
+                currentCategoryId = categoryId;
+                
+                // Обновляем URL только если мы не находимся в процессе обработки popstate
+                // Проверяем текущий URL, чтобы не создавать дубликаты в истории
+                const currentCategoryParam = getParameterByName('categoryId');
+                if (currentCategoryParam !== categoryId) {
+                    updateURL({categoryId: categoryId});
+                }
+                
+                // Найти подкатегории данной категории
+                const subcategories = allCategories.filter(category => category[2] === categoryId);
+                
+                // Найти товары данной категории
+                const categoryProducts = allProducts.filter(product => product[5] === categoryId);
+                
+                renderCategoryPage(categoryId, subcategories, categoryProducts);
+                document.getElementById('products').classList.remove('hidden');
+                document.getElementById('product-page').classList.remove('active');
+            }
+
+        // Отрендерить страницу категории
+        function renderCategoryPage(categoryId, subcategories, products) {
+            const productsContainer = document.getElementById('products');
+            productsContainer.innerHTML = '';
+            
+            // Найти название категории
+            const currentCategory = allCategories.find(c => c[0] === categoryId);
+            const categoryName = currentCategory ? currentCategory[1] : categoryId;
+            
+        // Добавить кнопку "Назад"
+        const backButton = document.createElement('button');
+        backButton.className = 'back-button';
+        backButton.textContent = '← Назад';
+        backButton.onclick = () => {
+            const parentCategory = allCategories.find(c => c[0] === categoryId);
+            if (parentCategory && parentCategory[2]) {
+                // Если есть родительская категория, переходим к ней
+                showCategory(parentCategory[2]);
+            } else {
+                // Иначе на главную
+                const spreadsheetId = SPREADSHEET_ID || getParameterByName('id');
+                let newPath = '/';
+                
+                // Добавляем id ТОЛЬКО если он НЕ задан в SPREADSHEET_ID
+                if (!SPREADSHEET_ID && spreadsheetId) {
+                    newPath += encodeURIComponent(spreadsheetId);
+                }
+                
+                window.history.pushState({}, '', newPath);
+                showMainCategories();
+            }
+        };
+        productsContainer.appendChild(backButton);
+            
+            // Заголовок категории
+            const title = document.createElement('h1');
+            title.textContent = categoryName;
+            title.style.cssText = 'text-align: center; margin: 20px 0; font-size: 28px; color: #333;';
+            productsContainer.appendChild(title);
+            
+            // Показать подкатегории, если есть
+            if (subcategories.length > 0) {
+                const subcategoriesTitle = document.createElement('h2');
+                subcategoriesTitle.textContent = 'Підкатегорії';
+                subcategoriesTitle.style.cssText = 'margin: 20px 30px 10px 30px; font-size: 18px; color: rgb(145 145 145);';
+                productsContainer.appendChild(subcategoriesTitle);
+                
+                renderCategories(subcategories, productsContainer);
+            }
+            
+            // Показать товары, если есть
+            if (products.length > 0) {
+                const productsTitle = document.createElement('h2');
+                //productsTitle.textContent = 'Товары';
+                //productsTitle.style.cssText = 'margin: 20px 0 10px 0; font-size: 20px; color: #555;';
+                productsContainer.appendChild(productsTitle);
+                
+                renderProducts(products, productsContainer);
+            }
+            
+            // Если нет ни подкатегорий, ни товаров
+            if (subcategories.length === 0 && products.length === 0) {
+                const emptyMessage = document.createElement('p');
+                emptyMessage.textContent = 'У цій категорії поки немає товарів';
+                emptyMessage.style.cssText = 'text-align: center; color: #666; font-size: 18px; margin: 40px 0;';
+                productsContainer.appendChild(emptyMessage);
+            }
+        }
+
+        // Отрендерить категории как плитки
+            function renderCategories(categories, container = null) {
+                const targetContainer = container || document.getElementById('products');
+                
+                if (!container) {
+                    targetContainer.innerHTML = '';
+                }
+                
+                // Создаем контейнер для центрирования
+                const productsContainer = document.createElement('div');
+                productsContainer.className = 'products-container';
+                
+                categories.forEach(category => {
+                    const [id, name, parentId, imageUrl] = category;
+                    const categoryElement = document.createElement('div');
+                    categoryElement.className = 'product';
+                    categoryElement.style.cursor = 'pointer';
+                    categoryElement.onclick = () => showCategory(id);
+                    
+                    const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="${name}" loading="lazy">` : '';
+                    
+                    categoryElement.innerHTML = `
+                        ${imageHtml}
+                        <h2>${name}</h2>
+                    `;
+                    productsContainer.appendChild(categoryElement);
+                });
+                
+                targetContainer.appendChild(productsContainer);
+            }
+
+            function renderProducts(products, container = null) {
+                        if (!products || !Array.isArray(products)) {
+                            console.error("Invalid products array:", products);
+                            return;
+                        }
+
+                        const targetContainer = container || document.getElementById('products');
+                        
+                        if (!container) {
+                            targetContainer.innerHTML = '';
+                        }
+                        
+                        // Создаем контейнер для центрирования
+                        const productsContainer = document.createElement('div');
+                        productsContainer.className = 'products-container';
+                        
+                        products.forEach(product => {
+                            const [id, name, description, price, imageUrl, tags] = product;
+                            const productElement = document.createElement('div');
+                            productElement.className = 'product';
+                            productElement.style.cursor = 'pointer';
+                            productElement.onclick = () => showProductPage(id, name, description, price, imageUrl);
+                            
+                            // Проверяем наличие цены
+                            const numPrice = parseFloat(price);
+                            const isAvailable = numPrice && numPrice > 0;
+                            
+                            // Получаем текст кнопки из настроек или используем значение по умолчанию
+                            const buttonText = settingsData.buttonAddToCartName || 'Додати';
+                            
+                            // Создаем элемент описания с HTML-разметкой
+                            const descriptionHTML = description ? `<p class="description">${description}</p>` : '';
+                            
+                            // Формируем HTML в зависимости от наличия товара
+                            if (isAvailable) {
+                                productElement.innerHTML = `
+                                    <img src="${imageUrl}" alt="${name}" loading="lazy">
+                                    <h2>${name}</h2>
+                                    ${descriptionHTML}
+                                    <p class="price">${price} грн</p>
+                                    <div class="quantity-and-button">
+                                        <input type="number" id="quantity-${id}" min="1" value="1" onclick="event.stopPropagation()">
+                                        <button onclick="event.stopPropagation(); addToCart('${id}', '${name}', '${price}')">${buttonText}</button>
+                                    </div>
+                                `;
+                            } else {
+                                productElement.innerHTML = `
+                                    <img src="${imageUrl}" alt="${name}" loading="lazy">
+                                    <h2>${name}</h2>
+                                    ${descriptionHTML}
+                                    <p class="price" style="color: #999;">Немає в наявності</p>
+                                    <div class="quantity-and-button">
+                                        <input type="number" id="quantity-${id}" min="1" value="1" disabled onclick="event.stopPropagation()">
+                                        <button disabled onclick="event.stopPropagation()">${buttonText}</button>
+                                    </div>
+                                `;
+                            }
+                            
+                            productsContainer.appendChild(productElement);
+                        });
+                        
+                        targetContainer.appendChild(productsContainer);
+                    }
+
+            function goToHome() {
+                    const spreadsheetId = SPREADSHEET_ID || getParameterByName('id');
+                    
+                    // Удаляем JSON-LD при переходе на главную
+                    const existingScript = document.getElementById('product-jsonld');
+                    if (existingScript) {
+                        existingScript.remove();
+                    }
+                    
+                    // Формируем URL главной страницы
+                    let newPath = '/';
+                    
+                    // Добавляем id ТОЛЬКО если он НЕ задан в SPREADSHEET_ID
+                    if (!SPREADSHEET_ID && spreadsheetId) {
+                        newPath += encodeURIComponent(spreadsheetId);
+                    }
+                    
+                    window.history.pushState({}, '', newPath);
+                    
+                    // Сбрасываем поиск если есть
+                    document.getElementById('search').value = '';
+                    toggleResetButton();
+                    
+                    // Показываем главную страницу с категориями
+                    showMainCategories();
+                    
+                    // Скрываем страницу товара если она открыта
+                    document.getElementById('product-page').classList.remove('active');
+                    
+                    // Прокручиваем к началу страницы
+                    window.scrollTo(0, 0);
+                }
+                // функции для работы со страницей товара
+                function showProductPage(id, name, description, price, imageUrl) {
+                            // Обновляем URL с параметром
+                            updateURL({goodsId: id});
+                            
+                            // Находим полные данные продукта
+                            const product = allProducts.find(p => p[0] === id);
+                            
+                            // Генерируем и вставляем JSON-LD
+                            if (product) {
+                                const jsonLd = generateProductJsonLd(product);
+                                insertJsonLd(jsonLd);
+                            }
+                            
+                            // Проверяем наличие товара
+                            const numPrice = parseFloat(price);
+                            const isAvailable = numPrice && numPrice > 0;
+                            
+                            // Заполняем данные страницы товара
+                            document.getElementById('page-image').src = imageUrl;
+                            document.getElementById('page-image').alt = name;
+                            document.getElementById('page-title').textContent = name;
+                            document.getElementById('page-article').textContent = `Артикул: ${id}`;
+                            
+                            // ИЗМЕНЕНО: используем innerHTML вместо textContent для поддержки HTML-разметки
+                            document.getElementById('page-description').innerHTML = description;
+                            
+                            // Устанавливаем цену или сообщение о недоступности
+                            const priceElement = document.getElementById('page-price');
+                            const quantityInput = document.getElementById('page-quantity');
+                            const addButton = document.getElementById('page-add-button');
+                            
+                            if (isAvailable) {
+                                priceElement.textContent = `${price} грн`;
+                                priceElement.style.color = '';
+                                quantityInput.disabled = false;
+                                addButton.disabled = false;
+                                
+                                // Устанавливаем обработчик для кнопки добавления
+                                addButton.onclick = () => {
+                                    const quantity = parseInt(document.getElementById('page-quantity').value) || 1;
+                                    const quantityInput = document.getElementById(`quantity-${id}`) || {value: quantity};
+                                    quantityInput.value = quantity;
+                                    addToCart(id, name, price);
+                                };
+                            } else {
+                                priceElement.textContent = 'Немає в наявності';
+                                priceElement.style.color = '#999';
+                                quantityInput.disabled = true;
+                                addButton.disabled = true;
+                                addButton.onclick = null;
+                            }
+                            
+                            // Применяем текст кнопки из настроек
+                            if (settingsData.buttonAddToCartName) {
+                                addButton.textContent = settingsData.buttonAddToCartName;
+                            }
+                            
+                            // Показываем страницу товара и скрываем список товаров
+                            document.getElementById('products').classList.add('hidden');
+                            document.getElementById('product-page').classList.add('active');
+                            
+                            // Прокручиваем к началу страницы
+                            window.scrollTo(0, 0);
+                        }
+
+
+
+
+        function showProductsList() {
+                const spreadsheetId = SPREADSHEET_ID || getParameterByName('id');
+                
+                // Удаляем JSON-LD при возврате к списку
+                const existingScript = document.getElementById('product-jsonld');
+                if (existingScript) {
+                    existingScript.remove();
+                }
+                
+                // Формируем URL главной страницы
+                let newPath = '/';
+                
+                // Добавляем id ТОЛЬКО если он НЕ задан в SPREADSHEET_ID
+                if (!SPREADSHEET_ID && spreadsheetId) {
+                    newPath += encodeURIComponent(spreadsheetId);
+                }
+                
+                window.history.pushState({}, '', newPath);
+                
+                // Показываем главную страницу с категориями
+                showMainCategories();
+                
+                // Скрываем страницу товара
+                document.getElementById('product-page').classList.remove('active');
+                
+                // Прокручиваем к началу страницы
+                window.scrollTo(0, 0);
+            }
+
+
+
+
+        function filterProducts() {
+                const searchTerm = document.getElementById('search').value.toLowerCase();
+                
+                if (searchTerm.length === 0) {
+                    // Если поиск пустой, показываем текущую категорию или главную
+                    if (currentCategoryId) {
+                        showCategory(currentCategoryId);
+                    } else {
+                        showMainCategories();
+                    }
+                    return;
+                }
+                
+                // Ищем товары по названию
+                const filteredProducts = allProducts.filter(product => 
+                    product[1].toLowerCase().includes(searchTerm)
+                );
+                
+                // Ищем категории по названию
+                const filteredCategories = allCategories.filter(category =>
+                    category[1].toLowerCase().includes(searchTerm)
+                );
+                
+                // Отображаем результаты поиска
+                const productsContainer = document.getElementById('products');
+                productsContainer.innerHTML = '';
+                
+                // Заголовок результатов поиска
+                const title = document.createElement('h2');
+                title.textContent = `Результати пошуку: "${searchTerm}"`;
+                title.style.cssText = 'text-align: center; margin: 20px 0; color: #333;';
+                productsContainer.appendChild(title);
+                
+                // Кнопка "Очистить поиск"
+                const clearButton = document.createElement('button');
+                clearButton.className = 'back-button';
+                clearButton.textContent = 'Очистити пошук';
+                clearButton.onclick = () => {
+                    resetSearch();
+                };
+                productsContainer.appendChild(clearButton);
+                
+                // Показать найденные категории
+                if (filteredCategories.length > 0) {
+                    const categoriesTitle = document.createElement('h3');
+                    categoriesTitle.textContent = 'Категорії';
+                    categoriesTitle.style.cssText = 'margin: 20px 30px 10px 30px; color: #555;';
+                    productsContainer.appendChild(categoriesTitle);
+                    
+                    renderCategories(filteredCategories, productsContainer);
+                }
+                
+                // Показать найденные товары
+                if (filteredProducts.length > 0) {
+                    const productsTitle = document.createElement('h3');
+                    productsTitle.textContent = 'Товари';
+                    productsTitle.style.cssText = 'margin: 20px 30px 10px 30px; color: #555;';
+                    productsContainer.appendChild(productsTitle);
+                    
+                    renderProducts(filteredProducts, productsContainer);
+                }
+                
+                // Если ничего не найдено
+                if (filteredProducts.length === 0 && filteredCategories.length === 0) {
+                    const noResults = document.createElement('p');
+                    noResults.textContent = 'Нічого не знайдено';
+                    noResults.style.cssText = 'text-align: center; color: #666; font-size: 18px; margin: 40px 0;';
+                    productsContainer.appendChild(noResults);
+                }
+            }
+
+        function resetSearch() {
+            document.getElementById('search').value = '';
+            
+            // Показываем текущую категорию или главную страницу
+            if (currentCategoryId) {
+                showCategory(currentCategoryId);
+            } else {
+                showMainCategories();
+            }
+            
+            toggleResetButton();
+        }
+
+        function toggleResetButton() {
+            const searchInput = document.getElementById('search');
+            const resetButton = document.getElementById('reset-btn');
+            if (searchInput.value.length > 0) {
+                resetButton.style.display = 'block';
+            } else {
+                resetButton.style.display = 'none';
+            }
+        }
+
+        // Функции для мобильного меню
+        function toggleMobileNav() {
+            isMobileNavVisible = !isMobileNavVisible;
+            const mobileNav = document.getElementById('mobile-nav');
+            const overlay = document.querySelector('.mobile-nav-overlay');
+            const burgerMenu = document.querySelector('.burger-menu');
+            
+            if (isMobileNavVisible) {
+                mobileNav.classList.add('active');
+                overlay.classList.add('active');
+                burgerMenu.classList.add('active');
+            } else {
+                mobileNav.classList.remove('active');
+                overlay.classList.remove('active');
+                burgerMenu.classList.remove('active');
+            }
+        }
+
+        function closeMobileNav() {
+            isMobileNavVisible = false;
+            const mobileNav = document.getElementById('mobile-nav');
+            const overlay = document.querySelector('.mobile-nav-overlay');
+            const burgerMenu = document.querySelector('.burger-menu');
+            
+            mobileNav.classList.remove('active');
+            overlay.classList.remove('active');
+            burgerMenu.classList.remove('active');
+            
+            // Закрываем корзину если она открыта
+            if (isCartVisible) {
+                toggleCart();
+            }
+        }
+
+        function addToCart(id, name, price) {
+            const quantityInput = document.getElementById(`quantity-${id}`);
+            const quantity = parseInt(quantityInput?.value) || 1;
+
+            const itemIndex = cart.findIndex(item => item.id === id);
+            if (itemIndex >= 0) {
+                cart[itemIndex].quantity += quantity;
+            } else {
+                cart.push({ id, name, price: parseFloat(price), quantity });
+            }
+            renderCart();
+            saveCart();
+        }
+
+        function removeFromCart(id) {
+            const itemIndex = cart.findIndex(item => item.id === id);
+            if (itemIndex >= 0) {
+                cart.splice(itemIndex, 1);
+            }
+            renderCart();
+            saveCart();
+        }
+
+        function increaseQuantity(id) {
+            const itemIndex = cart.findIndex(item => item.id === id);
+            if (itemIndex >= 0) {
+                cart[itemIndex].quantity += 1;
+                updateDeliveryCost(); // Добавляем пересчет доставки
+                renderCart();
+                saveCart();
+            }
+        }
+
+        function decreaseQuantity(id) {
+            const itemIndex = cart.findIndex(item => item.id === id);
+            if (itemIndex >= 0) {
+                cart[itemIndex].quantity -= 1;
+                if (cart[itemIndex].quantity === 0) {
+                    cart.splice(itemIndex, 1);
+                }
+                updateDeliveryCost(); // Добавляем пересчет доставки
+                renderCart();
+                saveCart();
+            }
+        }
+
+        function renderCart() {
+                    // Сохраняем текущие значения полей перед рендером
+                    const savedFieldValues = {};
+                    orderFields.forEach(field => {
+                        const element = document.getElementById(field.id);
+                        if (element) {
+                            if (field.type === 'checkbox') {
+                                savedFieldValues[field.id] = element.checked;
+                            } else {
+                                savedFieldValues[field.id] = element.value;
+                            }
+                        }
+                    });
+                    
+                    // Рендерим поля формы заказа
+                    renderOrderFields();
+                    
+                    // Восстанавливаем сохраненные значения
+                    orderFields.forEach(field => {
+                        const element = document.getElementById(field.id);
+                        if (element && savedFieldValues[field.id] !== undefined) {
+                            if (field.type === 'checkbox') {
+                                element.checked = savedFieldValues[field.id];
+                            } else {
+                                element.value = savedFieldValues[field.id];
+                            }
+                        }
+                    });
+                    
+                    // Пересчитываем стоимость доставки на основе восстановленного значения
+                    updateDeliveryCost();
+                    
+                    const cartContainer = document.getElementById('cart-items');
+                    const totalPriceElement = document.getElementById('total-price');
+                    const totalQuantityElement = document.getElementById('total-quantity');
+
+                    cartContainer.innerHTML = '';
+
+                    let totalQuantity = 0;
+                    let totalPrice = 0;
+
+                    if (cart.length === 0) {
+                        // Показываем сообщение о пустой корзине
+                        const emptyMessage = document.createElement('div');
+                        emptyMessage.className = 'empty-cart-message';
+                        emptyMessage.textContent = 'Кошик порожній';
+                        cartContainer.appendChild(emptyMessage);
+                    } else {
+                        cart.forEach((item, index) => {
+                            const cartItemElement = document.createElement('div');
+                            cartItemElement.className = 'cart-item';
+                            cartItemElement.innerHTML = `
+                                <span class="material-icons-outlined remove-item" onclick="removeFromCart('${item.id}')">close</span>
+                                <div class="details">
+                                    <div class="info">
+                                        <p>${item.name}</p>
+                                    </div>
+                                    <div class="quantity-controls">
+                                        <button onclick="decreaseQuantity('${item.id}')">-</button>
+                                        <span>${item.quantity}</span>
+                                        <button onclick="increaseQuantity('${item.id}')">+</button>
+                                    </div>
+                                    <p class="item-price">${item.price * item.quantity} грн</p>
+                                </div>
+                            `;
+                            cartContainer.appendChild(cartItemElement);
+
+                            // Добавляем разделитель, если это не последний элемент
+                            if (index < cart.length - 1) {
+                                const separator = document.createElement('div');
+                                separator.className = 'cart-separator';
+                                separator.style.cssText = 'height: 1px; background-color: #e0e0e0; margin: 10px 0;';
+                                cartContainer.appendChild(separator);
+                            }
+
+                            totalQuantity += item.quantity;
+                            totalPrice += item.price * item.quantity;
+                        });
+                    }
+
+                    // Формируем информацию о доставке и итоговой сумме
+                    const deliverySelect = document.getElementById('delivery');
+                    
+                    // Обновляем только totalPriceElement (он содержит всю информацию)
+                    let summaryHtml = '';
+                    
+                    // 1. Выбранная доставка и стоимость доставки
+                    if (deliverySelect && deliverySelect.value) {
+                        const deliveryName = deliverySelect.value.includes(':') 
+                            ? deliverySelect.value.split(':')[0] 
+                            : deliverySelect.value;
+                        
+                        // Проверяем, есть ли стоимость доставки
+                        if (deliverySelect.value.includes(':')) {
+                            // Проверяем, действует ли бесплатная доставка
+                            if (freeDeliveryRules[deliveryName] && totalPrice >= freeDeliveryRules[deliveryName]) {
+                                summaryHtml += `${deliveryName}: <span style="text-decoration: line-through;">${deliverySelect.value.split(':')[1]} грн</span> <span style="color: green; font-weight: bold;">0 грн (Безкоштовно)</span><br>`;
+                            } else if (deliveryCost > 0) {
+                                summaryHtml += `${deliveryName}: ${deliveryCost.toFixed(2)} грн<br>`;
+                                
+                                // Показываем, сколько осталось до бесплатной доставки
+                                if (freeDeliveryRules[deliveryName]) {
+                                    const remaining = freeDeliveryRules[deliveryName] - totalPrice;
+                                    if (remaining > 0) {
+                                        summaryHtml += `<span style="color: #666; font-size: 14px;">Ще ${remaining.toFixed(2)} грн до безкоштовної доставки</span><br>`;
+                                    }
+                                }
+                            }
+                        }
+                        // Если доставка без стоимости (например "Самовивіз"), ничего не добавляем в summaryHtml
+                    }
+                    
+                    // 2. Сумма общая
+                    const totalWithDelivery = totalPrice + deliveryCost;
+                    summaryHtml += `<span style="color: #000; font-size: 20px; margin-top: 10px; display: inline-block;">Загальна сума: ${totalWithDelivery.toFixed(2)} грн`;
+                    
+                    totalPriceElement.innerHTML = summaryHtml;
+                    
+                    // 3. Загальна кількість товарів (обновляем отдельный элемент)
+                    totalQuantityElement.innerText = totalQuantity;
+                    
+                    // Обновляем счетчик в иконке корзины
+                    document.getElementById('cart-count').innerText = totalQuantity;
+                    
+                    // Обновляем плавающую корзину
+                    updateFloatingCartCount();
+                }
+
+        function toggleCart() {
+            isCartVisible = !isCartVisible;
+            document.getElementById('cart').style.display = isCartVisible ? 'block' : 'none';
+        }
+
+        function placeOrder() {
+                    if (cart.length === 0) {
+                        alert("Кошик порожній!");
+                        return;
+                    }
+
+                    // Собираем данные со всех полей
+                    const formData = {};
+                    let hasErrors = false;
+                    let errorMessages = [];
+
+                    orderFields.forEach(field => {
+                        const element = document.getElementById(field.id);
+                        if (!element) return;
+
+                        let value = '';
+                        if (field.type === 'checkbox') {
+                            value = element.checked ? 'Так' : 'Ні';
+                            formData[field.id] = {
+                                label: field.label,
+                                value: value,
+                                required: field.required
+                            };
+                        } else {
+                            value = element.value.trim();
+                            formData[field.id] = {
+                                label: field.label,
+                                value: value,
+                                required: field.required
+                            };
+                        }
+
+                        // Проверяем обязательные поля
+                        if (field.required && (!value || value === '')) {
+                            hasErrors = true;
+                            errorMessages.push(field.label);
+                        }
+
+                        // Дополнительная валидация для телефона
+                        if (field.id === 'phone' && value && !validatePhone(value)) {
+                            hasErrors = true;
+                            errorMessages.push(`${field.label} (неправильний формат)`);
+                        }
+                    });
+
+                    if (hasErrors) {
+                        alert("Будь ласка, заповніть усі обов'язкові поля:\n" + errorMessages.join('\n'));
+                        return;
+                    }
+
+                    const orderDetails = cart.map(item => `${item.name} (${item.price} грн × ${item.quantity})`).join('\n');
+                    const totalPrice = cart.reduce((total, item) => total + item.price * item.quantity, 0);
+
+                    // Получаем данные доставки для расчета стоимости
+                    const deliveryData = formData['delivery'];
+                    let deliveryName = '';
+                    let actualDeliveryCost = 0;
+
+                    if (deliveryData && deliveryData.value) {
+                        if (deliveryData.value.includes(':')) {
+                            const [name, cost] = deliveryData.value.split(':');
+                            deliveryName = name;
+                            const baseCost = parseFloat(cost) || 0;
+
+                            // Проверяем правила бесплатной доставки
+                            if (freeDeliveryRules[deliveryName] && totalPrice >= freeDeliveryRules[deliveryName]) {
+                                actualDeliveryCost = 0;
+                            } else {
+                                actualDeliveryCost = baseCost;
+                            }
+                        } else {
+                            deliveryName = deliveryData.value;
+                            actualDeliveryCost = 0;
+                        }
+                    }
+
+                    // Формируем строку доставки для передачи в таблицу
+                    let deliveryInfo = '';
+                    if (actualDeliveryCost > 0) {
+                        deliveryInfo = `${deliveryName}: ${actualDeliveryCost} грн`;
+                    } else if (deliveryData && deliveryData.value.includes(':')) {
+                        deliveryInfo = `${deliveryName}: 0 грн (Безкоштовно)`;
+                    } else {
+                        deliveryInfo = deliveryName;
+                    }
+
+                    // Показываем индикатор загрузки
+                    const orderButton = document.getElementById('place-order');
+                    const originalButtonText = orderButton.textContent;
+                    orderButton.textContent = 'Оформлення...';
+                    orderButton.disabled = true;
+
+                    // Проверяем, настроен ли URL для отправки заказов
+                    const shouldSendToGoogleSheet = ORDERS_WEB_APP_URL && ORDERS_WEB_APP_URL.trim() !== '';
+
+                    if (!shouldSendToGoogleSheet) {
+                        alert('Помилка: не налаштовано URL для відправки замовлень');
+                        orderButton.textContent = originalButtonText;
+                        orderButton.disabled = false;
+                        return;
+                    }
+
+                    // Собираем все остальные поля (кроме phone и delivery) в одну строку
+                    let otherFieldsData = '';
+                    orderFields.forEach(field => {
+                        if (field.id !== 'phone' && field.id !== 'delivery') {
+                            const data = formData[field.id];
+                            if (data && data.value) {
+                                otherFieldsData += `${data.label}: ${data.value}\n`;
+                            }
+                        }
+                    });
+
+                    const phoneData = formData['phone'];
+                    const phone = phoneData ? phoneData.value : '';
+
+                    const totalWithDelivery = totalPrice + actualDeliveryCost;
+
+                    // Получаем sellersEmail из настроек
+                    const sellersEmail = settingsData.sellersEmail || '';
+
+                    // Отправляем в Google Sheet (который теперь сам отправит в Telegram и Email)
+                    sendToGoogleSheet(phone, otherFieldsData, deliveryInfo, orderDetails, totalWithDelivery, TELEGRAM_CHAT_ID, sellersEmail)
+                        .then((ordersData) => {
+                            if (ordersData.success) {
+                                // Показываем зеленый экран с сообщением
+                                const successOverlay = document.createElement('div');
+                                successOverlay.className = 'order-success-overlay';
+                                successOverlay.innerHTML = '<span>Оформлено</span>';
+                                document.body.appendChild(successOverlay);
+                                
+                                // Удаляем оверлей через 3 секунды
+                                setTimeout(() => {
+                                    document.body.removeChild(successOverlay);
+                                    alert('Замовлення оформлено');
+                                }, 3000);
+                                
+                                cart = [];
+                                deliveryCost = 0;
+                                renderCart();
+                                saveCart();
+                                
+                                // Очищаем все поля формы
+                                orderFields.forEach(field => {
+                                    const element = document.getElementById(field.id);
+                                    if (element) {
+                                        if (field.type === 'checkbox') {
+                                            element.checked = false;
+                                        } else if (field.id === 'phone') {
+                                            element.value = '+38';
+                                        } else {
+                                            element.value = '';
+                                        }
+                                    }
+                                });
+                                
+                                toggleCart();
+                            } else {
+                                console.error('Помилка:', ordersData);
+                                alert('Помилка при оформленні замовлення.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Помилка:', error);
+                            alert('Помилка при оформленні замовлення.');
+                        })
+                        .finally(() => {
+                            // Восстанавливаем кнопку
+                            orderButton.textContent = originalButtonText;
+                            orderButton.disabled = false;
+                        });
+                }
+
+        function sendToGoogleSheet(phone, buyer, delivery, orderDetails, totalPrice, telegramChatId, sellersEmail) {
+                    console.log('Отправка в Google Sheet:', {
+                        phone: phone,
+                        buyer: buyer,
+                        delivery: delivery,
+                        orderDetails: orderDetails,
+                        totalPrice: totalPrice,
+                        telegramChatId: telegramChatId,
+                        sellersEmail: sellersEmail
+                    });
+                    
+                    return new Promise((resolve) => {
+                        try {
+                            // Создаем скрытый iframe для отправки
+                            const iframe = document.createElement('iframe');
+                            iframe.style.display = 'none';
+                            iframe.name = 'orders-iframe';
+                            document.body.appendChild(iframe);
+
+                            // Создаем форму
+                            const form = document.createElement('form');
+                            form.target = 'orders-iframe';
+                            form.method = 'POST';
+                            form.action = ORDERS_WEB_APP_URL;
+
+                            // Добавляем поля
+                            const fields = {
+                                phone: phone,
+                                buyer: buyer,
+                                delivery: delivery,
+                                orderDetails: orderDetails,
+                                totalPrice: totalPrice,
+                                telegramChatId: telegramChatId,
+                                sellersEmail: sellersEmail
+                            };
+
+                            for (const [key, value] of Object.entries(fields)) {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = key;
+                                input.value = value;
+                                form.appendChild(input);
+                                console.log(`Добавлено поле: ${key} = ${value}`);
+                            }
+
+                            document.body.appendChild(form);
+                            
+                            // Отправляем форму
+                            form.submit();
+
+                            // Ждем немного и считаем успешным
+                            setTimeout(() => {
+                                document.body.removeChild(form);
+                                document.body.removeChild(iframe);
+                                resolve({ success: true });
+                            }, 1500);
+
+                        } catch (error) {
+                            console.error('Помилка відправки в Google Sheet:', error);
+                            resolve({ success: false, error: error.toString() });
+                        }
+                    });
+                }
+
+        function saveCart() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+        }
+
+        function loadCart() {
+            const storedCart = localStorage.getItem('cart');
+            if (storedCart) {
+                cart = JSON.parse(storedCart);
+            }
+            // Всегда рендерим корзину после загрузки, даже если она пустая
+            // Это обеспечит отображение полей формы заказа
+            if (Object.keys(settingsData).length > 0) {
+                renderCart();
+            }
+        }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                        loadCart();
+                        fetchProducts(); // Внутри fetchProducts вызывается loadSettings, который применит настройки
+                        initScrollTracking();
+                        
+                        // Проверяем URL при загрузке страницы
+                        checkURLAndShowContent();
+                        
+                        window.addEventListener('popstate', function(event) {
+                            checkURLAndShowContent();
+                        });
+                        
+                        document.getElementById('search').addEventListener('input', function(e) {
+                            filterProducts();
+                        });
+                        
+                        document.addEventListener('click', function(e) {
+                            if (isMobileNavVisible && !e.target.closest('.mobile-nav') && !e.target.closest('.burger-menu')) {
+                                closeMobileNav();
+                            }
+                        });
+                    });
+
+            
+            function checkURLAndShowContent() {
+                    const goodsId = getParameterByName('goodsId');
+                    const categoryId = getParameterByName('categoryId');
+                    const pageId = getParameterByName('pageId');
+                    
+                    // Если данные еще не загрузились, ждем
+                    if (allProducts.length === 0 && allCategories.length === 0 && allPages.length === 0) {
+                        // Попробуем через небольшую задержку
+                        setTimeout(checkURLAndShowContent, 100);
+                        return;
+                    }
+                    
+                    // Проверяем параметр pageId
+                    if (pageId && allPages.length > 0) {
+                        const pageData = allPages.find(p => p[0] === pageId);
+                        if (pageData) {
+                            showPage(pageId, pageData[1] || pageId);
+                            return;
+                        }
+                    }
+                    
+                    // Проверяем параметр goodsId
+                    if (goodsId && allProducts.length > 0) {
+                        const product = allProducts.find(p => p[0] === goodsId);
+                        if (product) {
+                            const [id, name, description, price, imageUrl, tags] = product;
+                            showProductPage(id, name, description, price, imageUrl);
+                            return;
+                        }
+                    }
+                    
+                    // Проверяем параметр categoryId
+                    if (categoryId && allCategories.length > 0) {
+                        const category = allCategories.find(c => c[0] === categoryId);
+                        if (category) {
+                            showCategory(categoryId);
+                            return;
+                        }
+                    }
+                    
+                    // По умолчанию показываем главную страницу с категориями
+                    // ВАЖНО: скрываем страницу товара если она открыта
+                    document.getElementById('product-page').classList.remove('active');
+                    document.getElementById('products').classList.remove('hidden');
+                    
+                    if (allCategories.length > 0 || allProducts.length > 0) {
+                        showMainCategories();
+                    }
+                }
+
+
+        // Функция для обновления счетчика плавающей корзины
+        function updateFloatingCartCount() {
+            const floatingCartCount = document.getElementById('floating-cart-count');
+            const mainCartCount = document.getElementById('cart-count');
+            if (floatingCartCount && mainCartCount) {
+                floatingCartCount.textContent = mainCartCount.textContent;
+            }
+        }
+
+        // Функция для проверки видимости хедера
+        function checkHeaderVisibility() {
+            const header = document.querySelector('.header-top');
+            const floatingCart = document.getElementById('floating-cart');
+            
+            if (!header || !floatingCart) return;
+            
+            const headerRect = header.getBoundingClientRect();
+            const isHeaderVisible = headerRect.bottom > 0;
+            
+            if (isHeaderVisible) {
+                floatingCart.classList.remove('visible');
+            } else {
+                floatingCart.classList.add('visible');
+            }
+        }
+
+        // Инициализация отслеживания скролла
+        function initScrollTracking() {
+            let ticking = false;
+            
+            function handleScroll() {
+                if (!ticking) {
+                    requestAnimationFrame(() => {
+                        checkHeaderVisibility();
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            }
+            
+            window.addEventListener('scroll', handleScroll);
+            window.addEventListener('resize', checkHeaderVisibility);
+            
+            // Первоначальная проверка
+            checkHeaderVisibility();
+        }
+
+        function validatePhone(phone) {
+            const phoneRegex = /^\+38\d{10}$/;
+            return phoneRegex.test(phone) && phone.length === 13;
+        }
+
+        function formatPhone(input) {
+            let value = input.value;
+            
+            // Если пользователь пытается удалить +38, возвращаем его обратно
+            if (!value.startsWith('+38')) {
+                value = '+38';
+                input.value = value;
+                return;
+            }
+            
+            // Убираем все нечисловые символы после +38
+            let numbers = value.substring(3).replace(/\D/g, '');
+            
+            // Ограничиваем до 10 цифр
+            if (numbers.length > 10) {
+                numbers = numbers.substring(0, 10);
+            }
+            
+            input.value = '+38' + numbers;
+        }
+
+        function handlePhoneKeydown(e) {
+            const input = e.target;
+            const cursorPosition = input.selectionStart;
+            
+            // Запрещаем удаление +38
+            if ((e.key === 'Backspace' || e.key === 'Delete') && cursorPosition <= 3) {
+                e.preventDefault();
+                input.setSelectionRange(3, 3);
+                return false;
+            }
+            
+            // При клике или фокусе устанавливаем курсор после +38, если он находится в начале
+            if (cursorPosition < 3) {
+                setTimeout(() => {
+                    input.setSelectionRange(3, 3);
+                }, 0);
+            }
+        }
+
+        function handlePhoneClick(e) {
+            const input = e.target;
+            const cursorPosition = input.selectionStart;
+            
+            // Если курсор находится в области +38, перемещаем его после
+            if (cursorPosition < 3) {
+                setTimeout(() => {
+                    input.setSelectionRange(3, 3);
+                }, 0);
+            }
+        }
+
+    </script>
+
+
+
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker зареєстровано:', registration);
+                })
+                .catch(error => {
+                    console.log('Помилка реєстрації Service Worker:', error);
+                });
+        });
+    }
+</script>
+
+
+
+
+
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
