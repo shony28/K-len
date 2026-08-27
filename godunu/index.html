@@ -160,6 +160,23 @@
       box-shadow: 0 24px 60px rgba(0,0,0,.2);
     }
 
+    /* Перемикач "В офісі" / "Віддалено" */
+    .location-switch {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      background: #f1f5f9; border-radius: 14px; padding: 4px;
+    }
+    .location-btn {
+      border: none; background: transparent; cursor: pointer;
+      padding: 10px 8px; border-radius: 10px;
+      font-size: .85rem; font-weight: 700; color: #64748b;
+      transition: background .15s, color .15s, box-shadow .15s;
+    }
+    .location-btn.active {
+      background: #fff; color: #4f46e5;
+      box-shadow: 0 2px 6px rgba(79,70,229,.18);
+    }
+    .location-btn:not(.active):hover { color: #475569; }
+
     .stat-card {
       border-radius: 16px; padding: 16px 20px;
       display: flex; align-items: center; gap: 14px;
@@ -221,6 +238,19 @@
     .team-cell.weekend-vacation {
       background: #fee2e2;
       color: #991b1b;
+    }
+
+    /* Стиль для комірки з віддаленою роботою в календарі */
+    .day-cell.remote-work {
+      border-color: #93c5fd;
+      background: #eff6ff;
+    }
+    .day-cell.remote-work .day-hours { color: #1d4ed8; }
+
+    /* Стиль для команди — віддалена робота */
+    .team-cell.remote-work {
+      background: #dbeafe;
+      color: #1d4ed8;
     }
   </style>
 
@@ -347,6 +377,24 @@
       </div>
     </div>
 
+    <!-- Розбивка офіс / віддалено -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+      <div class="stat-card" style="background:linear-gradient(135deg,#fff7ed,#ffedd5); padding:12px 16px;">
+        <div class="stat-icon" style="font-size:1.4rem;">🏢</div>
+        <div>
+          <div class="stat-label" style="font-size:.72rem;">В офісі</div>
+          <div class="stat-value" id="stat-office-hours" style="font-size:1.3rem; color:#c2410c;">—</div>
+        </div>
+      </div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#eff6ff,#dbeafe); padding:12px 16px;">
+        <div class="stat-icon" style="font-size:1.4rem;">🏠</div>
+        <div>
+          <div class="stat-label" style="font-size:.72rem;">Віддалено</div>
+          <div class="stat-value" id="stat-remote-hours" style="font-size:1.3rem; color:#1d4ed8;">—</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Поточний місяць -->
     <div class="card" style="padding:20px; margin-bottom:20px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -426,13 +474,22 @@
     <h3 id="modal-title" style="font-weight:800; color:#1e293b; font-size:1.1rem; margin:0 0 6px; text-align:center;"></h3>
     <p id="modal-subtitle" style="color:#64748b; font-size:.85rem; text-align:center; margin:0 0 20px;"></p>
 
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-weight:700; color:#475569; font-size:.85rem; margin-bottom:8px; text-align:center;">
+        Місце роботи
+      </label>
+      <div id="location-switch" class="location-switch">
+        <button type="button" class="location-btn active" data-location="office" onclick="selectLocation('office')">🏢 В офісі</button>
+        <button type="button" class="location-btn" data-location="remote" onclick="selectLocation('remote')">🏠 Віддалено</button>
+      </div>
+    </div>
+
     <div style="margin-bottom:20px;">
       <label style="display:block; font-weight:700; color:#475569; font-size:.85rem; margin-bottom:8px; text-align:center;">
         Кількість годин
       </label>
-      <input type="number" id="hours-input" class="inp"
-             placeholder="Наприклад: 8"
-             min="0" max="24" step="0.5"
+      <input type="text" inputmode="decimal" id="hours-input" class="inp"
+             placeholder="Наприклад: 8 або 9,5"
              oninput="validateHoursInput(this)">
     </div>
 
@@ -507,6 +564,20 @@ function headerCellToKey(h) {
   return (h || '').toString().trim();
 }
 
+// Розбираємо значення клітинки годин: "8" → офіс; "8вд" → віддалено; "вх" → вихідний
+function parseHoursCellClient(raw) {
+  const str = (raw === undefined || raw === null) ? '' : raw.toString().trim().toLowerCase();
+  if (str === '') return { numeric: 0, isRemote: false, isVacation: false };
+  if (str === 'вх' || str === 'вх.') return { numeric: 0, isRemote: false, isVacation: true };
+
+  const isRemote = str.endsWith('вд');
+  const numPart  = (isRemote ? str.slice(0, -2).trim() : str).replace(',', '.');
+  const n = parseFloat(numPart);
+
+  if (isNaN(n)) return { numeric: 0, isRemote: false, isVacation: false };
+  return { numeric: n, isRemote, isVacation: false };
+}
+
 function getMonthSheetName(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year  = date.getFullYear();
@@ -520,42 +591,52 @@ function getMonthSheetName(date) {
 // лист і знайти потрібний рядок за прізвищем у стовпці C.
 async function getMyHoursDirect() {
   const sheetName = getMonthSheetName(new Date());
-  const range = `'${sheetName}'!A1:AI1000`;
+  const range = `'${sheetName}'!A1:AJ1000`;
 
   const data = await sheetsApiFetch(`/values/${encodeURIComponent(range)}`, {
     valueRenderOption: 'UNFORMATTED_VALUE'
   });
 
   const rows = data.values || [];
-  if (rows.length < 2) return { hours: {}, totalHours: 0, totalDays: 0 };
+  if (rows.length < 2) return { hours: {}, totalHours: 0, totalOfficeHours: 0, totalRemoteHours: 0, totalDays: 0 };
 
   const headers = rows[0];
   const myName  = (APP.user.name || '').toString().trim().toLowerCase();
 
   let myRow = null;
   for (let r = 1; r < rows.length; r++) {
-    const name = (rows[r][2] || '').toString().trim(); // колонка C
+    const name = (rows[r][3] || '').toString().trim(); // колонка D
     if (name.toLowerCase() === myName) { myRow = rows[r]; break; }
   }
   // Рядка ще нема (працівник ще жодного разу не зберігав години) —
   // це нормальний порожній стан, а не помилка.
-  if (!myRow) return { hours: {}, totalHours: 0, totalDays: 0 };
+  if (!myRow) return { hours: {}, totalHours: 0, totalOfficeHours: 0, totalRemoteHours: 0, totalDays: 0 };
 
   const hours = {};
-  for (let c = 3; c < headers.length; c++) { // з D (індекс 3)
+  for (let c = 4; c < headers.length; c++) { // з E (індекс 4)
     const hKey = headerCellToKey(headers[c]);
     const v = myRow[c];
     if (!hKey || v === undefined || v === null || v === '') continue;
     hours[hKey] = v;
   }
 
-  let totalHours = 0, totalDays = 0;
+  let totalOfficeHours = 0, totalRemoteHours = 0, totalDays = 0;
   Object.values(hours).forEach(v => {
-    const n = parseFloat(v);
-    if (!isNaN(n) && n > 0) { totalHours += n; totalDays++; }
+    const parsed = parseHoursCellClient(v);
+    if (parsed.numeric > 0) {
+      if (parsed.isRemote) totalRemoteHours += parsed.numeric;
+      else totalOfficeHours += parsed.numeric;
+      totalDays++;
+    }
   });
 
-  return { hours, totalHours: Math.round(totalHours * 10) / 10, totalDays };
+  return {
+    hours,
+    totalHours: Math.round((totalOfficeHours + totalRemoteHours) * 10) / 10,
+    totalOfficeHours: Math.round(totalOfficeHours * 10) / 10,
+    totalRemoteHours: Math.round(totalRemoteHours * 10) / 10,
+    totalDays
+  };
 }
 
 // ── Пряме читання годин команди за останні 3 дні ──────────────────────
@@ -581,7 +662,7 @@ async function getTeamHoursDirect() {
   const result = {};
 
   for (const sheetName of Object.keys(sheetsNeeded)) {
-    const range = `'${sheetName}'!A1:AI1000`;
+    const range = `'${sheetName}'!A1:AJ1000`;
     let data;
     try {
       data = await sheetsApiFetch(`/values/${encodeURIComponent(range)}`, {
@@ -597,13 +678,13 @@ async function getTeamHoursDirect() {
     const headers  = rows[0];
     const neededKeys = sheetsNeeded[sheetName];
     const colMap = {}; // dateKey -> індекс стовпця в rows[r]
-    for (let c = 3; c < headers.length; c++) {
+    for (let c = 4; c < headers.length; c++) {
       const hKey = headerCellToKey(headers[c]);
       if (neededKeys.includes(hKey)) colMap[hKey] = c;
     }
 
     for (let r = 1; r < rows.length; r++) {
-      const name = (rows[r][2] || '').toString().trim();
+      const name = (rows[r][3] || '').toString().trim();
       if (!name) continue;
       if (!result[name]) result[name] = {};
       Object.entries(colMap).forEach(([k, ci]) => {
@@ -620,10 +701,11 @@ async function getTeamHoursDirect() {
 // ─── СТАН ДОДАТКУ ────────────────────────────
 const APP = {
   user: null,
-  hoursData: {},    // { "01.07.2026": 8, "02.07.2026": 7.5, ... }
+  hoursData: {},    // { "01.07.2026": 8, "02.07.2026": "7.5вд", ... }
   totalHours: 0,
   totalDays: 0,
-  modalDate: null   // дата, яку редагуємо зараз
+  modalDate: null,      // дата, яку редагуємо зараз
+  modalLocation: 'office' // вибране в модалці місце роботи: 'office' | 'remote'
 };
 
 // ─── ІНІЦІАЛІЗАЦІЯ ───────────────────────────
@@ -815,8 +897,10 @@ function _setCalendarLoading(on) {
   document.getElementById('calendar-loading').style.display = on ? '' : 'none';
   document.getElementById('days-grid').style.display = on ? 'none' : '';
   if (on) {
-    document.getElementById('stat-total-hours').textContent = '—';
-    document.getElementById('stat-total-days').textContent  = '—';
+    document.getElementById('stat-total-hours').textContent  = '—';
+    document.getElementById('stat-total-days').textContent   = '—';
+    document.getElementById('stat-office-hours').textContent = '—';
+    document.getElementById('stat-remote-hours').textContent = '—';
     document.getElementById('calendar-loading').innerHTML =
       `<div class="spinner"></div><p style="color:#94a3b8;margin-top:12px;font-size:.85rem;">Завантаження даних...</p>`;
   }
@@ -833,20 +917,25 @@ function _setTeamLoading(on) {
 
 // ─── РЕНДЕР СТАТИСТИКИ (ОНОВЛЕНО) ──────────────────────────
 function renderStats() {
-  let totalHours = 0, totalDays = 0;
+  let officeHours = 0, remoteHours = 0, totalDays = 0;
   Object.values(APP.hoursData).forEach(v => {
-    // Враховуємо тільки числові значення годин
-    const n = parseFloat(v);
-    if (!isNaN(n) && n > 0 && v !== 'вх') { 
-      totalHours += n; 
-      totalDays++; 
+    const parsed = parseHoursCellClient(v);
+    if (parsed.numeric > 0) {
+      if (parsed.isRemote) remoteHours += parsed.numeric;
+      else officeHours += parsed.numeric;
+      totalDays++;
     }
   });
-  totalHours = Math.round(totalHours * 10) / 10;
+  officeHours = Math.round(officeHours * 10) / 10;
+  remoteHours = Math.round(remoteHours * 10) / 10;
+  const totalHours = Math.round((officeHours + remoteHours) * 10) / 10;
+
   APP.totalHours = totalHours;
   APP.totalDays  = totalDays;
-  document.getElementById('stat-total-hours').textContent = totalHours || 0;
-  document.getElementById('stat-total-days').textContent  = totalDays  || 0;
+  document.getElementById('stat-total-hours').textContent  = totalHours  || 0;
+  document.getElementById('stat-total-days').textContent   = totalDays   || 0;
+  document.getElementById('stat-office-hours').textContent = officeHours || 0;
+  document.getElementById('stat-remote-hours').textContent = remoteHours || 0;
 }
 
 // ─── РЕНДЕР КАЛЕНДАРЯ (ОНОВЛЕНО) ────────────────────────
@@ -872,10 +961,12 @@ function renderCalendar() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dayKey = dateToKey(new Date(year, month, day));
     const rawVal = APP.hoursData[dayKey];
-    
-    const isWeekendVacation = rawVal !== undefined && rawVal !== null && rawVal.toString().trim().toLowerCase() === 'вх';
-    const hours  = (!isWeekendVacation && rawVal !== undefined && rawVal !== null && rawVal !== '') ? parseFloat(rawVal) : null;
-    const hasHours = hours !== null && !isNaN(hours) && hours > 0;
+
+    const parsedVal = parseHoursCellClient(rawVal);
+    const isWeekendVacation = parsedVal.isVacation;
+    const isRemote  = parsedVal.isRemote;
+    const hours     = parsedVal.numeric;
+    const hasHours  = !isWeekendVacation && hours > 0;
 
     const isToday     = dayKey === todayKey;
     const isYesterday = dayKey === yesterdayKey;
@@ -886,6 +977,7 @@ function renderCalendar() {
     if (editable)  classes += ' editable';
     if (hasHours)  classes += ' has-hours';
     if (isWeekendVacation) classes += ' weekend-vacation';
+    if (isRemote)  classes += ' remote-work';
     if (isToday)   classes += ' today';
     if (isFuture)  classes += ' future';
 
@@ -896,7 +988,8 @@ function renderCalendar() {
       hoursDisplay = `<span class="day-hours" style="font-size: 0.9rem;">ВХ</span>`;
     } else if (hasHours) {
       const formatted = Number.isInteger(hours) ? hours : hours.toFixed(1);
-      hoursDisplay = `<span class="day-hours">${formatted}г</span>`;
+      const suffix = isRemote ? '<span style="font-size:.6rem; opacity:.8;">🏠</span>' : '';
+      hoursDisplay = `<span class="day-hours">${formatted}г${suffix}</span>`;
     } else if (editable) {
       hoursDisplay = '<span class="day-edit-hint">✏️ ввести</span>';
     }
@@ -918,11 +1011,31 @@ function openModal(dateKey, dayNum) {
   APP.modalDate = dateKey;
   document.getElementById('modal-title').textContent = `📅 ${dayNum} числа`;
   document.getElementById('modal-subtitle').textContent = dateKey;
-  const currentVal = APP.hoursData[dateKey];
+
+  const rawVal = APP.hoursData[dateKey];
+  const parsed = parseHoursCellClient(rawVal);
   const inp = document.getElementById('hours-input');
-  inp.value = (currentVal !== undefined && currentVal !== '') ? currentVal : '';
+
+  if (parsed.isVacation) {
+    inp.value = 'вх';
+  } else if (parsed.numeric > 0) {
+    inp.value = parsed.numeric;
+  } else {
+    inp.value = '';
+  }
+
+  // За замовчуванням — "в офісі", якщо для цього дня вже не збережено "віддалено"
+  selectLocation(parsed.isRemote ? 'remote' : 'office');
+
   document.getElementById('modal-hours').classList.add('open');
   setTimeout(() => inp.focus(), 120);
+}
+
+function selectLocation(loc) {
+  APP.modalLocation = loc;
+  document.querySelectorAll('.location-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.location === loc);
+  });
 }
 
 function closeModal(e) {
@@ -936,15 +1049,20 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Enter'  && document.getElementById('modal-hours').classList.contains('open')) saveHours();
 });
 
-// ─── ВАЛІДАЦІЯ ВВОДУ В МОДАЛЦІ (ОНОВЛЕНО — тепер дозволяємо "вх") ───
+// ─── ВАЛІДАЦІЯ ВВОДУ В МОДАЛЦІ (ОНОВЛЕНО — тепер дозволяємо "вх" і кому) ───
 function validateHoursInput(el) {
   let val = el.value.trim().toLowerCase();
-  if (val === 'в' || val === 'вх' || val === 'вх.') {
-    // Дозволяємо вводити символи для позначення вихідного
+  if (val === '' || val === 'в' || val === 'вх' || val === 'вх.') {
+    // Дозволяємо порожнє поле і символи для позначення вихідного
     return;
   }
-  let v = parseFloat(el.value);
-  if (isNaN(v) || v < 0) el.value = '';
+  // Дозволяємо кому як десятковий роздільник (9,5 → 9.5) і не заважаємо
+  // набору проміжних станів на кшталт "9," — перевіряємо лише готове число
+  const normalized = val.replace(',', '.');
+  if (normalized.endsWith('.')) return; // ще набирає дробову частину
+  let v = parseFloat(normalized);
+  if (isNaN(v)) return; // залишаємо як є, поки не введено щось коректне
+  if (v < 0) el.value = '';
   else if (v > 24) el.value = 24;
 }
 
@@ -953,7 +1071,8 @@ function saveHours() {
   const inp   = document.getElementById('hours-input');
   let val     = inp.value.trim().toLowerCase();
   let isVacation = (val === 'вх' || val === 'вх.');
-  let hours   = parseFloat(val);
+  // Дозволяємо кому як десятковий роздільник (9,5 → 9.5)
+  let hours   = parseFloat(val.replace(',', '.'));
 
   if (!isVacation && (inp.value === '' || isNaN(hours) || hours < 0 || hours > 24)) {
     inp.style.borderColor = '#ef4444';
@@ -965,13 +1084,17 @@ function saveHours() {
   const btn = document.getElementById('modal-save-btn');
   btn.disabled = true; btn.innerHTML = '⏳ Збереження...';
 
-  // Відправляємо "вх" або число годин на сервер
+  const location = APP.modalLocation === 'remote' ? 'remote' : 'office';
+  const isRemote = location === 'remote';
+
+  // Відправляємо "вх" або число годин на сервер (сервер сам додасть позначку "вд" для віддаленої роботи)
   const finalValue = isVacation ? 'вх' : hours;
 
   const saveUrl = `${API_URL}?action=saveHours`
     + `&email=${encodeURIComponent(APP.user.email)}`
     + `&dateKey=${encodeURIComponent(APP.modalDate)}`
-    + `&hours=${encodeURIComponent(finalValue)}`;
+    + `&hours=${encodeURIComponent(finalValue)}`
+    + `&location=${encodeURIComponent(location)}`;
 
   fetch(saveUrl, { method: 'GET', redirect: 'follow' })
   .then(r => r.json())
@@ -979,13 +1102,15 @@ function saveHours() {
     btn.disabled = false; btn.innerHTML = '💾 Зберегти';
     if (!res.success) throw new Error(res.error || 'Помилка сервера');
     document.getElementById('modal-hours').classList.remove('open');
-    
+
     // Оновлюємо локально для швидкого відгуку інтерфейсу
-    APP.hoursData[APP.modalDate] = finalValue;
+    // (дзеркалимо серверний формат: число + "вд" для віддаленої роботи)
+    APP.hoursData[APP.modalDate] = isVacation ? 'вх' : (isRemote ? `${hours.toString().replace('.', ',')}вд` : hours);
     renderCalendar();
     renderStats();
-    showToast(`✅ ${APP.modalDate} — ${isVacation ? 'Вихідний' : hours + ' год.'} збережено`);
-    
+    const locLabel = isRemote ? ' (віддалено)' : '';
+    showToast(`✅ ${APP.modalDate} — ${isVacation ? 'Вихідний' : hours + ' год.' + locLabel} збережено`);
+
     setTimeout(() => loadInitialData(), 1500);
   })
   .catch(err => {
@@ -1054,21 +1179,22 @@ function renderTeam(data) {
         const val = emp.hours[k];
         const isT = k === todayKey;
         const has = val !== undefined && val !== null && val !== '';
-        
+
         let display = '—';
         let customClass = 'empty';
-        
+
         if (has) {
-          if (val.toString().trim().toLowerCase() === 'вх') {
+          const parsed = parseHoursCellClient(val);
+          if (parsed.isVacation) {
             display = 'ВХ';
             customClass = 'weekend-vacation';
           } else {
-            const h = parseFloat(val);
-            display = (Number.isInteger(h) ? h : h.toFixed(1)) + 'г';
-            customClass = 'filled';
+            const h = parsed.numeric;
+            display = (Number.isInteger(h) ? h : h.toFixed(1)) + 'г' + (parsed.isRemote ? '🏠' : '');
+            customClass = parsed.isRemote ? 'remote-work' : 'filled';
           }
         }
-        
+
         cells += `<div class="team-cell ${customClass}${isT ? ' today-col' : ''}">${display}</div>`;
       });
       return `<div class="team-row" style="grid-template-columns:${gridTpl};">${cells}</div>`;
