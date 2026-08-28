@@ -659,6 +659,12 @@
           </div>
         </div>
 
+        <!-- Продажі по продавцях -->
+        <div style="font-weight:700;color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">По продавцях</div>
+        <div id="cash-by-seller" style="margin-bottom:16px;">
+          <div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:10px 0;">Завантаження…</div>
+        </div>
+
         <!-- Останні операції -->
         <div style="font-weight:700;color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Останні операції</div>
         <div id="last-sales-list">
@@ -2244,7 +2250,7 @@ function loadCashData() {
     .then(res => {
       if (statusEl) statusEl.textContent = '';
       if (res.success && res.data) {
-        const { cash, card, list, tasting, lastSales } = res.data;
+        const { cash, card, list, tasting, lastSales, bySeller } = res.data;
         const cashEl    = document.getElementById('cash-today-cash');
         const cardEl    = document.getElementById('cash-today-card');
         const listEl    = document.getElementById('cash-today-list');
@@ -2254,6 +2260,7 @@ function loadCashData() {
         if (listEl)    listEl.textContent    = formatPrice(list || 0) + ' ₴';
         if (tastingEl) tastingEl.textContent = formatPrice(tasting || 0) + ' ₴';
         renderLastSales(lastSales);
+        renderCashBySeller(bySeller);
       }
     })
     .catch(() => {
@@ -2261,7 +2268,42 @@ function loadCashData() {
       const listEl = document.getElementById('last-sales-list');
       if (listEl) listEl.innerHTML =
         '<div style="color:#dc2626;font-size:.82rem;text-align:center;padding:8px;font-weight:600;">Помилка завантаження</div>';
+      const sellerEl = document.getElementById('cash-by-seller');
+      if (sellerEl) sellerEl.innerHTML =
+        '<div style="color:#dc2626;font-size:.82rem;text-align:center;padding:8px;font-weight:600;">Помилка завантаження</div>';
     });
+}
+
+/** Рендерить таблицю "продажі по продавцях" (дані з листа "Звіти", H2:H / I2:I) */
+function renderCashBySeller(bySeller) {
+  const el = document.getElementById('cash-by-seller');
+  if (!el) return;
+
+  if (!bySeller || bySeller.length === 0) {
+    el.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:10px 0;">Немає даних</div>';
+    return;
+  }
+
+  const total = bySeller.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+  const rows = bySeller.map(r => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;
+                    padding:9px 12px;border-bottom:1px solid #f1f5f9;">
+          <div style="font-size:.85rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;">
+            🧍 ${escHtml(r.seller)}
+          </div>
+          <div style="font-size:.9rem;font-weight:900;color:#16a34a;white-space:nowrap;">${formatPrice(r.amount)} ₴</div>
+        </div>`).join('');
+
+  el.innerHTML = `
+    <div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;">
+      ${rows}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;
+                  padding:10px 12px;background:#f8fafc;">
+        <div style="font-size:.8rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.4px;">Разом</div>
+        <div style="font-size:.95rem;font-weight:900;color:#1e293b;white-space:nowrap;">${formatPrice(total)} ₴</div>
+      </div>
+    </div>`;
 }
 
 function renderLastSales(sales) {
