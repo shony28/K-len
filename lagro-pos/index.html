@@ -1093,6 +1093,29 @@ function showMain(user) {
   loadInitialData(); // ← завантажуємо склад + покупців одним запитом
 }
 
+/** Оновлює ім'я менеджера за актуальними даними листа "Довідник". */
+function updateCurrentUser(currentUser) {
+  if (!currentUser || !APP.user) return;
+
+  APP.user = {
+    ...APP.user,
+    email: currentUser.email || APP.user.email,
+    name: currentUser.name || APP.user.name,
+    isAllowed: currentUser.isAllowed
+  };
+
+  try { localStorage.setItem(LS_KEY, JSON.stringify(APP.user)); } catch (e) {}
+
+  document.getElementById('user-name').textContent = APP.user.name || 'Менеджер';
+  document.getElementById('user-email').textContent = APP.user.email || '—';
+
+  // Якщо Google-фото немає, оновлюємо також літеру аватара.
+  if (!APP.user.picture) {
+    const avatarEl = document.getElementById('user-avatar');
+    avatarEl.textContent = (APP.user.name || APP.user.email || '?')[0].toUpperCase();
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 //  🔄  ЗАВАНТАЖЕННЯ ПОЧАТКОВИХ ДАНИХ
 // ────────────────────────────────────────────────────────────────────────────
@@ -1103,10 +1126,12 @@ function loadInitialData(forceRefresh) {
   const statusEl = document.getElementById('data-load-status');
   statusEl.textContent = '⏳ Завантаження даних зі складу…';
 
-  fetch(`${API_URL}?action=getInitialData`, { method: 'GET', redirect: 'follow' })
+  const email = encodeURIComponent(APP.user?.email || '');
+  fetch(`${API_URL}?action=getInitialData&email=${email}`, { method: 'GET', redirect: 'follow' })
     .then(res => res.json())
     .then(res => {
       if (res.success) {
+        updateCurrentUser(res.data.currentUser);
         APP.stock  = (res.data.stock || []).map(p => ({ ...p, price: parsePrice(p.price), wholesalePrice: parsePrice(p.wholesalePrice), qty: parseFloat(p.qty) || 0 }));
         APP.buyers = res.data.buyers || [];
         APP.dataLoaded = true;
