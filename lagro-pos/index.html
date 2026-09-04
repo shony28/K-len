@@ -1722,24 +1722,35 @@ function renderPickerGrid(query) {
   }
 
   grid.innerHTML = items.map(p => {
-    const stockColor = p.qty <= 0 ? '#dc2626' : p.qty < 3 ? '#ca8a04' : '#16a34a';
+    const isOutOfStock = p.qty <= 0;
+    const stockColor = isOutOfStock ? '#94a3b8' : p.qty < 3 ? '#ca8a04' : '#16a34a';
+    const cardBg = isOutOfStock ? '#f1f5f9' : '#fff';
+    const cardBorder = isOutOfStock ? '#e2e8f0' : '#e2e8f0';
+    const nameColor = isOutOfStock ? '#94a3b8' : '#1e293b';
+    const priceColor = isOutOfStock ? '#94a3b8' : '#16a34a';
+    const cardOpacity = isOutOfStock ? '0.58' : '1';
+    const imageFilter = isOutOfStock ? 'grayscale(1)' : 'none';
+    const hoverShadow = isOutOfStock ? '0 2px 8px rgba(100,116,139,.10)' : '0 4px 16px rgba(22,163,74,.18)';
+
     const imgHtml = p.imgUrl
       ? `<img src="${escHtml(p.imgUrl)}" alt="${escHtml(p.name)}"
            style="height:100px;object-fit:cover;border-radius:8px;margin-bottom:8px;
-                  background:#f1f5f9;" onerror="this.style.display='none'">`
-      : `<div style="width:100%;height:100px;background:#f1f5f9;border-radius:8px;margin-bottom:8px;
-                     display:flex;align-items:center;justify-content:center;font-size:2rem;">🛒</div>`;
+                  background:#f1f5f9;filter:${imageFilter};" onerror="this.style.display='none'">`
+      : `<div style="width:100%;height:100px;background:#e2e8f0;border-radius:8px;margin-bottom:8px;
+                     display:flex;align-items:center;justify-content:center;font-size:2rem;
+                     filter:${imageFilter};">🛒</div>`;
+
     return `
       <div onclick="pickProduct('${escHtml(p.id)}')"
-        style="border:1px solid #e2e8f0;border-radius:12px;padding:10px;cursor:pointer;
-               transition:box-shadow .15s;background:#fff;"
-        onmouseover="this.style.boxShadow='0 4px 16px rgba(22,163,74,.18)'"
+        style="border:1px solid ${cardBorder};border-radius:12px;padding:10px;cursor:pointer;
+               transition:box-shadow .15s;background:${cardBg};opacity:${cardOpacity};"
+        onmouseover="this.style.boxShadow='${hoverShadow}'"
         onmouseout="this.style.boxShadow=''">
         ${imgHtml}
-        <div style="font-size:.82rem;font-weight:700;color:#1e293b;line-height:1.3;
+        <div style="font-size:.82rem;font-weight:700;color:${nameColor};line-height:1.3;
                     margin-bottom:4px;overflow:hidden;display:-webkit-box;
                     -webkit-line-clamp:2;-webkit-box-orient:vertical;">${escHtml(p.name)}</div>
-        <div style="font-size:.78rem;font-weight:800;color:#16a34a;">${formatPrice(p.price)} ₴</div>
+        <div style="font-size:.78rem;font-weight:800;color:${priceColor};">${formatPrice(p.price)} ₴</div>
         <div style="font-size:.72rem;font-weight:700;color:${stockColor};">
           Залишок: ${formatQty(p.qty)} ${p.unit}
         </div>
