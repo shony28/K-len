@@ -455,13 +455,16 @@
     </div>
 
     <!-- Кнопка переходу в телеграм бот -->
-    <a href="https://telegram.me/klen_tasker_bot" target="_blank" rel="noopener noreferrer" class="btn btn-lg btn-full" style="background: linear-gradient(135deg, #229ED9, #24A1DE); color: #fff; box-shadow: 0 4px 18px rgba(34,158,217,.3); text-decoration: none; margin-bottom: 20px;">
+    <a href="https://telegram.me/klen_tasker_bot" target="_blank" rel="noopener noreferrer" class="btn btn-lg btn-full" style="background: linear-gradient(135deg, #229ED9, #24A1DE); color: #fff; box-shadow: 0 4px 18px rgba(34,158,217,.3); text-decoration: none; margin-bottom: 10px;">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
         <path d="m22 2-7 20-4-9-9-4Z"/>
         <path d="M22 2 11 13"/>
       </svg>
       Відкрити Telegram бот
     </a>
+    <p style="margin:0 8px 20px; text-align:center; color:#64748b; font-size:.82rem; line-height:1.5;">
+      🔔 Telegram-бот нагадає ввести робочі години, якщо ви забудете.
+    </p>
 
   </div>
 </div>
@@ -511,6 +514,8 @@
 // ─── КОНФІГУРАЦІЯ ────────────────────────────
 const API_URL = "https://script.google.com/macros/s/AKfycbykJfUM0Ivy9vOenRfSH2gXZB5MTKZFKzc_iFly-M386zYIKA6uLQCaL0t6YP6mzzy4/exec"; // Замініть на URL вашого Google Apps Script
 const LS_KEY  = 'workHoursApp_user_v1';
+const LS_LAST_DATA_REFRESH_KEY = 'workHoursApp_lastDataRefresh_v1';
+const AUTO_REFRESH_CHECK_MS = 30 * 60 * 1000; // перевірка раз на 30 хвилин, дані вантажимо лише коли настав новий день
 
 // ═══════════════════════════════════════════════════════════════════
 //  ЧИТАННЯ НАПРЯМУ ЧЕРЕЗ GOOGLE SHEETS API v4 (без навантаження на GAS)
@@ -798,6 +803,45 @@ function showMain(user) {
   loadInitialData();
 }
 
+// ─── АВТООНОВЛЕННЯ ДАНИХ РАЗ НА НОВИЙ ДЕНЬ ───────────────────────────
+function markDataRefresh() {
+  try {
+    localStorage.setItem(LS_LAST_DATA_REFRESH_KEY, new Date().toISOString());
+  } catch (_) {}
+}
+
+function needsDailyRefresh() {
+  let raw = null;
+  try { raw = localStorage.getItem(LS_LAST_DATA_REFRESH_KEY); } catch (_) {}
+  if (!raw) return true;
+
+  const last = new Date(raw);
+  if (isNaN(last.getTime())) return true;
+
+  const now = new Date();
+  return last.getFullYear() !== now.getFullYear()
+      || last.getMonth() !== now.getMonth()
+      || last.getDate() !== now.getDate();
+}
+
+function refreshDataIfNewDay() {
+  if (!APP.user || !APP.user.isAllowed) return;
+  if (!document.getElementById('screen-main').classList.contains('active')) return;
+  if (!needsDailyRefresh()) return;
+
+  renderTodayDate();
+  loadInitialData();
+}
+
+// Якщо вкладка була відкрита всю ніч, при поверненні до неї вранці
+// дані автоматично оновляться. Додаткова перевірка раз на 30 хвилин
+// потрібна на випадок, якщо вкладка залишається постійно активною.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshDataIfNewDay();
+});
+window.addEventListener('focus', refreshDataIfNewDay);
+setInterval(refreshDataIfNewDay, AUTO_REFRESH_CHECK_MS);
+
 // ─── ДАТА / УТИЛІТИ ──────────────────────────
 function today() {
   return new Date();
@@ -838,6 +882,7 @@ async function loadInitialData() {
     ]);
     _applyMyHours(myHours);
     renderTeam(teamData);
+    markDataRefresh();
   } catch (err) {
     console.warn('Пряме читання Sheets API не вдалось, пробуємо через GAS:', err);
     loadInitialDataViaGas();
@@ -854,6 +899,7 @@ function loadInitialDataViaGas() {
       if (!res.success) throw new Error(res.error || 'Помилка сервера');
       _applyMyHours(res.data.myHours);
       renderTeam(res.data.teamData);
+      markDataRefresh();
     })
     .catch(err => {
       document.getElementById('calendar-loading').innerHTML =
