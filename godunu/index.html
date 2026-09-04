@@ -449,7 +449,7 @@
         <div id="team-rows"></div>
         <!-- Якщо порожньо -->
         <div id="team-empty" style="display:none; text-align:center; color:#94a3b8; font-size:.85rem; padding:12px 0;">
-          Поки що немає записів за останні 3 дні
+          Поки що немає записів за останні 4 дні
         </div>
       </div>
     </div>
@@ -651,7 +651,7 @@ async function getMyHoursDirect() {
 async function getTeamHoursDirect() {
   const now = new Date();
   const keys = [];
-  for (let i = 2; i >= 0; i--) {
+  for (let i = 3; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
     keys.push(dateToKey(d));
   }
