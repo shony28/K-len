@@ -496,6 +496,12 @@
              oninput="validateHoursInput(this)">
     </div>
 
+    <details id="additional-hours" style="margin-bottom:20px;">
+      <summary id="additional-summary" style="cursor:pointer;color:#4f46e5;font-weight:700;">Додати години віддалено</summary>
+      <label for="additional-hours-input" id="additional-label" style="display:block;margin:12px 0 8px;">Години віддалено</label>
+      <input type="text" inputmode="decimal" id="additional-hours-input" class="inp" placeholder="Наприклад: 2 або 1,5" oninput="updateAdditionalLabel()">
+      <p style="font-size:.8rem;color:#64748b;">Згортання зберігає введені години. Щоб прибрати додатковий запис, очистіть поле. Разом — до 24 годин.</p>
+    </details>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
       <button class="btn btn-gray btn-lg" onclick="closeModal()">Скасувати</button>
       <button class="btn btn-indigo btn-lg" id="modal-save-btn" onclick="saveHours()">
@@ -571,16 +577,44 @@ function headerCellToKey(h) {
 
 // Розбираємо значення клітинки годин: "8" → офіс; "8вд" → віддалено; "вх" → вихідний
 function parseHoursCellClient(raw) {
-  const str = (raw === undefined || raw === null) ? '' : raw.toString().trim().toLowerCase();
-  if (str === '') return { numeric: 0, isRemote: false, isVacation: false };
-  if (str === 'вх' || str === 'вх.') return { numeric: 0, isRemote: false, isVacation: true };
+  const str = String(raw ?? '').trim().toLowerCase();
+  const result = { officeHours: 0, remoteHours: 0, numeric: 0, isRemote: false, isVacation: /^вх[.]?$/.test(str) };
+  if (!str || result.isVacation) return result;
+  for (const part of str.split('+')) {
+    const match = part.trim().match(/^([0-9]+(?:[.,][0-9]+)?)\s*(вд)?$/);
+    if (!match) return { ...result, officeHours: 0, remoteHours: 0, numeric: 0, isRemote: false };
+    result[match[2] ? 'remoteHours' : 'officeHours'] += Number(match[1].replace(',', '.'));
+  }
+  result.numeric = result.officeHours + result.remoteHours;
+  result.isRemote = result.remoteHours > 0;
+  return result;
+}
 
-  const isRemote = str.endsWith('вд');
-  const numPart  = (isRemote ? str.slice(0, -2).trim() : str).replace(',', '.');
-  const n = parseFloat(numPart);
+function readHoursNumber(raw) {
+  const text = String(raw ?? '').trim().replace(',', '.');
+  if (!/^[0-9]+(?:[.][0-9]+)?$/.test(text)) throw new Error('Введіть коректну кількість годин');
+  const value = Number(text);
+  if (!Number.isFinite(value) || value > 24) throw new Error('Кількість годин поза межами (0–24)');
+  return value;
+}
 
-  if (isNaN(n)) return { numeric: 0, isRemote: false, isVacation: false };
-  return { numeric: n, isRemote, isVacation: false };
+function buildHoursValue(hours, location, additionalHours) {
+  if (!['office', 'remote'].includes(location)) throw new Error('Невідоме місце роботи');
+  const raw = String(hours ?? '').trim().toLowerCase();
+  const extra = String(additionalHours ?? '').trim();
+  if (/^вх[.]?$/.test(raw)) {
+    if (extra !== '') throw new Error('Вихідний не можна поєднувати з робочими годинами');
+    return 'вх';
+  }
+  if (raw === '' && extra === '') return '';
+  const main = raw === '' ? 0 : readHoursNumber(raw);
+  const additional = extra === '' ? 0 : readHoursNumber(extra);
+  if (main + additional > 24) throw new Error('Разом за день можна записати не більше 24 годин');
+  const office = location === 'office' ? main : additional;
+  const remote = location === 'remote' ? main : additional;
+  const fmt = n => String(n).replace('.', ',');
+  if (office > 0 && remote > 0) return fmt(office) + ' + ' + fmt(remote) + 'вд';
+  return remote > 0 ? fmt(remote) + 'вд' : office;
 }
 
 function getMonthSheetName(date) {
@@ -629,8 +663,8 @@ async function getMyHoursDirect() {
   Object.values(hours).forEach(v => {
     const parsed = parseHoursCellClient(v);
     if (parsed.numeric > 0) {
-      if (parsed.isRemote) totalRemoteHours += parsed.numeric;
-      else totalOfficeHours += parsed.numeric;
+      totalRemoteHours += parsed.remoteHours;
+      totalOfficeHours += parsed.officeHours;
       totalDays++;
     }
   });
@@ -967,8 +1001,8 @@ function renderStats() {
   Object.values(APP.hoursData).forEach(v => {
     const parsed = parseHoursCellClient(v);
     if (parsed.numeric > 0) {
-      if (parsed.isRemote) remoteHours += parsed.numeric;
-      else officeHours += parsed.numeric;
+      remoteHours += parsed.remoteHours;
+      officeHours += parsed.officeHours;
       totalDays++;
     }
   });
@@ -1035,7 +1069,7 @@ function renderCalendar() {
     } else if (hasHours) {
       const formatted = Number.isInteger(hours) ? hours : hours.toFixed(1);
       const suffix = isRemote ? '<span style="font-size:.6rem; opacity:.8;">🏠</span>' : '';
-      hoursDisplay = `<span class="day-hours">${formatted}г${suffix}</span>`;
+      hoursDisplay = `<span class="day-hours">${displayHoursParts(parsedVal)}</span>`;
     } else if (editable) {
       hoursDisplay = '<span class="day-edit-hint">✏️ ввести</span>';
     }
@@ -1065,23 +1099,43 @@ function openModal(dateKey, dayNum) {
   if (parsed.isVacation) {
     inp.value = 'вх';
   } else if (parsed.numeric > 0) {
-    inp.value = parsed.numeric;
+    inp.value = parsed.officeHours > 0 ? parsed.officeHours : parsed.remoteHours;
   } else {
     inp.value = '';
   }
 
   // За замовчуванням — "в офісі", якщо для цього дня вже не збережено "віддалено"
-  selectLocation(parsed.isRemote ? 'remote' : 'office');
+  document.getElementById('additional-hours-input').value = parsed.officeHours > 0 && parsed.remoteHours > 0 ? parsed.remoteHours : '';
+  document.getElementById('additional-hours').open = false;
+  APP.modalLocation = parsed.officeHours > 0 ? 'office' : (parsed.isRemote ? 'remote' : 'office');
+  selectLocation(parsed.officeHours > 0 ? 'office' : (parsed.isRemote ? 'remote' : 'office'));
 
   document.getElementById('modal-hours').classList.add('open');
   setTimeout(() => inp.focus(), 120);
 }
 
 function selectLocation(loc) {
+  if (APP.modalLocation !== loc && document.getElementById('additional-hours-input').value.trim() !== '') {
+    const main = document.getElementById('hours-input');
+    const extra = document.getElementById('additional-hours-input');
+    [main.value, extra.value] = [extra.value, main.value];
+  }
   APP.modalLocation = loc;
+  updateAdditionalLabel();
   document.querySelectorAll('.location-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.location === loc);
   });
+}
+
+function updateAdditionalLabel() {
+  const label = APP.modalLocation === 'remote' ? 'в офісі' : 'віддалено';
+  const value = document.getElementById('additional-hours-input').value.trim();
+  document.getElementById('additional-label').textContent = 'Години ' + label;
+  document.getElementById('additional-summary').textContent = value ? 'Додатково ' + label + ': ' + value + ' год.' : 'Додати години ' + label;
+}
+
+function displayHoursParts(parsed) {
+  return [parsed.officeHours > 0 ? parsed.officeHours + 'г' : '', parsed.remoteHours > 0 ? parsed.remoteHours + 'г 🏠' : ''].filter(Boolean).join('<br>');
 }
 
 function closeModal(e) {
@@ -1113,56 +1167,29 @@ function validateHoursInput(el) {
 }
 
 // ─── ЗБЕРЕЖЕННЯ ГОДИН З МОДАЛКИ (ОНОВЛЕНО) ────────────────────────
-function saveHours() {
-  const inp   = document.getElementById('hours-input');
-  let val     = inp.value.trim().toLowerCase();
-  let isVacation = (val === 'вх' || val === 'вх.');
-  // Дозволяємо кому як десятковий роздільник (9,5 → 9.5)
-  let hours   = parseFloat(val.replace(',', '.'));
-
-  if (!isVacation && (inp.value === '' || isNaN(hours) || hours < 0 || hours > 24)) {
-    inp.style.borderColor = '#ef4444';
-    inp.focus();
-    setTimeout(() => inp.style.borderColor = '', 1200);
-    return;
-  }
-
+async function saveHours() {
   const btn = document.getElementById('modal-save-btn');
-  btn.disabled = true; btn.innerHTML = '⏳ Збереження...';
-
-  const location = APP.modalLocation === 'remote' ? 'remote' : 'office';
-  const isRemote = location === 'remote';
-
-  // Відправляємо "вх" або число годин на сервер (сервер сам додасть позначку "вд" для віддаленої роботи)
-  const finalValue = isVacation ? 'вх' : hours;
-
-  const saveUrl = `${API_URL}?action=saveHours`
-    + `&email=${encodeURIComponent(APP.user.email)}`
-    + `&dateKey=${encodeURIComponent(APP.modalDate)}`
-    + `&hours=${encodeURIComponent(finalValue)}`
-    + `&location=${encodeURIComponent(location)}`;
-
-  fetch(saveUrl, { method: 'GET', redirect: 'follow' })
-  .then(r => r.json())
-  .then(res => {
-    btn.disabled = false; btn.innerHTML = '💾 Зберегти';
+  if (btn.disabled) return;
+  const dateKey = APP.modalDate;
+  const hours = document.getElementById('hours-input').value.trim();
+  const additionalHours = document.getElementById('additional-hours-input').value.trim();
+  const location = APP.modalLocation;
+  let value;
+  try { value = buildHoursValue(hours, location, additionalHours); }
+  catch (err) { showToast(err.message, true); return; }
+  btn.disabled = true; btn.textContent = '⏳ Збереження...';
+  try {
+    const params = new URLSearchParams({action: 'saveHours', email: APP.user.email, dateKey, hours, location, additionalHours});
+    const response = await fetch(API_URL + '?' + params, {method: 'GET', redirect: 'follow'});
+    const res = await response.json();
     if (!res.success) throw new Error(res.error || 'Помилка сервера');
-    document.getElementById('modal-hours').classList.remove('open');
-
-    // Оновлюємо локально для швидкого відгуку інтерфейсу
-    // (дзеркалимо серверний формат: число + "вд" для віддаленої роботи)
-    APP.hoursData[APP.modalDate] = isVacation ? 'вх' : (isRemote ? `${hours.toString().replace('.', ',')}вд` : hours);
-    renderCalendar();
-    renderStats();
-    const locLabel = isRemote ? ' (віддалено)' : '';
-    showToast(`✅ ${APP.modalDate} — ${isVacation ? 'Вихідний' : hours + ' год.' + locLabel} збережено`);
-
+    APP.hoursData[dateKey] = value;
+    if (APP.modalDate === dateKey) closeModal();
+    renderCalendar(); renderStats();
+    showToast('✅ ' + dateKey + ' — ' + (value === '' ? 'запис очищено' : value + ' збережено'));
     setTimeout(() => loadInitialData(), 1500);
-  })
-  .catch(err => {
-    btn.disabled = false; btn.innerHTML = '💾 Зберегти';
-    showToast('❌ ' + (err.message || 'Помилка збереження'), true);
-  });
+  } catch (err) { showToast('❌ ' + err.message, true); }
+  finally { btn.disabled = false; btn.textContent = '💾 Зберегти'; }
 }
 
 // ─── КОМАНДА (останні 3 дні) ─────────────────
@@ -1236,7 +1263,7 @@ function renderTeam(data) {
             customClass = 'weekend-vacation';
           } else {
             const h = parsed.numeric;
-            display = (Number.isInteger(h) ? h : h.toFixed(1)) + 'г' + (parsed.isRemote ? '🏠' : '');
+            display = displayHoursParts(parsed) || '0г';
             customClass = parsed.isRemote ? 'remote-work' : 'filled';
           }
         }
