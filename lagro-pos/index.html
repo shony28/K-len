@@ -348,6 +348,7 @@
     .wcalc-key-del { background: #fee2e2; border-color: #fecaca; color: #dc2626; }
     .wcalc-key-del:active { background: #fecaca; }
     .wcalc-key-dot { font-size: 1.6rem; }
+      #cash-load-more[hidden] { display: none; }
   </style>
   
 <meta name="mobile-web-app-capable" content="yes">
@@ -454,7 +455,7 @@
                  position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(0,0,0,.06);">
     <div style="display:flex;align-items:center;gap:12px;max-width:620px;margin:0 auto;width:100%;">
       <div style="font-size:1.1rem;font-weight:900;color:#1e293b;letter-spacing:-0.5px;white-space:nowrap;">
-        🛒 Каса
+        🛒 <span style="color:#16a34a;">К'Лен</span>Каса
       </div>
 
       <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
@@ -488,7 +489,7 @@
         🛒 Оформлення чеку
       </button>
       <button class="tab-btn" id="tab-stock-btn" onclick="switchTab('stock')">
-        📦 Каса/Залишки
+        💰 Каса/Продажі
       </button>
       <button class="tab-btn" id="tab-debts-btn" onclick="switchTab('debts')">
         📋 Борги
@@ -630,15 +631,17 @@
 
     </div><!-- / tab-cart -->
 
-    <!-- ── ВКЛАДКА: ЗАЛИШКИ СКЛАДУ ── -->
+    <!-- ── ВКЛАДКА: КАСА / ПРОДАЖІ ── -->
     <div id="tab-stock" style="display:none;">
 
       <!-- Каса сьогодні -->
       <div class="card" style="padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <div style="font-weight:800;color:#1e293b;font-size:.95rem;">💰 Каса сьогодні</div>
-          <div id="cash-load-status" style="font-size:.75rem;color:#94a3b8;font-weight:600;"></div>
+          <button id="cash-refresh" type="button" class="btn btn-gray btn-sm" onclick="loadCashData()" title="Оновити касу та операції" aria-label="Оновити касу та операції">↻ Оновити</button>
         </div>
+
+        <div id="cash-load-status" role="status" aria-live="polite" style="font-size:.8rem;color:#64748b;margin-bottom:10px;"></div>
 
         <!-- Готівка / Карта / На список -->
         <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
@@ -668,45 +671,18 @@
 
         <!-- Останні операції -->
         <div style="font-weight:700;color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Останні операції</div>
-        <div id="last-sales-list">
+        <label for="cash-seller-filter" style="display:block;font-size:.8rem;font-weight:700;margin-bottom:6px;">Працівник</label>
+        <select id="cash-seller-filter" class="inp" onchange="changeCashSeller()" style="margin-bottom:10px;" disabled>
+          <option value="">Усі працівники</option>
+        </select>
+        <div style="font-size:.75rem;color:#64748b;margin-bottom:10px;">Операції за поточний місяць · від новіших до старіших</div>
+        <div id="last-sales-list" aria-busy="false">
           <div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:10px 0;">Завантаження…</div>
         </div>
+        <div id="cash-sales-count" role="status" style="font-size:.78rem;color:#64748b;margin:10px 0;"></div>
+        <button id="cash-load-more" type="button" class="btn btn-gray btn-sm btn-full" onclick="loadMoreCashSales()" hidden>Завантажити ще 10</button>
       </div>
 
-      <div class="card" style="padding:16px;margin-bottom:14px;">
-        <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:8px;font-size:.9rem;">
-          🔍 Пошук по складу
-        </label>
-        <input
-          id="stock-search"
-          class="inp"
-          type="text"
-          placeholder="Назва або ID товару…"
-          oninput="renderStockList(this.value)"
-        >
-      </div>
-
-      <div class="card" style="overflow:hidden;">
-        <!-- Заголовок таблиці -->
-        <div style="display:flex;padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:.78rem;font-weight:700;color:#94a3b8;gap:12px;">
-          <div style="flex:1;">НАЗВА / ID</div>
-          <div style="width:80px;text-align:center;">ЗАЛИШОК</div>
-          <div style="width:80px;text-align:right;">ЦІНА</div>
-        </div>
-        <div id="stock-list">
-          <div style="padding:32px;text-align:center;color:#94a3b8;font-weight:600;">Завантаження…</div>
-        </div>
-        <div id="stock-empty" style="display:none;padding:32px;text-align:center;color:#94a3b8;font-weight:600;">
-          Нічого не знайдено
-        </div>
-      </div>
-
-      <!-- Кнопка оновлення -->
-      <div style="margin-top:14px;text-align:center;">
-        <button class="btn btn-gray btn-sm" onclick="refreshData()">
-          🔄 Оновити дані зі складу
-        </button>
-      </div>
     </div><!-- / tab-stock -->
 
     <!-- ── ВКЛАДКА: БОРГИ ── -->
@@ -1145,7 +1121,6 @@ function loadInitialData(forceRefresh) {
         // Розблоковуємо кнопку продажу та перемальовуємо кошик
         renderCart();
         // Оновлюємо список складу, якщо відкрита та вкладка
-        renderStockList();
 
         // Сповіщення про товар з транзитного складу
         APP.transitPending = res.data.transitPending || [];
@@ -1592,7 +1567,7 @@ function switchTab(tab) {
 
   if (tab === 'debts') loadDebts();
 
-  if (tab === 'stock') { renderStockList(); loadCashData(); }
+  if (tab === 'stock') { loadCashData(); }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -2165,56 +2140,7 @@ function closeSuccessOverlay() {
 // ────────────────────────────────────────────────────────────────────────────
 //  📦  ВКЛАДКА СКЛАДУ
 // ────────────────────────────────────────────────────────────────────────────
-function renderStockList(query) {
-  const listEl  = document.getElementById('stock-list');
-  const emptyEl = document.getElementById('stock-empty');
 
-  if (!APP.dataLoaded || APP.stock.length === 0) {
-    listEl.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-weight:600;">
-      ${APP.dataLoaded ? 'Склад порожній' : 'Завантаження…'}
-    </div>`;
-    return;
-  }
-
-  const q = (query || '').trim().toLowerCase();
-  const filtered = q
-    ? APP.stock.filter(p => p.name.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q))
-    : APP.stock;
-
-  if (filtered.length === 0) {
-    listEl.innerHTML = '';
-    emptyEl.style.display = '';
-    return;
-  }
-
-  emptyEl.style.display = 'none';
-
-  listEl.innerHTML = filtered.map(p => {
-    let badgeClass, badgeText;
-    if (p.qty <= 0)   { badgeClass = 'badge-empty'; badgeText = 'Нема'; }
-    else if (p.qty < 3) { badgeClass = 'badge-low';   badgeText = 'Мало'; }
-    else                { badgeClass = 'badge-ok';    badgeText = 'OK';   }
-
-    return `
-      <div class="stock-row">
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;color:#1e293b;font-size:.9rem;">${escHtml(p.name)}</div>
-          ${p.id ? `<div style="font-size:.75rem;color:#94a3b8;font-weight:600;">ID: ${escHtml(p.id)}</div>` : ''}
-        </div>
-        <div style="width:80px;text-align:center;">
-          <div style="display:flex; align-items:baseline; justify-content:center; gap:4px; color:#1e293b;">
-            <span style="font-weight:800;font-size:.95rem;">${formatQty(p.qty)}</span>
-            <span style="font-size:.72rem;color:#94a3b8;">${p.unit}</span>
-          </div>
-          <span class="stock-badge ${badgeClass}" style="display:inline-block; margin-top:4px;">${badgeText}</span>
-        </div>
-        <div style="width:80px;text-align:right;font-weight:800;color:#1e293b;font-size:.9rem;">
-          ${formatPrice(p.price)} ₴
-        </div>
-      </div>
-    `;
-  }).join('');
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 //  🍞  TOAST
@@ -2339,38 +2265,92 @@ function escHtml(str) {
 // ────────────────────────────────────────────────────────────────────────────
 //  💰  КАСА СЬОГОДНІ
 // ────────────────────────────────────────────────────────────────────────────
-function loadCashData() {
-  const statusEl = document.getElementById('cash-load-status');
-  if (statusEl) statusEl.textContent = '⏳ Оновлення…';
+const CASH_VIEW = { limit: 10, seller: '', requestId: 0, busy: false, supported: false, hasMore: false };
 
-  fetch(`${API_URL}?action=getCashData`, { method: 'GET', redirect: 'follow' })
-    .then(res => res.json())
-    .then(res => {
-      if (statusEl) statusEl.textContent = '';
-      if (res.success && res.data) {
-        const { cash, card, list, tasting, lastSales, bySeller } = res.data;
-        const cashEl    = document.getElementById('cash-today-cash');
-        const cardEl    = document.getElementById('cash-today-card');
-        const listEl    = document.getElementById('cash-today-list');
-        const tastingEl = document.getElementById('cash-today-tasting');
-        if (cashEl)    cashEl.textContent    = formatPrice(cash) + ' ₴';
-        if (cardEl)    cardEl.textContent    = formatPrice(card) + ' ₴';
-        if (listEl)    listEl.textContent    = formatPrice(list || 0) + ' ₴';
-        if (tastingEl) tastingEl.textContent = formatPrice(tasting || 0) + ' ₴';
-        renderLastSales(lastSales);
-        renderCashBySeller(bySeller);
-      }
-    })
-    .catch(() => {
-      if (statusEl) statusEl.textContent = '❌';
-      const listEl = document.getElementById('last-sales-list');
-      if (listEl) listEl.innerHTML =
-        '<div style="color:#dc2626;font-size:.82rem;text-align:center;padding:8px;font-weight:600;">Помилка завантаження</div>';
-      const sellerEl = document.getElementById('cash-by-seller');
-      if (sellerEl) sellerEl.innerHTML =
-        '<div style="color:#dc2626;font-size:.82rem;text-align:center;padding:8px;font-weight:600;">Помилка завантаження</div>';
-    });
+function changeCashSeller() {
+  CASH_VIEW.seller = document.getElementById('cash-seller-filter').value;
+  CASH_VIEW.limit = 10;
+  loadCashData();
 }
+
+function loadMoreCashSales() {
+  if (!CASH_VIEW.busy && CASH_VIEW.supported && CASH_VIEW.hasMore && CASH_VIEW.limit < 20) {
+    loadCashData(20);
+  }
+}
+
+async function loadCashData(requestedLimit = CASH_VIEW.limit) {
+  const requestId = ++CASH_VIEW.requestId;
+  const seller = CASH_VIEW.seller;
+  const limit = requestedLimit === 20 ? 20 : 10;
+  const status = document.getElementById('cash-load-status');
+  const refresh = document.getElementById('cash-refresh');
+  const filter = document.getElementById('cash-seller-filter');
+  const more = document.getElementById('cash-load-more');
+  const list = document.getElementById('last-sales-list');
+  const count = document.getElementById('cash-sales-count');
+  CASH_VIEW.busy = true;
+  refresh.disabled = filter.disabled = more.disabled = true;
+  list.setAttribute('aria-busy', 'true');
+  status.textContent = '⏳ Оновлення…';
+  // Do not show the previous employee's rows under the new filter.
+  if (list.dataset.seller !== seller) {
+    renderLastSales([]);
+    list.dataset.seller = seller;
+    count.textContent = '';
+    more.hidden = true;
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const query = new URLSearchParams({ action: 'getCashData', seller, limit: String(limit) });
+    const response = await fetch(`${API_URL}?${query}`, {
+      method: 'GET', redirect: 'follow', cache: 'no-store', signal: controller.signal
+    });
+    if (!response.ok) throw new Error('HTTP error');
+    const result = await response.json();
+    if (!result.success || !result.data) throw new Error('API error');
+    if (requestId !== CASH_VIEW.requestId) return;
+    const data = result.data;
+    for (const [id, value] of [
+      ['cash-today-cash', data.cash], ['cash-today-card', data.card],
+      ['cash-today-list', data.list], ['cash-today-tasting', data.tasting]
+    ]) document.getElementById(id).textContent = formatPrice(value || 0) + ' ₴';
+    renderCashBySeller(data.bySeller);
+    CASH_VIEW.supported = data.salesApiVersion === 2;
+    if (!CASH_VIEW.supported) {
+      renderLastSales(seller ? [] : (data.lastSales || []).slice(0, 10));
+      more.hidden = true;
+      count.textContent = '';
+      status.textContent = 'Для фільтра та перегляду 20 операцій потрібно оновити бекенд Google Apps Script.';
+      return;
+    }
+    const names = [...new Set([...(data.sellers || []), ...(seller ? [seller] : [])])];
+    filter.innerHTML = '<option value="">Усі працівники</option>' + names.map(name =>
+      `<option value="${escHtml(name)}">${escHtml(name)}</option>`).join('');
+    filter.value = seller;
+    const sales = (data.lastSales || []).slice(0, limit);
+    renderLastSales(sales);
+    CASH_VIEW.limit = limit;
+    CASH_VIEW.hasMore = Boolean(data.hasMore);
+    more.hidden = !CASH_VIEW.hasMore || limit >= 20;
+    count.textContent = `Показано ${sales.length} операцій` + (sales.length === 20 ? ' · максимум 20' : '');
+    status.textContent = 'Оновлено ' + new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  } catch (error) {
+    if (requestId !== CASH_VIEW.requestId) return;
+    status.textContent = 'Не вдалося оновити дані. Натисніть «Оновити», щоб повторити.';
+  } finally {
+    clearTimeout(timeout);
+    if (requestId === CASH_VIEW.requestId) {
+      CASH_VIEW.busy = false;
+      refresh.disabled = false;
+      filter.disabled = !CASH_VIEW.supported;
+      more.disabled = false;
+      list.setAttribute('aria-busy', 'false');
+    }
+  }
+}
+
 
 /** Рендерить таблицю "продажі по продавцях" (дані з листа "Звіти", H2:H / I2:I) */
 function renderCashBySeller(bySeller) {
