@@ -349,7 +349,20 @@
     .wcalc-key-del:active { background: #fecaca; }
     .wcalc-key-dot { font-size: 1.6rem; }
       #cash-load-more[hidden] { display: none; }
-  </style>
+  .my-cash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.my-cash-metric{background:#f8fafc;border-radius:10px;padding:12px;min-width:0;}
+.my-cash-metric span{display:block;font-size:.75rem;color:#64748b;margin-bottom:5px;}
+.my-cash-metric strong{font-size:1.1rem;overflow-wrap:anywhere;}
+#cash-transfer-confirm[hidden],#cash-transfer-preview[hidden],#my-cash-earlier[hidden]{display:none;}
+@media(max-width:380px){.my-cash-grid{grid-template-columns:1fr;}}
+#cash-transfer-form { border:0; border-radius:16px; padding:0; width:min(460px,calc(100vw - 24px)); max-height:calc(100dvh - 32px); overflow:auto; color:#1e293b; box-shadow:0 20px 60px #0004; }
+#cash-transfer-form::backdrop { background:rgba(15,23,42,.55); }
+.cash-calculation { background:#f8fafc; border-radius:12px; padding:4px 12px; }
+.cash-sum-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; font-size:.88rem; }
+.cash-sum-row strong { white-space:nowrap; }
+.cash-sum-total { border-top:1px solid #bbf7d0; color:#166534; font-weight:800; font-size:1rem; }
+#my-cash-credited-row[hidden],#my-cash-pending[hidden] { display:none; }
+</style>
   
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Lagro POS">
@@ -634,10 +647,36 @@
     <!-- ── ВКЛАДКА: КАСА / ПРОДАЖІ ── -->
     <div id="tab-stock" style="display:none;">
 
+      <div class="card" id="my-cash-card" style="padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
+          <div style="font-weight:900;color:#166534;">👛 Моя каса</div>
+          <button type="button" id="my-cash-refresh" class="btn btn-gray btn-sm" onclick="loadMyCash()" aria-label="Оновити Мою касу">↻ Оновити</button>
+        </div>
+        <div id="my-cash-status" role="status" aria-live="polite" style="font-size:.82rem;color:#64748b;margin-bottom:10px;"></div>
+        <div class="cash-calculation">
+          <div class="cash-sum-row"><span>Баланс рахунку</span><strong id="my-cash-balance">—</strong></div>
+          <div class="cash-sum-row"><span>＋ Готівкова виручка сьогодні</span><strong id="my-cash-today">—</strong></div>
+          <div class="cash-sum-row" id="my-cash-credited-row" hidden><span>− Уже включено в баланс</span><strong id="my-cash-credited">—</strong></div>
+          <div id="my-cash-earlier" style="font-size:.82rem;color:#b45309;padding:8px 0;" hidden></div>
+          <div class="cash-sum-row cash-sum-total"><span>＝ Разом коштів</span><strong id="my-cash-total">—</strong></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0;flex-wrap:wrap;">
+          <div style="font-weight:800;">Доступно до інкасації: <span id="my-cash-available">—</span></div>
+          <button type="button" id="my-cash-open" class="btn btn-green btn-sm" onclick="openCashTransfer()" disabled>💵 Здати гроші</button>
+        </div>
+        <div style="font-size:.8rem;font-weight:800;color:#64748b;margin-bottom:8px;">Мої останні 5 інкасацій</div>
+        <div class="cash-sum-row" style="font-size:.85rem;margin-bottom:8px;"><span>Інкасовано сьогодні</span><strong id="my-cash-collected">—</strong></div>
+        <div id="my-cash-pending" hidden style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:10px;padding:12px;margin-bottom:12px;">
+          <div class="cash-sum-row"><span>⏳ Очікує прийняття</span><strong id="my-cash-reserved">—</strong></div>
+          <div style="font-size:.78rem;margin-top:6px;">Ця сума вже передається й недоступна для повторної інкасації.</div>
+        </div>
+        <div id="my-cash-history">Завантаження…</div>
+      </div>
+
       <!-- Каса сьогодні -->
       <div class="card" style="padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <div style="font-weight:800;color:#1e293b;font-size:.95rem;">💰 Каса сьогодні</div>
+          <div style="font-weight:800;color:#1e293b;font-size:.95rem;">💰 Каса сьогодні по всіх працівниках</div>
           <button id="cash-refresh" type="button" class="btn btn-gray btn-sm" onclick="loadCashData()" title="Оновити касу та операції" aria-label="Оновити касу та операції">↻ Оновити</button>
         </div>
 
@@ -664,7 +703,7 @@
         </div>
 
         <!-- Продажі по продавцях -->
-        <div style="font-weight:700;color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">По продавцях</div>
+        <div style="font-weight:700;color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Виручка по продавцях на сьогодні</div>
         <div id="cash-by-seller" style="margin-bottom:16px;">
           <div style="text-align:center;color:#94a3b8;font-size:.85rem;font-weight:600;padding:10px 0;">Завантаження…</div>
         </div>
@@ -847,7 +886,7 @@ let currentSaleRoundedTotal = 0;
 //  ⚙️  КОНФІГУРАЦІЯ — ОБОВ'ЯЗКОВО ЗАМІНІТЬ НА СВОЇ ЗНАЧЕННЯ
 // ────────────────────────────────────────────────────────────────────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbwk631dvIy2ubZ06X6C1TggEzq7oOoIfiQE-MEBzoSUVc-Pftb24K74uBc8lx_lvcTc-Q/exec';
-const LS_KEY  = 'posApp_user_v1'; // ключ для LocalStorage
+const LS_KEY  = 'posApp_user_v60'; // ключ для LocalStorage
 const LS_CART_KEY  = 'posApp_cart_v1';
 const LS_BUYER_KEY = 'posApp_buyer_v1';
 const PHP_TRANSIT_URL = 'https://klen.2828.pp.ua/transit_api.php';
@@ -886,7 +925,7 @@ let _transitPollTimer = null;   // інтервал опитування тра�
 // ЗАМІНІТЬ існуючий блок window.addEventListener на цей:
 window.addEventListener('DOMContentLoaded', () => {
   const saved = tryLoadFromStorage();
-  if (saved) {
+  if (saved && saved.sessionToken && saved.sessionExpiresAt > Date.now()) {
     APP.user = saved;
     if (saved.isAllowed) {
       // --- ДОДАТКОВА ЛОГІКА ДЛЯ КОШИКА ---
@@ -957,18 +996,17 @@ function handleGoogleLogin(response) {
   document.querySelector('.g_id_signin').style.display = 'none';
   document.getElementById('auth-loading').style.display = 'block';
 
-  const url = `${API_URL}?action=loginByToken&token=${encodeURIComponent(response.credential)}`;
-
-  fetch(url, { method: 'GET', redirect: 'follow' })
+  fetch(API_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({action: 'loginByToken', token: response.credential}) })
     .then(res => {
       if (!res.ok) throw new Error('Помилка сервера: ' + res.status);
       return res.json();
     })
     .then(res => {
       if (res.success) {
+        if (!res.data?.sessionToken) throw new Error("Оновіть Backend60.gs і розгортання GAS для роботи POS60.");
         onLoginSuccess(res.data);
       } else {
-        throw new Error(res.error || 'Помилка авторизації');
+        throw new Error(/Невідома POST-дія|Невідома дія/.test(res.error || '') ? 'Спочатку встановіть оновлений Backend60.gs і оновіть розгортання GAS. POS60 більше не використовує PHP для входу.' : (res.error || 'Помилка авторизації'));
       }
     })
     .catch(err => {
@@ -981,36 +1019,7 @@ function handleGoogleLogin(response) {
 /**
  * Кнопка "Оновити статус доступу" на екрані Pending.
  */
-function checkStatusAgain() {
-  if (!APP.user?.email) { handleLogout(); return; }
-
-  const btn = document.getElementById('btn-refresh-status');
-  const origText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Перевірка…';
-
-  const url = `${API_URL}?action=checkStatus&email=${encodeURIComponent(APP.user.email)}`;
-
-  fetch(url, { method: 'GET', redirect: 'follow' })
-    .then(res => res.json())
-    .then(res => {
-      btn.disabled = false;
-      btn.innerHTML = origText;
-      if (res.success && res.data) {
-        onLoginSuccess(res.data);
-        if (!res.data.isAllowed) {
-          alert('❌ Доступ ще не надано.\n\nПросіть адміністратора додати ваш email:\n' + APP.user.email);
-        }
-      } else {
-        throw new Error(res.error || 'Помилка відповіді');
-      }
-    })
-    .catch(err => {
-      btn.disabled = false;
-      btn.innerHTML = origText;
-      alert('Помилка: ' + (err.message || err));
-    });
-}
+function checkStatusAgain() { handleLogout(); }
 
 function onLoginSuccess(userInfo) {
   APP.user = userInfo;
@@ -1292,7 +1301,7 @@ function confirmTransitItem() {
   rejectBtn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Прийняття…';
 
-  fetch(API_URL, {
+  posFetch(API_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
@@ -1339,7 +1348,7 @@ function rejectTransitItem() {
   confirmBtn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Відхилення…';
 
-  fetch(API_URL, {
+  posFetch(API_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
@@ -1491,7 +1500,7 @@ function saveBuyerPhone() {
   btn.disabled = true;
   btn.innerHTML = '⏳ Збереження…';
 
-  fetch(API_URL, {
+  posFetch(API_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
@@ -2030,7 +2039,7 @@ function processSale() {
     }
   };
 
-  fetch(API_URL, {
+  posFetch(API_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
@@ -2265,6 +2274,143 @@ function escHtml(str) {
 // ────────────────────────────────────────────────────────────────────────────
 //  💰  КАСА СЬОГОДНІ
 // ────────────────────────────────────────────────────────────────────────────
+let MY_CASH = null, MY_CASH_REQUEST = 0, TRANSFER_DRAFT = null, TRANSFER_SENDING = false, TRANSFER_UNKNOWN = false;
+const transferStorageKey = () => 'pos60_transfer_'+(APP.user?.email || '');
+
+// Attach the verified session to every existing POS mutation, including sales and debt repayments.
+function posFetch(url, options) {
+  if (url === API_URL && options && options.method === 'POST') {
+    const payload = JSON.parse(options.body);
+    payload.sessionToken = APP.user?.sessionToken || '';
+    options = {...options, body:JSON.stringify(payload)};
+  }
+  return fetch(url,options);
+}
+async function cashRequest(action,data={}) {
+  if (!APP.user?.sessionToken || APP.user.sessionExpiresAt <= Date.now()) throw new Error('Увійдіть через Google повторно: сесію завершено.');
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+  try {
+    const response=await posFetch(API_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action,data}),signal:controller.signal});
+    if(!response.ok)throw new Error('Помилка з’єднання з сервером');
+    const result=await response.json();
+    if(!result.success) {
+      const error=new Error(result.error||'Не вдалося виконати операцію'); error.definitive=Boolean(result.cashRejected); throw error;
+    }
+    return result.data;
+  } finally { clearTimeout(timer); }
+}
+async function loadMyCash() {
+  const id=++MY_CASH_REQUEST, email=APP.user?.email;
+  const status=document.getElementById('my-cash-status');
+  document.getElementById('my-cash-refresh').disabled=true;
+  status.textContent='Оновлення…';
+  try {
+    const data=await cashRequest('getMyCash');
+    if(id!==MY_CASH_REQUEST || APP.user?.email!==email)return;
+    MY_CASH=data;
+    for(const [suffix,key] of [['balance','balance'],['today','todayRevenue'],['credited','creditsToday'],['collected','collectedToday'],['total','inHand'],['reserved','reserve'],['available','available']]) {
+      document.getElementById('my-cash-'+suffix).textContent=formatPrice(data[key])+' ₴';
+    }
+    document.getElementById('my-cash-credited-row').hidden=!data.creditsToday;
+    document.getElementById('my-cash-pending').hidden=!(data.reserve>0);
+    const earlier=document.getElementById('my-cash-earlier');
+    earlier.hidden=!data.unpostedEarlier;
+    earlier.textContent=(data.unpostedEarlier<0?'−':'＋')+' Незарахована різниця минулих днів: '+formatPrice(Math.abs(data.unpostedEarlier))+' ₴';
+    document.getElementById('my-cash-open').disabled=data.available<=0 || !data.recipients.length;
+    status.textContent=!data.recipients.length ? 'Одержувачів ще не налаштовано в Довіднику.' : 'Оновлено '+new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('my-cash-history').innerHTML=data.last.length ? data.last.map(r=>{
+      const posted=r.status==='Проведено', color=posted?'#166534':r.status==='Розбіжність'?'#b91c1c':'#64748b';
+      return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;gap:8px;"><span>${escHtml(r.date)}</span><strong>${formatPrice(r.amount)} ₴</strong></div>
+        <div style="margin-top:5px;">Одержувач: ${escHtml(r.recipient)}</div>
+        <div style="color:${color};font-weight:700;margin-top:5px;">${posted?'✅ Прийнято':escHtml(r.status)}</div>
+        <div style="font-size:.7rem;color:#64748b;overflow-wrap:anywhere;">№ ${escHtml(r.id)}</div>
+        ${r.deliveryError?`<div style="font-size:.75rem;color:#b45309;">${escHtml(r.deliveryError)}</div>`:''}
+      </div>`;
+    }).join(''):'<div style="color:#64748b;font-size:.85rem;">Інкасацій ще немає</div>';
+    if(!TRANSFER_DRAFT){
+      try { const saved=JSON.parse(localStorage.getItem(transferStorageKey())||'null');
+        if(saved && saved.requestId){TRANSFER_DRAFT=saved;TRANSFER_UNKNOWN=true;showCashDraft();}
+      } catch(e) { /* no saved transfer */ }
+    }
+  } catch(error) {
+    if(id===MY_CASH_REQUEST){status.textContent=error.message;document.getElementById('my-cash-open').disabled=true;}
+  } finally { if(id===MY_CASH_REQUEST)document.getElementById('my-cash-refresh').disabled=false; }
+}
+function openCashTransfer() {
+  if(!MY_CASH)return;
+  if(TRANSFER_DRAFT){showCashDraft();return;}
+  const select=document.getElementById('cash-transfer-recipient');
+  select.innerHTML=MY_CASH.recipients.map(r=>`<option value="${escHtml(r.email)}">${escHtml(r.name)}</option>`).join('');
+  if(!document.getElementById('cash-transfer-form').open)document.getElementById('cash-transfer-form').showModal();
+  document.getElementById('cash-transfer-amount').focus();
+}
+function cashFormLocked(locked) {
+  ['recipient','amount','note'].forEach(k=>document.getElementById('cash-transfer-'+k).disabled=locked);
+}
+function reviewCashTransfer() {
+  const status=document.getElementById('cash-transfer-status');
+  const raw=document.getElementById('cash-transfer-amount').value.trim().replace(',','.');
+  const amount=Number(raw), recipient=document.getElementById('cash-transfer-recipient').value;
+  const person=MY_CASH?.recipients.find(r=>r.email===recipient);
+  if(!/^\d+(?:\.\d{1,2})?$/.test(raw) || !Number.isFinite(amount) || amount<=0 || amount>MY_CASH.available || !person){status.textContent='Вкажіть одержувача та суму в межах доступного залишку (до 2 знаків після коми).';return;}
+  TRANSFER_DRAFT={requestId:crypto.randomUUID(),amount,recipient,recipientName:person.name,note:document.getElementById('cash-transfer-note').value.trim()};
+  showCashDraft();
+}
+function showCashDraft() {
+  if(!document.getElementById('cash-transfer-form').open)document.getElementById('cash-transfer-form').showModal();
+  cashFormLocked(true);
+  document.getElementById('cash-transfer-review').textContent='Ви передаєте '+TRANSFER_DRAFT.recipientName+' '+formatPrice(TRANSFER_DRAFT.amount)+' грн. Підтверджуйте після фактичної передачі грошей.';
+  document.getElementById('cash-transfer-preview').hidden=true;
+  document.getElementById('cash-transfer-confirm').hidden=false;
+  document.getElementById('cash-transfer-confirm').textContent=TRANSFER_UNKNOWN?'Повторити той самий запит':'Підтверджую передачу';
+  document.getElementById('cash-transfer-cancel').disabled=TRANSFER_UNKNOWN;
+  document.getElementById('cash-transfer-status').textContent=TRANSFER_UNKNOWN?'Результат попередньої спроби не підтверджений. Повторення перевірить ту саму заявку й не створить другу.':'';
+}
+function closeCashTransfer() {
+  if(TRANSFER_SENDING || TRANSFER_UNKNOWN)return;
+  TRANSFER_DRAFT=null;
+  document.getElementById('cash-transfer-form').close();
+  document.getElementById('my-cash-open').focus();
+  document.getElementById('cash-transfer-preview').hidden=false;
+  document.getElementById('cash-transfer-confirm').hidden=true;
+  document.getElementById('cash-transfer-review').textContent='';
+  document.getElementById('cash-transfer-status').textContent='';
+  document.getElementById('cash-transfer-amount').value='';
+  document.getElementById('cash-transfer-note').value='';
+  cashFormLocked(false);
+}
+async function submitCashTransfer() {
+  if(!TRANSFER_DRAFT || TRANSFER_SENDING)return;
+  const status=document.getElementById('cash-transfer-status');
+  // Persist the idempotency key before sending, so reloads cannot duplicate a transfer.
+  try{localStorage.setItem(transferStorageKey(),JSON.stringify(TRANSFER_DRAFT));}
+  catch(e){status.textContent='Дозвольте збереження даних сайту в браузері, щоб безпечно повторювати передачу.';return;}
+  TRANSFER_SENDING=true;TRANSFER_UNKNOWN=true;
+  document.getElementById('cash-transfer-confirm').disabled=true;
+  document.getElementById('cash-transfer-cancel').disabled=true;
+  status.textContent='Запис передачі…';
+  let completed=false;
+  try {
+    const result=await cashRequest('createCashTransfer',TRANSFER_DRAFT);
+    completed=true;TRANSFER_UNKNOWN=false;
+    localStorage.removeItem(transferStorageKey());
+    showToast('Інкасація записана. Статус: '+result.status);
+  } catch(error) {
+    if(error.definitive){TRANSFER_UNKNOWN=false;localStorage.removeItem(transferStorageKey());}
+    status.textContent=error.message+(TRANSFER_UNKNOWN?' Повторіть той самий запит — повторного списання не буде.':'');
+  } finally {
+    TRANSFER_SENDING=false;
+    document.getElementById('cash-transfer-confirm').disabled=false;
+    document.getElementById('cash-transfer-confirm').textContent=TRANSFER_UNKNOWN?'Повторити той самий запит':'Підтверджую передачу';
+    document.getElementById('cash-transfer-cancel').disabled=TRANSFER_UNKNOWN;
+    if(completed){closeCashTransfer();await loadMyCash();}
+  }
+}
+
+
+
 const CASH_VIEW = { limit: 10, seller: '', requestId: 0, busy: false, supported: false, hasMore: false };
 
 function changeCashSeller() {
@@ -2280,6 +2426,7 @@ function loadMoreCashSales() {
 }
 
 async function loadCashData(requestedLimit = CASH_VIEW.limit) {
+  loadMyCash();
   const requestId = ++CASH_VIEW.requestId;
   const seller = CASH_VIEW.seller;
   const limit = requestedLimit === 20 ? 20 : 10;
@@ -2587,7 +2734,7 @@ function submitRepayment() {
     }
   };
 
-  fetch(API_URL, {
+  posFetch(API_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
@@ -3035,5 +3182,23 @@ function wcalcConfirm() {
     </div>
   </div>
 </div>
+        <dialog id="cash-transfer-form" aria-labelledby="cash-transfer-title" oncancel="event.preventDefault();closeCashTransfer()">
+          <div style="padding:20px;">
+            <h2 id="cash-transfer-title" style="margin:0 0 18px;font-size:1.2rem;">💵 Здати гроші</h2>
+            <label for="cash-transfer-recipient" style="display:block;font-weight:700;margin-bottom:6px;">Кому передаєте гроші</label>
+            <select id="cash-transfer-recipient" class="inp" style="margin-bottom:10px;"></select>
+            <label for="cash-transfer-amount" style="display:block;font-weight:700;margin-bottom:6px;">Сума, грн</label>
+            <input id="cash-transfer-amount" class="inp" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" style="margin-bottom:10px;">
+            <label for="cash-transfer-note" style="display:block;font-weight:700;margin-bottom:6px;">Примітка (необов’язково)</label>
+            <input id="cash-transfer-note" class="inp" maxlength="500" style="margin-bottom:10px;">
+            <div id="cash-transfer-review" style="font-size:.88rem;font-weight:700;margin-bottom:10px;"></div>
+            <div id="cash-transfer-status" role="status" style="font-size:.82rem;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" id="cash-transfer-preview" class="btn btn-green btn-sm" onclick="reviewCashTransfer()">Продовжити</button>
+              <button type="button" id="cash-transfer-confirm" class="btn btn-green btn-sm" onclick="submitCashTransfer()" hidden>Підтверджую передачу</button>
+              <button type="button" id="cash-transfer-cancel" class="btn btn-gray btn-sm" onclick="closeCashTransfer()">Скасувати</button>
+            </div>
+          </div>
+        </dialog>
 </body>
 </html>
