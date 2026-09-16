@@ -360,7 +360,12 @@
 .cash-calculation { background:#f8fafc; border-radius:12px; padding:4px 12px; }
 .cash-sum-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; font-size:.88rem; }
 .cash-sum-row strong { white-space:nowrap; }
-.cash-sum-total { border-top:1px solid #bbf7d0; color:#166534; font-weight:800; font-size:1rem; }
+.cash-sum-total { color:#166534; font-weight:800; font-size:1.05rem; flex-wrap:wrap; padding:16px 0; }
+.cash-sum-total strong { font-size:1.6rem; font-weight:900; }
+.cash-calculation { background:#f0fdf4; border:1px solid #bbf7d0; }
+#my-cash-breakdown { border-top:1px solid #bbf7d0; }
+#my-cash-breakdown summary { cursor:pointer; padding:12px 0; font-size:.8rem; color:#64748b; }
+#my-cash-breakdown summary:focus-visible { outline:2px solid #16a34a; outline-offset:2px; }
 #my-cash-credited-row[hidden],#my-cash-pending[hidden] { display:none; }
 </style>
   
@@ -654,14 +659,16 @@
         </div>
         <div id="my-cash-status" role="status" aria-live="polite" style="font-size:.82rem;color:#64748b;margin-bottom:10px;"></div>
         <div class="cash-calculation">
+          <div class="cash-sum-row cash-sum-total"><span>Всього готівки в касі</span><strong id="my-cash-total">—</strong></div>
+          <details id="my-cash-breakdown">
+            <summary>Як розраховано суму</summary>
           <div class="cash-sum-row"><span>Баланс рахунку</span><strong id="my-cash-balance">—</strong></div>
           <div class="cash-sum-row"><span>＋ Готівкова виручка сьогодні</span><strong id="my-cash-today">—</strong></div>
           <div class="cash-sum-row" id="my-cash-credited-row" hidden><span>− Уже включено в баланс</span><strong id="my-cash-credited">—</strong></div>
           <div id="my-cash-earlier" style="font-size:.82rem;color:#b45309;padding:8px 0;" hidden></div>
-          <div class="cash-sum-row cash-sum-total"><span>＝ Разом коштів</span><strong id="my-cash-total">—</strong></div>
+          </details>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0;flex-wrap:wrap;">
-          <div style="font-weight:800;">Доступно до інкасації: <span id="my-cash-available">—</span></div>
           <button type="button" id="my-cash-open" class="btn btn-green btn-sm" onclick="openCashTransfer()" disabled>💵 Здати гроші</button>
         </div>
         <div style="font-size:.8rem;font-weight:800;color:#64748b;margin-bottom:8px;">Мої останні 5 інкасацій</div>
@@ -2309,7 +2316,7 @@ async function loadMyCash() {
     const data=await cashRequest('getMyCash');
     if(id!==MY_CASH_REQUEST || APP.user?.email!==email)return;
     MY_CASH=data;
-    for(const [suffix,key] of [['balance','balance'],['today','todayRevenue'],['credited','creditsToday'],['collected','collectedToday'],['total','inHand'],['reserved','reserve'],['available','available']]) {
+    for(const [suffix,key] of [['balance','balance'],['today','todayRevenue'],['credited','creditsToday'],['collected','collectedToday'],['total','inHand'],['reserved','reserve']]) {
       document.getElementById('my-cash-'+suffix).textContent=formatPrice(data[key])+' ₴';
     }
     document.getElementById('my-cash-credited-row').hidden=!data.creditsToday;
