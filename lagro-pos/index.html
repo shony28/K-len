@@ -925,7 +925,7 @@ let _transitPollTimer = null;   // інтервал опитування тра�
 // ЗАМІНІТЬ існуючий блок window.addEventListener на цей:
 window.addEventListener('DOMContentLoaded', () => {
   const saved = tryLoadFromStorage();
-  if (saved && saved.sessionToken && saved.sessionExpiresAt > Date.now()) {
+  if (saved && saved.sessionToken) {
     APP.user = saved;
     if (saved.isAllowed) {
       // --- ДОДАТКОВА ЛОГІКА ДЛЯ КОШИКА ---
@@ -2287,7 +2287,7 @@ function posFetch(url, options) {
   return fetch(url,options);
 }
 async function cashRequest(action,data={}) {
-  if (!APP.user?.sessionToken || APP.user.sessionExpiresAt <= Date.now()) throw new Error('Увійдіть через Google повторно: сесію завершено.');
+  if (!APP.user?.sessionToken) throw new Error('Увійдіть через Google, щоб отримати доступ до системи.');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
   try {
     const response=await posFetch(API_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},
