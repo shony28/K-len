@@ -519,10 +519,6 @@
   <div style="max-width:720px;margin:0 auto;width:100%;padding:16px;flex:1;">
 
     <!-- ── ВКЛАДКА: ОФОРМЛЕННЯ ЧЕКУ ── -->
-    <div id="sale-pending-banner" hidden role="status" style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:16px;margin-bottom:14px;">
-      <div id="sale-pending-text" style="overflow-wrap:anywhere;margin-bottom:10px;"></div>
-      <button id="sale-pending-retry" class="btn btn-green btn-sm" onclick="processSale()">Перевірити / повторити</button>
-    </div>
     <div id="tab-cart">
 
       <!-- Пошук товару -->
@@ -1087,7 +1083,6 @@ function showMain(user) {
 
   showScreen('screen-main');
   switchTab('cart');
-  showPendingSale_();
   loadInitialData(); // ← завантажуємо склад + покупців одним запитом
 }
 
@@ -1132,8 +1127,7 @@ function loadInitialData(forceRefresh) {
         updateCurrentUser(res.data.currentUser);
         APP.stock  = (res.data.stock || []).map(p => ({ ...p, price: parsePrice(p.price), wholesalePrice: parsePrice(p.wholesalePrice), qty: parseFloat(p.qty) || 0 }));
         APP.buyers = res.data.buyers || [];
-        APP.saleRetrySupported = res.data.saleRetryVersion === 1;
-    APP.dataLoaded = true;
+        APP.dataLoaded = true;
 
         statusEl.textContent = `✅ Завантажено ${APP.stock.length} товарів`;
         setTimeout(() => { statusEl.textContent = ''; }, 2500);
@@ -1984,32 +1978,7 @@ function onPaymentMethodChange() {
 // ────────────────────────────────────────────────────────────────────────────
 //  💳  ПРОВЕДЕННЯ ПРОДАЖУ
 // ────────────────────────────────────────────────────────────────────────────
-let SALE_SENDING=false;
-function saleStorageKey_(){return 'pos60_pending_sale:'+API_URL+':'+(APP.user?.email||'');}
-function readPendingSale_(){const raw=localStorage.getItem(saleStorageKey_());if(!raw)return null;const value=JSON.parse(raw);if(!value?.payload?.data?.requestId)throw Error('Пошкоджений збережений запит продажу. Зверніться до адміністратора.');return value;}
-function showPendingSale_(message){
-  const banner=document.getElementById('sale-pending-banner');
-  try {
-    const pending=readPendingSale_();
-    banner.hidden=!pending;
-    document.getElementById('tab-cart').inert=!!pending;
-    if(pending){
-      document.getElementById('sale-pending-text').textContent=message || ('Чек на '+formatPrice(pending.rawTotal)+' ₴ очікує перевірки. № '+pending.payload.data.requestId+'. Повторна перевірка не створює новий продаж.');
-      document.getElementById('sale-pending-retry').disabled=SALE_SENDING;
-    }
-  } catch(error){banner.hidden=false;document.getElementById('sale-pending-text').textContent=error.message;document.getElementById('tab-cart').inert=true;}
-}
-async function processSale(){
-  if(SALE_SENDING)return;
-  if(!navigator.locks){alert('Для захищеного проведення відкрийте касу через HTTPS у сучасному браузері.');return;}
-  return navigator.locks.request(saleStorageKey_(),{ifAvailable:true},async lock=>{
-    if(!lock){showPendingSale_('Цей продаж обробляється в іншій вкладці. Дочекайтеся результату.');return;}
-    try {if(!APP.saleRetrySupported){alert('Дочекайтеся завантаження даних. Якщо повідомлення повторюється — оновіть розгортання GAS для захисту від дублювання продажів.');return;}await prepareSale_();}catch(error){alert(error.message);}
-  });
-}
-async function prepareSale_() {
-  const existing=readPendingSale_();
-  if(existing)return sendPendingSale_(existing);
+function processSale() {
   const btn = document.getElementById('btn-process-sale');
   if (!btn || btn.disabled) return;
 
@@ -2055,11 +2024,13 @@ async function prepareSale_() {
 
   currentSaleRoundedTotal = roundedTotal;
 
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Надсилання…';
 
   const payload = {
     action: 'processSale',
     data: {
-      requestId: crypto.randomUUID(),
       cart: APP.cart.map(item => ({
         id:    item.id,
         name:  item.name,
@@ -2074,39 +2045,28 @@ async function prepareSale_() {
       managerName:    APP.user?.name  || ''
     }
   };
-  const pending={payload,rawTotal,roundedTotal};
-  try {localStorage.setItem(saleStorageKey_(),JSON.stringify(pending));}
-  catch(error){alert('Не вдалося зберегти чек у браузері. Продаж не надіслано.');return;}
-  return sendPendingSale_(pending);
-}
-async function sendPendingSale_(pending){
-  if(SALE_SENDING)return;
-  SALE_SENDING=true;
-  currentSaleRoundedTotal=pending.roundedTotal;
-  showPendingSale_('Перевіряємо та проводимо чек… Не створюйте його повторно.');
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),45000);
-  try {
-    const response=await posFetch(API_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify(pending.payload),signal:controller.signal});
-    if(!response.ok)throw Error('Сервер тимчасово недоступний');
-    const res=await response.json();
-    if(!res.success){
-      if(res.needsReview){showPendingSale_(res.error);return;}
-      if(res.saleRejected){localStorage.removeItem(saleStorageKey_());showPendingSale_();alert(res.error);return;}
-      throw Error(res.error || 'Результат не підтверджено');
-    }
-    // Clear the frozen cart before dropping its durable request identity.
-    APP.cart=[];saveCartToStorage();
-    localStorage.removeItem(saleStorageKey_());showPendingSale_();
-      pending.payload.data.cart.forEach(cartItem => {
+
+  posFetch(API_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(res => {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+
+    if (res.success) {
+      APP.cart.forEach(cartItem => {
         const stockItem = APP.stock.find(s => String(s.id) === String(cartItem.id));
         if (stockItem) {
           stockItem.qty = Math.max(0, Math.round((stockItem.qty - cartItem.qty) * 1000) / 1000);
         }
       });
 
-      document.getElementById('success-raw-total').textContent = formatPrice(pending.rawTotal) + ' ₴';
-      document.getElementById('success-rounded-total').textContent = formatPrice(pending.roundedTotal) + ' ₴';
+      document.getElementById('success-raw-total').textContent = formatPrice(rawTotal) + ' ₴';
+      document.getElementById('success-rounded-total').textContent = formatPrice(roundedTotal) + ' ₴';
       let dateLine = res.data?.date || new Date().toLocaleString('uk-UA');
       if (res.data?.debtId) {
         dateLine += `  •  📋 Борг: ${res.data.debtId}`;
@@ -2126,12 +2086,18 @@ async function sendPendingSale_(pending){
       const noteWrapEl = document.getElementById('debt-note-wrap');
       if (noteWrapEl) noteWrapEl.style.display = 'none';
       refreshData();
-
-  } catch(error){
-    showPendingSale_((error.name==='AbortError'?'Відповідь не надійшла за 45 секунд.':error.message)+' Чек збережено. Натисніть «Перевірити / повторити» після відновлення зв’язку.');
-  } finally {clearTimeout(timeout);SALE_SENDING=false;document.getElementById('sale-pending-retry').disabled=false;}
+    } else {
+      showToast('❌ ' + (res.error || 'Помилка проведення'), 'error');
+      alert('⚠️ Помилка:\n' + (res.error || 'Невідома помилка'));
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+    showToast('❌ Помилка мережі', 'error');
+    alert('❌ Помилка при проведенні продажу:\n' + (err.message || err));
+  });
 }
-window.addEventListener('storage',event=>{if(APP.user && event.key===saleStorageKey_()){if(event.oldValue && !event.newValue){APP.cart=[];renderCart();refreshData();}showPendingSale_();}});
 
 // ────────────────────────────────────────────────────────────────────────────
 //  🎉  УСПІШНИЙ OVERLAY
